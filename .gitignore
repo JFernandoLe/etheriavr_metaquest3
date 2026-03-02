@@ -9,6 +9,7 @@
 /[Uu]ser[Ss]ettings/
 
 # --- IDEs & Editors (VS Code, Visual Studio, JetBrains) ---
+.vs/
 .vscode/
 .idea/
 *.csproj
