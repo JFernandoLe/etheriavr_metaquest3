@@ -6,6 +6,7 @@ public class SongLoader : MonoBehaviour
     private float songStartTime;
     private bool songPlaying = false;
     private SongNote currentNote;
+    public AudioSource audioSource;
 
     void Start()
     {
@@ -28,10 +29,10 @@ public class SongLoader : MonoBehaviour
     }
     public float GetSongTime()
     {
-        if (!songPlaying)
+        if (audioSource == null)
             return 0f;
 
-        return Time.time - songStartTime;
+        return audioSource.time;
     }
     void LoadSong(string fileName)
     {
@@ -49,7 +50,11 @@ public class SongLoader : MonoBehaviour
 
     public void StartSong()
     {
-        songStartTime = Time.time;
+        if (audioSource != null)
+        {
+            audioSource.Play();
+        }
+
         songPlaying = true;
     }
 
