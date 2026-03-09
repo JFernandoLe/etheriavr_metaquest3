@@ -1,0 +1,106 @@
+{
+  "song_title": "Test Song - Für Elise (Simplificado)",
+  "artist": "Ludwig van Beethoven",
+  "tempo": 120,
+  "duration": 30.0,
+  "background_music": "test_song.mp3",
+  
+  "melody": [
+    {
+      "time": 0.0,
+      "midi": 76,
+      "duration": 0.25,
+      "hand": "right"
+    },
+    {
+      "time": 0.25,
+      "midi": 75,
+      "duration": 0.25,
+      "hand": "right"
+    },
+    {
+      "time": 0.5,
+      "midi": 76,
+      "duration": 0.25,
+      "hand": "right"
+    },
+    {
+      "time": 0.75,
+      "midi": 75,
+      "duration": 0.25,
+      "hand": "right"
+    },
+    {
+      "time": 1.0,
+      "midi": 76,
+      "duration": 0.25,
+      "hand": "right"
+    },
+    {
+      "time": 1.25,
+      "midi": 71,
+      "duration": 0.25,
+      "hand": "right"
+    },
+    {
+      "time": 1.5,
+      "midi": 74,
+      "duration": 0.25,
+      "hand": "right"
+    },
+    {
+      "time": 1.75,
+      "midi": 72,
+      "duration": 0.25,
+      "hand": "right"
+    },
+    {
+      "time": 2.0,
+      "midi": 69,
+      "duration": 0.5,
+      "hand": "right"
+    },
+    {
+      "time": 3.0,
+      "midi": 64,
+      "duration": 0.5,
+      "hand": "right"
+    },
+    {
+      "time": 3.5,
+      "midi": 67,
+      "duration": 0.5,
+      "hand": "right"
+    },
+    {
+      "time": 4.0,
+      "midi": 69,
+      "duration": 1.0,
+      "hand": "right"
+    }
+  ],
+  
+  "chords": [
+    {
+      "time": 0.0,
+      "name": "Am",
+      "notes": [45, 52, 57],
+      "duration": 2.0,
+      "hand": "left"
+    },
+    {
+      "time": 2.0,
+      "name": "E",
+      "notes": [40, 47, 52],
+      "duration": 2.0,
+      "hand": "left"
+    },
+    {
+      "time": 4.0,
+      "name": "Am",
+      "notes": [45, 52, 57],
+      "duration": 2.0,
+      "hand": "left"
+    }
+  ]
+}

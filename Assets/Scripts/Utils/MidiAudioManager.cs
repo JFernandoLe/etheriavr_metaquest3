@@ -1,7 +1,5 @@
 using UnityEngine;
 using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
 
 public class MidiAudioManager : MonoBehaviour
 {
@@ -38,12 +36,10 @@ public class MidiAudioManager : MonoBehaviour
             if (char.IsDigit(octaveChar))
             {
                 int octave = (int)char.GetNumericValue(octaveChar);
-                // La nota es todo lo que está antes del número (ej: 'c#')
                 string noteName = name.Substring(0, name.Length - 1);
 
                 if (noteOffsets.ContainsKey(noteName))
                 {
-                    // Fórmula MIDI: (Octava + 1) * 12 + Offset de la nota
                     int midiNum = (octave + 1) * 12 + noteOffsets[noteName];
                     pianoSamples[midiNum] = clip;
                     availableMidiNotes.Add(midiNum);
@@ -61,32 +57,50 @@ public class MidiAudioManager : MonoBehaviour
             s.spatialBlend = 0; 
             audioPool.Add(s);
         }
+        
+        Debug.Log($"<color=yellow>[ETHERIA]</color> Modo OPTIMIZADO: Recibiendo datos binarios (12 bytes/paquete)");
     }
 
     void Update()
     {
-        while (udpReceiver.messageQueue.TryDequeue(out string msg))
+        // ✅ OPTIMIZADO: Ahora procesa bytes directamente
+        while (udpReceiver.messageQueue.TryDequeue(out byte[] data))
         {
-            ProcessMidi(msg);
+            ProcessMidi(data);
         }
     }
 
-    void ProcessMidi(string raw)
+    // ✅ OPTIMIZADO: Parsea datos binarios (12 bytes) en vez de strings
+    void ProcessMidi(byte[] data)
     {
-        string[] p = raw.Split('|');
-        if (p.Length < 6) return;
+        // Validar que sea el tamaño correcto
+        if (data.Length != 12) return;
 
-        if (p[0] == "note")
+        // Estructura del paquete (12 bytes):
+        // [0] = tipo (0=note_off, 1=note_on, 2=cc)
+        // [1] = nota/control
+        // [2] = velocidad/valor
+        // [3] = padding
+        // [4-7] = packet ID (uint, 4 bytes) - opcional
+        // [8-11] = timestamp (float, 4 bytes) - opcional
+        
+        byte msgType = data[0];
+        byte note = data[1];
+        byte vel = data[2];
+        
+        // Procesar según el tipo de mensaje
+        if (msgType == 0 || msgType == 1) // note_off (0) o note_on (1)
         {
-            int note = int.Parse(p[2]);
-            int vel = int.Parse(p[3]);
-            if (p[1] == "note_on" && vel > 0) PlayNote(note, vel);
-            else StopNote(note);
+            if (msgType == 1 && vel > 0) 
+                PlayNote(note, vel);
+            else 
+                StopNote(note);
         }
-        else if (p[0] == "cc" && p[1] == "64")
+        else if (msgType == 2) // control_change (pedal)
         {
-            isPedalDown = int.Parse(p[2]) >= 64;
-            if (!isPedalDown) ReleaseSustain();
+            isPedalDown = vel >= 64;
+            if (!isPedalDown) 
+                ReleaseSustain();
         }
     }
 
@@ -102,11 +116,9 @@ public class MidiAudioManager : MonoBehaviour
             if (diff < minDiff) { minDiff = diff; bestBaseNote = n; }
         }
 
-        // Si es la nota exacta, el pitch será 1.0. Si no, se ajustará solo.
         float semitoneOffset = targetNote - bestBaseNote;
         float pitch = Mathf.Pow(2.0f, semitoneOffset / 12.0f);
 
-        // Dinámica de volumen
         float normalizedVel = vel / 127f;
         float curvedVolume = Mathf.Pow(normalizedVel, velocityCurve) * volumeBoost;
 

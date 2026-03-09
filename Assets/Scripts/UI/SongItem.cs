@@ -14,6 +14,12 @@ public class SongItem : MonoBehaviour
     [SerializeField] private Button btnJugar;
 
     private SongListarResponse _myFullData;
+    
+    // Propiedad pública para acceder al modo de la canción
+    public string SongMode => _myFullData?.mode;
+    
+    // Propiedad pública para verificar si es modo PIANO
+    public bool IsPianoMode => _myFullData?.mode == "PIANO";
 
     public void Setup(SongListarResponse data)
     {
@@ -70,6 +76,23 @@ public class SongItem : MonoBehaviour
         else
         {
             Debug.LogError("No se encontró el SelectedSongManager en la escena.");
+        }
+    }
+    
+    /// <summary>
+    /// Actualiza el estado del botón (habilitado/deshabilitado)
+    /// Se usa para deshabilitar canciones de PIANO cuando no hay MIDI conectado
+    /// </summary>
+    public void UpdateButtonState(bool isEnabled)
+    {
+        if (btnJugar != null)
+        {
+            btnJugar.interactable = isEnabled;
+            
+            // Opcional: Cambiar la opacidad visual para indicar que está deshabilitado
+            var colors = btnJugar.colors;
+            colors.disabledColor = new Color(0.5f, 0.5f, 0.5f, 0.5f); // Gris semi-transparente
+            btnJugar.colors = colors;
         }
     }
 }
