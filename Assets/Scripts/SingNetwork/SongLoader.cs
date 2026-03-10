@@ -7,18 +7,19 @@ public class SongLoader : MonoBehaviour
     private bool songPlaying = false;
     private SongNote currentNote;
     public AudioSource audioSource;
+    public float songOffset = -0.15f;   
 
     void Start()
     {
-        LoadSong("song_sample");
+        LoadSong("song_take_on_me");
     }
-
+        
     void Update()
     {
         if (!songPlaying || loadedSong == null)
             return;
 
-        float songTime = Time.time - songStartTime;
+        float songTime = GetSongTime() + songOffset;
 
         currentNote = GetCurrentNote(songTime);
 
