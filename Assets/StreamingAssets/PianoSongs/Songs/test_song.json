@@ -1,7 +1,8 @@
 {
   "song_title": "Test Song - Für Elise (Simplificado)",
   "artist": "Ludwig van Beethoven",
-  "tempo": 120,
+  "tempo": 60,
+  "time_signature": "4/4",
   "duration": 30.0,
   "background_music": "test_song.mp3",
   
@@ -61,6 +62,42 @@
       "hand": "right"
     },
     {
+      "time": 0.0,
+      "midi": 45,
+      "duration": 2.0,
+      "hand": "left"
+    },
+    {
+      "time": 0.0,
+      "midi": 52,
+      "duration": 2.0,
+      "hand": "left"
+    },
+    {
+      "time": 0.0,
+      "midi": 57,
+      "duration": 2.0,
+      "hand": "left"
+    },
+    {
+      "time": 2.0,
+      "midi": 40,
+      "duration": 2.0,
+      "hand": "left"
+    },
+    {
+      "time": 2.0,
+      "midi": 47,
+      "duration": 2.0,
+      "hand": "left"
+    },
+    {
+      "time": 2.0,
+      "midi": 52,
+      "duration": 2.0,
+      "hand": "left"
+    },
+    {
       "time": 3.0,
       "midi": 64,
       "duration": 0.5,
@@ -77,6 +114,60 @@
       "midi": 69,
       "duration": 1.0,
       "hand": "right"
+    },
+    {
+      "time": 4.0,
+      "midi": 45,
+      "duration": 2.0,
+      "hand": "left"
+    },
+    {
+      "time": 4.0,
+      "midi": 52,
+      "duration": 2.0,
+      "hand": "left"
+    },
+    {
+      "time": 4.0,
+      "midi": 57,
+      "duration": 2.0,
+      "hand": "left"
+    },
+    {
+      "time": 5.0,
+      "midi": 76,
+      "duration": 0.25,
+      "hand": "right"
+    },
+    {
+      "time": 5.25,
+      "midi": 75,
+      "duration": 0.25,
+      "hand": "right"
+    },
+    {
+      "time": 5.5,
+      "midi": 76,
+      "duration": 0.25,
+      "hand": "right"
+    },
+    {
+      "time": 6.0,
+      "midi": 40,
+      "duration": 2.0,
+      "hand": "left"
+    },
+    {
+      "time": 6.0,
+      "midi": 47,
+      "duration": 2.0,
+      "hand": "left"
+    },
+    {
+      "time": 6.0,
+      "midi": 52,
+      "duration": 2.0,
+      "hand": "left"
     }
   ],
   
@@ -99,6 +190,13 @@
       "time": 4.0,
       "name": "Am",
       "notes": [45, 52, 57],
+      "duration": 2.0,
+      "hand": "left"
+    },
+    {
+      "time": 6.0,
+      "name": "E",
+      "notes": [40, 47, 52],
       "duration": 2.0,
       "hand": "left"
     }

@@ -25,6 +25,9 @@ public class MIDIStatusReceiver : MonoBehaviour
     private object statusLock = new object();
     private bool pendingStatusUpdate = false;
     private bool pendingStatus = false;
+    
+    // Flag para detener el hilo de forma segura
+    private volatile bool keepRunning = true;
 
     void Start() 
     {
@@ -39,33 +42,51 @@ public class MIDIStatusReceiver : MonoBehaviour
 
     private void ReceiveStatusData() 
     {
-        client = new UdpClient(statusPort);
-        
-        while (true) 
+        try 
         {
-            try 
+            client = new UdpClient(statusPort);
+            client.Client.ReceiveTimeout = 1000; // Timeout de 1 segundo para no bloquear indefinidamente
+            
+            while (keepRunning) 
             {
-                IPEndPoint anyIP = new IPEndPoint(IPAddress.Any, 0);
-                byte[] data = client.Receive(ref anyIP);
-                
-                // Validar tamaño del paquete (12 bytes estándar)
-                if (data.Length == 12) 
+                try 
                 {
-                    // [0] = tipo (3=conectado, 4=desconectado)
-                    byte msgType = data[0];
+                    IPEndPoint anyIP = new IPEndPoint(IPAddress.Any, 0);
+                    byte[] data = client.Receive(ref anyIP);
                     
-                    bool isConnected = (msgType == 3);
-                    
-                    lock (statusLock) 
+                    // Validar tamaño del paquete (12 bytes estándar)
+                    if (data.Length == 12) 
                     {
-                        pendingStatusUpdate = true;
-                        pendingStatus = isConnected;
+                        // [0] = tipo (3=conectado, 4=desconectado)
+                        byte msgType = data[0];
+                        
+                        bool isConnected = (msgType == 3);
+                        
+                        lock (statusLock) 
+                        {
+                            pendingStatusUpdate = true;
+                            pendingStatus = isConnected;
+                        }
+                    }
+                } 
+                catch (SocketException) 
+                {
+                    // Timeout normal - continuar
+                }
+                catch (Exception e) 
+                {
+                    if (keepRunning) 
+                    {
+                        Debug.LogWarning($"<color=yellow>[MIDI Status]</color> Error recibiendo: {e.Message}");
                     }
                 }
-            } 
-            catch (Exception e) 
+            }
+        } 
+        finally 
+        {
+            if (client != null) 
             {
-                Debug.LogWarning($"<color=yellow>[MIDI Status]</color> Error recibiendo: {e.Message}");
+                client.Close();
             }
         }
     }
@@ -102,25 +123,35 @@ public class MIDIStatusReceiver : MonoBehaviour
 
     void OnApplicationQuit() 
     {
-        if (receiveThread != null) 
-        {
-            receiveThread.Abort();
-        }
-        if (client != null) 
-        {
-            client.Close();
-        }
+        StopReceiving();
     }
     
     void OnDestroy()
     {
-        if (receiveThread != null) 
+        StopReceiving();
+    }
+    
+    private void StopReceiving()
+    {
+        keepRunning = false;
+        
+        if (receiveThread != null && receiveThread.IsAlive) 
         {
-            receiveThread.Abort();
+            // Dar tiempo para que el hilo termine naturalmente
+            if (!receiveThread.Join(2000)) 
+            {
+                // Si no termina en 2 segundos, abortar
+                receiveThread.Abort();
+            }
         }
+        
         if (client != null) 
         {
-            client.Close();
+            try 
+            {
+                client.Close();
+            } 
+            catch { }
         }
     }
 }

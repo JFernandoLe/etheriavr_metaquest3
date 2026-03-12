@@ -13,8 +13,13 @@ public class NoteSpawner : MonoBehaviour
     [SerializeField] private StaffRenderer bassStaff; // Pentagrama de clave de Fa
     
     [Header("Configuración")]
-    [SerializeField] private float spawnAheadTime = 3f; // Cuántos segundos antes spawear
-    [SerializeField] private float noteSpeed = 1.5f; // Velocidad de las notas (m/s)
+    [SerializeField] private float spawnAheadTime = 6f; // Cuántos segundos antes spawear (MÁS TIEMPO = notas más lentas)
+    [SerializeField] private float noteSpeed = 1.0f; // Velocidad base (se calcula dinámicamente)
+    
+    [Header("Modo Continuo")]
+    [SerializeField] private bool useContinuousMode = true; // Generar notas automáticamente por 1 minuto
+    [SerializeField] private float continuousDuration = 60f; // Duración en segundos (1 minuto)
+    [SerializeField] private float noteInterval = 0.5f; // Intervalo entre notas/acordes (segundos)
     
     private PianoSongData currentSong;
     private List<PianoNoteData> allNotes = new List<PianoNoteData>();
@@ -32,7 +37,15 @@ public class NoteSpawner : MonoBehaviour
         allNotes.Clear();
         nextNoteIndex = 0;
         
-        // Combinar todas las notas de melodía en una lista ordenada por tiempo
+        // MODO CONTINUO: Generar notas automáticamente por 1 minuto
+        if (useContinuousMode)
+        {
+            GenerateContinuousNotes();
+            Debug.Log($"[NoteSpawner] MODO CONTINUO: {allNotes.Count} notas generadas para {continuousDuration}s");
+            return;
+        }
+        
+        // Modo normal: usar datos de la canción
         if (songData.melody != null)
         {
             allNotes.AddRange(songData.melody);
@@ -42,6 +55,71 @@ public class NoteSpawner : MonoBehaviour
         allNotes.Sort((a, b) => a.time.CompareTo(b.time));
         
         Debug.Log($"[NoteSpawner] Canción cargada: {allNotes.Count} notas preparadas");
+    }
+    
+    /// <summary>
+    /// Genera notas musicales continuas por 1 minuto
+    /// Alterna entre notas individuales y acordes simples
+    /// </summary>
+    private void GenerateContinuousNotes()
+    {
+        // Escala de Do mayor (C major): C, D, E, F, G, A, B
+        int[] majorScale = { 60, 62, 64, 65, 67, 69, 71, 72 }; // MIDI notes
+        
+        // Acordes simples en Do mayor
+        int[][] chords = new int[][]
+        {
+            new int[] { 60, 64, 67 }, // C major (Do-Mi-Sol)
+            new int[] { 62, 65, 69 }, // D minor (Re-Fa-La)
+            new int[] { 64, 67, 71 }, // E minor (Mi-Sol-Si)
+            new int[] { 65, 69, 72 }, // F major (Fa-La-Do)
+            new int[] { 67, 71, 62 }, // G major (Sol-Si-Re)
+        };
+        
+        float currentTime = 0f;
+        int patternIndex = 0;
+        
+        while (currentTime < continuousDuration)
+        {
+            // Alternar entre nota individual (índice par) y acorde (índice impar)
+            if (patternIndex % 2 == 0)
+            {
+                // Nota individual (mano derecha)
+                int noteIndex = Random.Range(0, majorScale.Length);
+                PianoNoteData note = new PianoNoteData
+                {
+                    midi = majorScale[noteIndex],
+                    time = currentTime,
+                    duration = noteInterval * 0.8f,
+                    hand = "right"
+                };
+                allNotes.Add(note);
+            }
+            else
+            {
+                // Acorde (mano izquierda)
+                int chordIndex = Random.Range(0, chords.Length);
+                int[] chord = chords[chordIndex];
+                
+                foreach (int midi in chord)
+                {
+                    PianoNoteData note = new PianoNoteData
+                    {
+                        midi = midi - 12, // Una octava más grave para mano izquierda
+                        time = currentTime,
+                        duration = noteInterval * 1.2f,
+                        hand = "left"
+                    };
+                    allNotes.Add(note);
+                }
+            }
+            
+            currentTime += noteInterval;
+            patternIndex++;
+        }
+        
+        // Ordenar por tiempo
+        allNotes.Sort((a, b) => a.time.CompareTo(b.time));
     }
 
     /// <summary>
@@ -132,26 +210,38 @@ public class NoteSpawner : MonoBehaviour
             return;
         }
         
-        // Calcular posición de spawn (extremo derecho del pentagrama)
-        Vector3 spawnPos = targetStaff.GetSpawnPoint();
+        // IMPORTANTE: Hacer que la nota sea hija del pentagrama para que se mueva con él
+        noteObj.transform.SetParent(targetStaff.transform, false);
         
-        // Ajustar altura según la nota MIDI
+        // Calcular posición de spawn (extremo izquierdo del pentagrama) EN ESPACIO LOCAL
+        Vector3 spawnPos = targetStaff.transform.InverseTransformPoint(targetStaff.GetSpawnPoint());
+        
+        // Ajustar altura según la nota MIDI - ESTO POSICIONA LA NOTA EN LA LÍNEA CORRECTA
         float noteY = targetStaff.GetNoteYPosition(noteData.midi);
-        spawnPos.y += noteY;
+        spawnPos.y = noteY; // Establecer Y directamente (no sumar)
         
-        // Calcular posición de hit (línea de acierto)
-        Vector3 hitPos = targetStaff.GetHitPoint();
+        // Crear líneas ledger si la nota está fuera del pentagrama estándar
+        targetStaff.CreateLedgerLinesForNote(noteY);
+        
+        // Calcular posición de hit (línea de acierto) EN ESPACIO LOCAL
+        Vector3 hitPos = targetStaff.transform.InverseTransformPoint(targetStaff.GetHitPoint());
         hitPos.y = spawnPos.y; // Misma altura
         
-        // Calcular velocidad necesaria para llegar al hit point en el tiempo correcto
-        float distance = Vector3.Distance(spawnPos, hitPos);
-        float travelTime = spawnAheadTime;
-        float calculatedSpeed = distance / travelTime;
+        // Posición local
+        noteObj.transform.localPosition = spawnPos;
         
-        // Inicializar la nota
+        // Calcular velocidad necesaria para llegar al hit point EXACTAMENTE en el tiempo correcto
+        // La distancia es entre spawn point (izquierda) y hit point (derecha)
+        float distance = Vector3.Distance(spawnPos, hitPos);
+        
+        // El tiempo de viaje debe ser igual a spawnAheadTime para sincronización perfecta
+        // Velocidad = Distancia / Tiempo
+        float calculatedSpeed = distance / spawnAheadTime;
+        
+        // Inicializar la nota con velocidad calculada precisa
         note.Initialize(noteData, spawnPos, hitPos, calculatedSpeed);
         
-        Debug.Log($"[NoteSpawner] Nota spawneada: MIDI {noteData.midi} en {spawnPos}");
+        Debug.Log($"[NoteSpawner] ✅ Nota: MIDI {noteData.midi} ({noteData.hand}) | Y={noteY:F3}m | Tiempo: {noteData.time}s | Vel: {calculatedSpeed:F2}m/s");
     }
 
     /// <summary>

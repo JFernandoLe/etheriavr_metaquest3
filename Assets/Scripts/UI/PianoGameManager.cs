@@ -19,9 +19,11 @@ public class PianoGameManager : MonoBehaviour
     
     [Header("VR Positioning")]
     [SerializeField] private Transform vrCamera; // Cámara del jugador
-    [SerializeField] private float staffDistance = 0.7f; // Distancia del pentagrama (igual que LoginCanvas)
-    [SerializeField] private float trebleYOffset = 0.3f; // Altura del pentagrama superior
-    [SerializeField] private float bassYOffset = -0.2f; // Altura del pentagrama inferior
+    [SerializeField] private bool enableFollowCanvas = false; // DESACTIVADO - Pentagramas FIJOS (no rotan ni se mueven)
+    [SerializeField] private float staffDistance = -500.0f; // Distancia del pentagrama (20cm - MUY MUY CERCA de la cara)
+    [SerializeField] private float trebleYOffset = 0.5f; // Altura del pentagrama superior (clave de Sol)
+    [SerializeField] private float bassYOffset = -0.5f; // Altura del pentagrama inferior (clave de Fa) - separación 1.0m
+    [SerializeField] private float followSmoothSpeed = 5f; // Suavidad del seguimiento (menor = más suave)
     
     [Header("Estado del Juego")]
     public PianoSongData currentSongData;
@@ -78,6 +80,99 @@ public class PianoGameManager : MonoBehaviour
         {
             gameTime += Time.deltaTime;
         }
+        
+        // FOLLOW CANVAS COMPLETAMENTE DESACTIVADO
+        // Los pentagramas son 100% FIJOS - no se mueven ni rotan NUNCA
+        // Usa las posiciones manuales configuradas en la jerarquía de Unity
+    }
+    
+    /// <summary>
+    /// [DESACTIVADO] Actualiza la posición de los pentagramas para seguir la cámara del jugador
+    /// Este método está COMPLETAMENTE DESACTIVADO - los pentagramas son 100% FIJOS
+    /// </summary>
+    private void UpdateStaffPositions()
+    {
+        // ESTE MÉTODO HA SIDO DESACTIVADO
+        // Los pentagramas NO SE MUEVEN - permanecen en la posición fija de la jerarquía
+        return;
+        
+        /* CÓDIGO COMENTADO - NO SE EJECUTA
+        if (vrCamera == null) return;
+        
+        // Solo actualizar si los pentagramas existen
+        if (trebleStaff == null && bassStaff == null) return;
+        
+        // Calcular posición frente al jugador (follow canvas)
+        Vector3 forward = vrCamera.forward;
+        forward.y = 0; // Mantener horizontal
+        forward.Normalize();
+        
+        // Posición base frente al jugador a la distancia configurada
+        Vector3 basePosition = vrCamera.position + forward * staffDistance;
+        
+        // Actualizar posición del pentagrama de clave de Sol (arriba)
+        if (trebleStaff != null)
+        {
+            Vector3 targetPos = basePosition + Vector3.up * trebleYOffset;
+            
+            // Suavizar movimiento
+            trebleStaff.transform.position = Vector3.Lerp(
+                trebleStaff.transform.position, 
+                targetPos, 
+                Time.deltaTime * followSmoothSpeed
+            );
+            
+            // IMPORTANTE: Mantener el pentagrama VERTICAL (líneas horizontales)
+            // Rotar para que las notas se muevan HACIA el jugador (de izquierda a derecha)
+            Vector3 directionToCamera = vrCamera.position - trebleStaff.transform.position;
+            directionToCamera.y = 0; // Solo rotación horizontal
+            
+            if (directionToCamera.magnitude > 0.01f)
+            {
+                // Calcular rotación para que mire AL jugador
+                Quaternion targetRotation = Quaternion.LookRotation(directionToCamera);
+                // Mantener solo rotación en Y (horizontal)
+                targetRotation = Quaternion.Euler(0, targetRotation.eulerAngles.y, 0);
+                
+                trebleStaff.transform.rotation = Quaternion.Slerp(
+                    trebleStaff.transform.rotation,
+                    targetRotation,
+                    Time.deltaTime * followSmoothSpeed
+                );
+            }
+        }
+        
+        // Actualizar posición del pentagrama de clave de Fa (abajo)
+        if (bassStaff != null)
+        {
+            Vector3 targetPos = basePosition + Vector3.up * bassYOffset;
+            
+            // Suavizar movimiento
+            bassStaff.transform.position = Vector3.Lerp(
+                bassStaff.transform.position,
+                targetPos,
+                Time.deltaTime * followSmoothSpeed
+            );
+            
+            // IMPORTANTE: Mantener el pentagrama VERTICAL (líneas horizontales)
+            Vector3 directionToCamera = vrCamera.position - bassStaff.transform.position;
+            directionToCamera.y = 0;
+            
+            if (directionToCamera.magnitude > 0.01f)
+            {
+                // Calcular rotación para que mire AL jugador
+                Quaternion targetRotation = Quaternion.LookRotation(directionToCamera);
+                // Mantener solo rotación en Y (horizontal)
+                targetRotation = Quaternion.Euler(0, targetRotation.eulerAngles.y, 0);
+                
+                bassStaff.transform.rotation = Quaternion.Slerp(
+                    bassStaff.transform.rotation,
+                    targetRotation,
+                    Time.deltaTime * followSmoothSpeed
+                );
+            }
+        }
+        */
     }
     
     /// <summary>
@@ -148,53 +243,27 @@ public class PianoGameManager : MonoBehaviour
         Debug.Log("<color=cyan>[PianoGame]</color> Preparando gameplay...");
         
         // FASE 3: Configurar sistema visual
-        PositionStaffsInVR();
         LoadSongIntoSpawner();
         SetupCountdown();
         
         gameplayReady = true;
+        
+        // Log de configuración de follow canvas
+        if (enableFollowCanvas)
+        {
+            Debug.Log($"<color=yellow>[PianoGame]</color> Follow Canvas: ACTIVADO (distancia={staffDistance}m)");
+        }
+        else
+        {
+            Debug.Log("<color=green>[PianoGame]</color> Follow Canvas: DESACTIVADO - Usando posiciones manuales de jerarquía");
+        }
         
         // Iniciar countdown automáticamente
         Debug.Log("<color=green>[PianoGame]</color> ✅ Todo listo, iniciando countdown...");
         StartCountdownSequence();
     }
     
-    /// <summary>
-    /// Posiciona los pentagramas frente al jugador en VR
-    /// </summary>
-    private void PositionStaffsInVR()
-    {
-        if (vrCamera == null)
-        {
-            Debug.LogWarning("[PianoGame] No hay cámara VR, usando posición por defecto");
-            return;
-        }
-        
-        // Calcular posición frente al jugador
-        Vector3 forward = vrCamera.forward;
-        forward.y = 0; // Mantener horizontal
-        forward.Normalize();
-        
-        Vector3 basePosition = vrCamera.position + forward * staffDistance;
-        
-        // Posicionar pentagrama de clave de Sol (arriba)
-        if (trebleStaff != null)
-        {
-            trebleStaff.transform.position = basePosition + Vector3.up * trebleYOffset;
-            trebleStaff.transform.LookAt(vrCamera);
-            trebleStaff.transform.Rotate(0, 180f, 0); // Voltear para que mire al jugador
-            Debug.Log($"[PianoGame] Pentagrama Treble posicionado en {trebleStaff.transform.position}");
-        }
-        
-        // Posicionar pentagrama de clave de Fa (abajo)
-        if (bassStaff != null)
-        {
-            bassStaff.transform.position = basePosition + Vector3.up * bassYOffset;
-            bassStaff.transform.LookAt(vrCamera);
-            bassStaff.transform.Rotate(0, 180f, 0);
-            Debug.Log($"[PianoGame] Pentagrama Bass posicionado en {bassStaff.transform.position}");
-        }
-    }
+    // PositionStaffsInVR() ELIMINADA - ahora usa UpdateStaffPositions() en Update()
     
     /// <summary>
     /// Carga la canción en el spawner

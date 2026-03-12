@@ -421,6 +421,52 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 3775619882160141235, guid: 2a3e1e176c8dcfd4db59e20030b74013, type: 3}
   m_PrefabInstance: {fileID: 1371341510}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &67779660
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 67779662}
+  - component: {fileID: 67779661}
+  m_Layer: 0
+  m_Name: PlayerSpawnManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &67779661
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 67779660}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2f9494d03ad503948ac8bd3ac2f15df8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerSpawnPoint
+  spawnPosition: {x: 0.46, y: -1.5, z: -14}
+  spawnRotationY: 0
+--- !u!4 &67779662
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 67779660}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.72667, y: -1.475, z: -14.92649}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &87077694
 GameObject:
   m_ObjectHideFlags: 0
@@ -455,6 +501,9 @@ MonoBehaviour:
   bassStaff: {fileID: 1501256050}
   spawnAheadTime: 3
   noteSpeed: 1.5
+  useContinuousMode: 1
+  continuousDuration: 60
+  noteInterval: 0.5
 --- !u!4 &87077696
 Transform:
   m_ObjectHideFlags: 0
@@ -464,7 +513,7 @@ Transform:
   m_GameObject: {fileID: 87077694}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 6.28052, y: 5.45421, z: -0.41885}
+  m_LocalPosition: {x: 0.46, y: 1.5, z: -10}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1648,7 +1697,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HitLineRenderer
   lineHeight: 0.8
-  lineThickness: 0.02
+  lineThickness: 0.1
   lineColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   enablePulse: 1
   pulseSpeed: 2
@@ -3746,7 +3795,7 @@ Canvas:
   m_Enabled: 1
   serializedVersion: 3
   m_RenderMode: 2
-  m_Camera: {fileID: 0}
+  m_Camera: {fileID: 1154267660}
   m_PlaneDistance: 100
   m_PixelPerfect: 0
   m_ReceivesEvents: 1
@@ -8741,9 +8790,11 @@ MonoBehaviour:
   noteSpawner: {fileID: 87077695}
   chordDetectorUI: {fileID: 578800902}
   vrCamera: {fileID: 1028999485}
-  staffDistance: 0.7
+  enableFollowCanvas: 0
+  staffDistance: 5
   trebleYOffset: 0.3
   bassYOffset: -0.2
+  followSmoothSpeed: 5
   currentSongData:
     song_title: 
     artist: 
@@ -8763,7 +8814,7 @@ Transform:
   m_GameObject: {fileID: 1326300796}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.45, y: 1.5, z: -10}
+  m_LocalPosition: {x: 0.45, y: 1.5, z: -11}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -10029,11 +10080,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StaffRenderer
   staffType: 1
-  staffWidth: 3
-  lineSpacing: 0.15
-  lineThickness: 0.01
-  lineMaterial: {fileID: 10302, guid: 0000000000000000f000000000000000, type: 0}
-  lineColor: {r: 0.3, g: 0.2, b: 0.15, a: 1}
+  staffWidth: 4
+  lineSpacing: 0.1
+  lineThickness: 0.001
+  lineColor: {r: 1, g: 1, b: 1, a: 1}
+  ledgerLineWidth: 0.4
+  maxLedgerLinesAbove: 3
+  maxLedgerLinesBelow: 3
 --- !u!4 &1501256051
 Transform:
   m_ObjectHideFlags: 0
@@ -10043,7 +10096,7 @@ Transform:
   m_GameObject: {fileID: 1501256049}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.39386, y: 0.29577, z: -0.5}
+  m_LocalPosition: {x: 0.46, y: -1, z: -11.5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -10735,9 +10788,11 @@ MonoBehaviour:
   noteSpawner: {fileID: 0}
   chordDetectorUI: {fileID: 0}
   vrCamera: {fileID: 0}
+  enableFollowCanvas: 0
   staffDistance: 0.7
   trebleYOffset: 0.3
   bassYOffset: -0.2
+  followSmoothSpeed: 5
   currentSongData:
     song_title: 
     artist: 
@@ -11096,7 +11151,7 @@ RectTransform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1631705709}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -10}
+  m_LocalPosition: {x: 0, y: 0, z: -150}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -11104,7 +11159,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: -100}
   m_SizeDelta: {x: 400, y: 200}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!4 &1640424758 stripped
@@ -11843,7 +11898,7 @@ RectTransform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1756530939}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -10}
+  m_LocalPosition: {x: 0, y: 0, z: -11}
   m_LocalScale: {x: 0.01, y: 0.01, z: 0.01}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -12175,7 +12230,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HitLineRenderer
   lineHeight: 0.8
-  lineThickness: 0.02
+  lineThickness: 5
   lineColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   enablePulse: 1
   pulseSpeed: 2
@@ -12210,11 +12265,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StaffRenderer
   staffType: 0
-  staffWidth: 3
-  lineSpacing: 0.15
-  lineThickness: 0.01
-  lineMaterial: {fileID: 10302, guid: 0000000000000000f000000000000000, type: 0}
-  lineColor: {r: 0.3, g: 0.2, b: 0.15, a: 1}
+  staffWidth: 4
+  lineSpacing: 0.1
+  lineThickness: 0.001
+  lineColor: {r: 1, g: 1, b: 1, a: 1}
+  ledgerLineWidth: 0.4
+  maxLedgerLinesAbove: 3
+  maxLedgerLinesBelow: 3
 --- !u!4 &1806172981
 Transform:
   m_ObjectHideFlags: 0
@@ -12224,7 +12281,7 @@ Transform:
   m_GameObject: {fileID: 1806172979}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 6.28052, y: 5.45421, z: -0.41885}
+  m_LocalPosition: {x: 0.45, y: 1, z: -11.5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -14424,3 +14481,4 @@ SceneRoots:
   - {fileID: 1501256051}
   - {fileID: 87077696}
   - {fileID: 578800906}
+  - {fileID: 67779662}

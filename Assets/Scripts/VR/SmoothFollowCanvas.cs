@@ -2,6 +2,9 @@ using UnityEngine;
 
 public class SmoothFollowCanvas : MonoBehaviour
 {
+    [Header("Control")]
+    [SerializeField] private bool enableFollowing = false; // DESACTIVADO por defecto - objetos FIJOS
+    
     public Transform cameraTransform;
     public float distance = 0.7f;
     public float damping = 0.8f;
@@ -20,6 +23,9 @@ public class SmoothFollowCanvas : MonoBehaviour
 
     void LateUpdate()
     {
+        // SI ESTÁ DESACTIVADO, NO HACER NADA - objeto permanece FIJO
+        if (!enableFollowing) return;
+        
         if (cameraTransform == null) return;
 
         Vector3 forward = cameraTransform.forward;

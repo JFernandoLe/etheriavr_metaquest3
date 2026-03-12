@@ -10,18 +10,24 @@ public class StaffRenderer : MonoBehaviour
     [SerializeField] private StaffType staffType = StaffType.Treble;
     
     [Header("Dimensiones")]
-    [SerializeField] private float staffWidth = 3f; // Ancho del pentagrama
+    [SerializeField] private float staffWidth = 3f; // Ancho del pentagrama (3 metros)
     [SerializeField] private float lineSpacing = 0.15f; // Espaciado entre líneas
-    [SerializeField] private float lineThickness = 0.01f; // Grosor de línea
-    
-    [Header("Materiales")]
-    [SerializeField] private Material lineMaterial; // Material para las líneas
+    [SerializeField] private float lineThickness = 0.35f; // Grosor de línea (EXTRA EXTRA grueso para VR)
     
     [Header("Colores")]
-    [SerializeField] private Color lineColor = new Color(0.3f, 0.2f, 0.15f); // Color café oscuro
+    [SerializeField] private Color lineColor = Color.white; // Color blanco para mejor visibilidad
+    
+    [Header("Líneas Dinámicas")]
+    [SerializeField] private float ledgerLineWidth = 0.4f; // Ancho de líneas auxiliares (más cortas)
+    [SerializeField] private int maxLedgerLinesAbove = 3; // Máximo de líneas extras arriba
+    [SerializeField] private int maxLedgerLinesBelow = 3; // Máximo de líneas extras abajo
 
     private GameObject[] staffLines = new GameObject[5]; // 5 líneas del pentagrama
     private GameObject clefSymbol; // Símbolo de clave (Sol o Fa)
+    private GameObject hitLine; // Línea amarilla de hit
+    private GameObject ledgerLinesContainer; // Contenedor para líneas adicionales
+    
+    private float currentVerticalOffset = 0f; // Offset vertical para scroll
 
     public enum StaffType
     {
@@ -29,10 +35,39 @@ public class StaffRenderer : MonoBehaviour
         Bass    // Clave de Fa (mano izquierda)
     }
 
+    void Awake()
+    {
+        // LIMPIEZA EN AWAKE: Eliminar TODOS los hijos antes de Start()
+        CleanOldStaffLines();
+    }
+
     void Start()
     {
         CreateStaff();
         CreateClefSymbol();
+        CreateHitLine(); // Crear línea amarilla de hit
+        
+        // NO ROTAR - El pentagrama está en orientación normal
+        // Las notas irán de DERECHA a IZQUIERDA usando spawn/hit points correctos
+        Debug.Log($"[StaffRenderer] Pentagrama creado - Notas irán de DERECHA → IZQUIERDA");
+    }
+    
+    /// <summary>
+    /// Elimina TODAS las líneas y objetos hijos del pentagrama
+    /// </summary>
+    private void CleanOldStaffLines()
+    {
+        Debug.Log($"[StaffRenderer] 🧹 LIMPIANDO {transform.childCount} objetos hijos...");
+        
+        // ELIMINAR TODOS LOS HIJOS sin excepciones
+        while (transform.childCount > 0)
+        {
+            Transform child = transform.GetChild(0);
+            Debug.Log($"[StaffRenderer] 🗑️ Destruyendo: {child.name}");
+            DestroyImmediate(child.gameObject);
+        }
+        
+        Debug.Log($"[StaffRenderer] ✅ Limpieza completa. Hijos restantes: {transform.childCount}");
     }
 
     /// <summary>
@@ -40,6 +75,33 @@ public class StaffRenderer : MonoBehaviour
     /// </summary>
     private void CreateStaff()
     {
+        // INTENTAR MÚLTIPLES SHADERS como fallback
+        Shader shader = Shader.Find("Unlit/Color");
+        if (shader == null)
+        {
+            Debug.LogError("[StaffRenderer] ❌ Shader 'Unlit/Color' NO ENCONTRADO! Intentando Standard...");
+            shader = Shader.Find("Standard");
+        }
+        if (shader == null)
+        {
+            Debug.LogError("[StaffRenderer] ❌ Shader 'Standard' NO ENCONTRADO! Usando shader por defecto...");
+            shader = Shader.Find("Diffuse");
+        }
+        
+        if (shader == null)
+        {
+            Debug.LogError("[StaffRenderer] 💀 NINGÚN SHADER DISPONIBLE! Las líneas serán ROSAS");
+        }
+        else
+        {
+            Debug.Log($"[StaffRenderer] ✅ Shader encontrado: {shader.name}");
+        }
+        
+        Material unlitMaterial = new Material(shader != null ? shader : Shader.Find("UI/Default"));
+        unlitMaterial.color = lineColor;
+        
+        Debug.Log($"[StaffRenderer] 🎵 Creando pentagrama {staffType} | Material: {unlitMaterial.shader.name} | Color: {lineColor}");
+        
         for (int i = 0; i < 5; i++)
         {
             GameObject line = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -50,24 +112,48 @@ public class StaffRenderer : MonoBehaviour
             float yPos = i * lineSpacing;
             line.transform.localPosition = new Vector3(0, yPos, 0);
             
-            // Escala: largo, delgado, plano
-            line.transform.localScale = new Vector3(staffWidth, lineThickness, 0.001f);
+            // Escala: ANCHO (X), GROSOR (Y), PROFUNDIDAD (Z)
+            line.transform.localScale = new Vector3(staffWidth, lineThickness, 0.01f);
             
-            // Material
+            // APLICAR MATERIAL - con validación exhaustiva
             Renderer renderer = line.GetComponent<Renderer>();
-            if (lineMaterial != null)
-            {
-                renderer.material = lineMaterial;
-            }
-            renderer.material.color = lineColor;
             
-            // Quitar collider (no lo necesitamos)
-            Destroy(line.GetComponent<Collider>());
+            if (renderer == null)
+            {
+                Debug.LogError($"[StaffRenderer] ❌ Renderer NULL en línea {i}!");
+            }
+            else
+            {
+                // FORZAR material nuevo
+                renderer.material = unlitMaterial;
+                
+                // VERIFICAR que se aplicó correctamente
+                if (renderer.material == null)
+                {
+                    Debug.LogError($"[StaffRenderer] ❌ Material NULL después de asignar en línea {i}!");
+                }
+                else if (renderer.material.shader == null)
+                {
+                    Debug.LogError($"[StaffRenderer] ❌ Shader NULL en material de línea {i}!");
+                }
+                else
+                {
+                    Debug.Log($"[StaffRenderer] ✅ Línea {i}: shader={renderer.material.shader.name}, color={renderer.material.color}");
+                }
+                
+                // Desactivar sombras para VR
+                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                renderer.receiveShadows = false;
+            }
+            
+            // Quitar collider
+            Collider collider = line.GetComponent<Collider>();
+            if (collider != null) Destroy(collider);
             
             staffLines[i] = line;
         }
         
-        Debug.Log($"[StaffRenderer] Pentagrama creado: {staffType}");
+        Debug.Log($"[StaffRenderer] 🎹 {staffType} COMPLETO: {staffLines.Length} líneas | {staffWidth}m ancho | {lineThickness}m grosor");
     }
 
     /// <summary>
@@ -128,32 +214,157 @@ public class StaffRenderer : MonoBehaviour
     }
 
     /// <summary>
+    /// Crea la línea amarilla vertical de hit (donde deben tocarse las notas)
+    /// </summary>
+    private void CreateHitLine()
+    {
+        hitLine = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        hitLine.name = "HitLine";
+        hitLine.transform.parent = transform;
+        
+        // Posicionar en ESPACIO LOCAL a la IZQUIERDA (donde deben llegar las notas)
+        // Sin rotación, posición negativa en X = IZQUIERDA
+        // La posición Y debe ser el centro del pentagrama (mitad de la altura total)
+        float pentagramHeight = lineSpacing * 4f; // Distancia de línea 0 a línea 4
+        float centerY = pentagramHeight / 2f; // Centro vertical del pentagrama
+        hitLine.transform.localPosition = new Vector3(staffWidth * -0.4f, centerY, 0);
+        
+        // Hacer que sea una línea vertical delgada que cubra todo el pentagrama
+        // Alto = desde debajo de la primera línea hasta arriba de la quinta línea
+        float lineHeight = pentagramHeight + lineSpacing * 0.5f; // Un poco más alta para márgenes
+        hitLine.transform.localScale = new Vector3(0.03f, lineHeight, 0.001f);
+        
+        // Crear material amarillo brillante
+        Shader shader = Shader.Find("Unlit/Color");
+        if (shader == null) shader = Shader.Find("Standard");
+        
+        Material hitMaterial = new Material(shader);
+        hitMaterial.color = Color.yellow;
+        
+        Renderer renderer = hitLine.GetComponent<Renderer>();
+        renderer.material = hitMaterial;
+        renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        renderer.receiveShadows = false;
+        
+        // Quitar collider
+        Collider collider = hitLine.GetComponent<Collider>();
+        if (collider != null) Destroy(collider);
+        
+        Debug.Log($"[StaffRenderer] 💛 Línea de hit amarilla creada en localPos={hitLine.transform.localPosition}, altura={lineHeight}m");
+    }
+
+    /// <summary>
     /// Obtiene la posición Y local para una nota MIDI en este pentagrama
+    /// Basado en la teoría musical: cada nota tiene su posición en línea o espacio
     /// </summary>
     public float GetNoteYPosition(int midiNote)
     {
-        // Sistema de posición basado en la escala musical
-        // C4 (Do central) = 60
+        // Sistema de posición basado en posiciones visuales del pentagrama
+        float halfSpace = lineSpacing / 2f; // Espacio entre líneas/espacios
         
         if (staffType == StaffType.Treble)
         {
-            // Clave de Sol: E4 (64) está en la primera línea
-            // Cada semitono = lineSpacing / 4 (aproximado)
-            int e4 = 64; // Nota E4 en primera línea
-            float semitonesFromE4 = midiNote - e4;
-            return (lineSpacing / 4f) * semitonesFromE4;
+            // ========== CLAVE DE SOL (Treble Clef) ==========
+            // Primera línea (y=0): E4 (MIDI 64)
+            // Tabla de referencia completa:
+            // D4=62 (debajo), E4=64 (línea 1), F4=65, G4=67 (línea 2), A4=69, B4=71 (línea 3), C5=72, D5=74 (línea 4), E5=76, F5=77 (línea 5), etc.
+            
+            // Mapeo directo: cada nota natural sube de 2 en 2 semitonos (escala diatónica)
+            // excepto E-F y B-C que son 1 semitono
+            
+            // Referencia: E4 (64) = posición 0
+            int[] midiToPosition = new int[]
+            {
+                // MIDI: posición visual (0 = primera línea)
+                // C4=60 D4 E4 F4 G4 A4 B4 C5 D5 E5 F5 G5 A5 B5 C6
+                //  -4  -3  -2  -1   0   1   2   3   4   5   6   7   8   9  10
+            };
+            
+            // Convertir MIDI a posición relativa desde E4
+            int positionFromE4 = GetStaffPositionFromMidi(midiNote, 64);
+            return positionFromE4 * halfSpace;
         }
-        else // Bass
+        else // Bass Clef
         {
-            // Clave de Fa: G2 (43) está en la primera línea
-            int g2 = 43;
-            float semitonesFromG2 = midiNote - g2;
-            return (lineSpacing / 4f) * semitonesFromG2;
+            // ========== CLAVE DE FA (Bass Clef) ==========
+            // Primera línea (y=0): G2 (MIDI 43)
+            // Tabla: G2=43 (línea 1), A2=45, B2=47 (línea 2), C3=48, D3=50 (línea 3), E3=52, F3=53 (línea 4), G3=55, A3=57 (línea 5)
+            
+            int positionFromG2 = GetStaffPositionFromMidi(midiNote, 43);
+            return positionFromG2 * halfSpace;
         }
+    }
+    
+    /// <summary>
+    /// Calcula la posición en el pentagrama desde una nota de referencia
+    /// Usa la escala cromática pero mapea a posiciones diatónicas visuales
+    /// </summary>
+    private int GetStaffPositionFromMidi(int targetMidi, int referenceMidi)
+    {
+        int semitoneOffset = targetMidi - referenceMidi;
+        
+        // Mapeo de semitonos relativos a posiciones en el pentagrama
+        // Cada posición = una línea o espacio
+        // Patrón de la escala cromática mapeado a visual:
+        // C  C# D  Eb E  F  F# G  G# A  Bb B
+        // 0  0  1  1  2  3  3  4  4  5  5  6  (posiciones dentro de la octava)
+        
+        int[] chromaticToPosition = { 0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6 };
+        
+        // Calcular octavas y posición dentro de la octava
+        int octaveOffset = semitoneOffset / 12;
+        int semitoneInOctave = semitoneOffset % 12;
+        
+        // Manejar negativos correctamente
+        if (semitoneInOctave < 0)
+        {
+            semitoneInOctave += 12;
+            octaveOffset -= 1;
+        }
+        
+        int positionInOctave = chromaticToPosition[semitoneInOctave];
+        return octaveOffset * 7 + positionInOctave; // 7 posiciones por octava diatónica
+    }
+    
+    /// <summary>
+    /// Calcula la posición diatónica de una nota relativa a C
+    /// Maneja sostenidos y bemoles mapeándolos a la posición visual más cercana
+    /// </summary>
+    private int GetDiatonicPosition(int semitonesFromC)
+    {
+        // Cada octava = 7 posiciones diatónicas (C D E F G A B)
+        // Patrones de semitonos en escala diatónica: 2 2 1 2 2 2 1
+        
+        // Tabla de conversión de semitonos a posiciones diatónicas
+        // Para notas con alteraciones (sostenidos/bemoles), usar posición visual correspondiente
+        int[] semitoneToPosition = { 
+            0,  // C  (0 semitonos)
+            0,  // C# (1 semitono) - visual como C
+            1,  // D  (2 semitonos)
+            1,  // Eb (3 semitonos) - visual como D
+            2,  // E  (4 semitonos)
+            3,  // F  (5 semitonos)
+            3,  // F# (6 semitonos) - visual como F
+            4,  // G  (7 semitonos)
+            4,  // G# (8 semitonos) - visual como G
+            5,  // A  (9 semitonos)
+            5,  // Bb (10 semitonos) - visual como A
+            6   // B  (11 semitonos)
+        };
+        
+        int octaves = semitonesFromC / 12;
+        int semitoneInOctave = semitonesFromC % 12;
+        if (semitoneInOctave < 0) semitoneInOctave += 12;
+        
+        int basePosition = octaves * 7; // 7 posiciones por octava
+        int positionInOctave = semitoneToPosition[semitoneInOctave];
+        
+        return basePosition + positionInOctave;
     }
 
     /// <summary>
     /// Calcula el spawn point (inicio del pentagrama) en world space
+    /// Las notas aparecen en la DERECHA (+X) y viajan hacia la IZQUIERDA (-X)
     /// </summary>
     public Vector3 GetSpawnPoint()
     {
@@ -162,9 +373,148 @@ public class StaffRenderer : MonoBehaviour
 
     /// <summary>
     /// Calcula el hit point (línea de acierto) en world space
+    /// La línea de acierto está a la IZQUIERDA (-X) del pentagrama
     /// </summary>
     public Vector3 GetHitPoint()
     {
-        return transform.position - transform.right * (staffWidth * 0.3f);
+        return transform.position - transform.right * (staffWidth * 0.4f);
+    }
+    
+    /// <summary>
+    /// Crea líneas auxiliares (ledger lines) dinámicamente para notas fuera del pentagrama
+    /// </summary>
+    public void CreateLedgerLinesForNote(float noteYPosition)
+    {
+        // Rango del pentagrama estándar: y=0 (línea 1) a y=0.6 (línea 5)
+        float pentagramBottom = 0f;
+        float pentagramTop = lineSpacing * 4f; // 0.60m
+        
+        // Si la nota está dentro del rango, no necesita ledger lines
+        if (noteYPosition >= pentagramBottom && noteYPosition <= pentagramTop)
+        {
+            return;
+        }
+        
+        // Crear contenedor si no existe
+        if (ledgerLinesContainer == null)
+        {
+            ledgerLinesContainer = new GameObject("LedgerLines");
+            ledgerLinesContainer.transform.parent = transform;
+            ledgerLinesContainer.transform.localPosition = Vector3.zero;
+            ledgerLinesContainer.transform.localRotation = Quaternion.identity;
+        }
+        
+        // Determinar cuántas líneas ledger necesitamos y en qué dirección
+        float halfSpace = lineSpacing / 2f;
+        
+        if (noteYPosition < pentagramBottom)
+        {
+            // Notas DEBAJO del pentagrama
+            int lineCount = Mathf.CeilToInt((pentagramBottom - noteYPosition) / lineSpacing);
+            lineCount = Mathf.Min(lineCount, maxLedgerLinesBelow);
+            
+            for (int i = 1; i <= lineCount; i++)
+            {
+                float yPos = pentagramBottom - (i * lineSpacing);
+                CreateSingleLedgerLine(yPos, $"LedgerBelow_{i}");
+            }
+        }
+        else if (noteYPosition > pentagramTop)
+        {
+            // Notas ARRIBA del pentagrama
+            int lineCount = Mathf.CeilToInt((noteYPosition - pentagramTop) / lineSpacing);
+            lineCount = Mathf.Min(lineCount, maxLedgerLinesAbove);
+            
+            for (int i = 1; i <= lineCount; i++)
+            {
+                float yPos = pentagramTop + (i * lineSpacing);
+                CreateSingleLedgerLine(yPos, $"LedgerAbove_{i}");
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Crea una única línea ledger en la posición especificada
+    /// </summary>
+    private void CreateSingleLedgerLine(float yPosition, string lineName)
+    {
+        // Verificar si ya existe esta línea
+        Transform existing = ledgerLinesContainer.transform.Find(lineName);
+        if (existing != null) return; // Ya existe
+        
+        GameObject ledgerLine = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        ledgerLine.name = lineName;
+        ledgerLine.transform.parent = ledgerLinesContainer.transform;
+        ledgerLine.transform.localPosition = new Vector3(0, yPosition, 0);
+        
+        // Líneas ledger son MÁS CORTAS que las líneas del pentagrama
+        ledgerLine.transform.localScale = new Vector3(ledgerLineWidth, lineThickness, 0.01f);
+        
+        // Aplicar material
+        Shader shader = Shader.Find("Unlit/Color");
+        if (shader == null) shader = Shader.Find("Standard");
+        
+        Material ledgerMaterial = new Material(shader);
+        ledgerMaterial.color = lineColor;
+        
+        Renderer renderer = ledgerLine.GetComponent<Renderer>();
+        renderer.material = ledgerMaterial;
+        renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        renderer.receiveShadows = false;
+        
+        // Quitar collider
+        Collider collider = ledgerLine.GetComponent<Collider>();
+        if (collider != null) Destroy(collider);
+    }
+    
+    /// <summary>
+    /// Limpia todas las líneas ledger generadas dinámicamente
+    /// </summary>
+    public void ClearLedgerLines()
+    {
+        if (ledgerLinesContainer != null)
+        {
+            foreach (Transform child in ledgerLinesContainer.transform)
+            {
+                Destroy(child.gameObject);
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Aplica scroll vertical al pentagrama completo
+    /// Útil cuando hay muchas notas altas o bajas simultáneamente
+    /// </summary>
+    public void ApplyVerticalScroll(float targetYPosition)
+    {
+        // Calcular el centro del pentagrama
+        float pentagramCenter = lineSpacing * 2f; // Línea 3 (centro)
+        
+        // Calcular offset necesario para centrar la nota target
+        float desiredOffset = targetYPosition - pentagramCenter;
+        
+        // Suavizar el movimiento
+        currentVerticalOffset = Mathf.Lerp(currentVerticalOffset, desiredOffset, Time.deltaTime * 3f);
+        
+        // Aplicar offset a todos los elementos visuales (excepto el transform raíz)
+        // Esto mantiene las notas en posición correcta mientras el pentagrama se "desplaza"
+        foreach (GameObject line in staffLines)
+        {
+            if (line != null)
+            {
+                Vector3 pos = line.transform.localPosition;
+                pos.y = (System.Array.IndexOf(staffLines, line) * lineSpacing) - currentVerticalOffset;
+                line.transform.localPosition = pos;
+            }
+        }
+        
+        // También ajustar la línea de hit
+        if (hitLine != null)
+        {
+            Vector3 hitPos = hitLine.transform.localPosition;
+            hitPos.y = (lineSpacing * 2f) - currentVerticalOffset; // Mantener en el centro
+            hitLine.transform.localPosition = hitPos;
+        }
     }
 }
+
