@@ -6,18 +6,20 @@ public class SongLoader : MonoBehaviour
     private float songStartTime;
     private bool songPlaying = false;
     private SongNote currentNote;
+    public AudioSource audioSource;
+    public float songOffset = -0.15f;   
 
     void Start()
     {
-        LoadSong("song_sample");
+        LoadSong("song_take_on_me");
     }
-
+        
     void Update()
     {
         if (!songPlaying || loadedSong == null)
             return;
 
-        float songTime = Time.time - songStartTime;
+        float songTime = GetSongTime() + songOffset;
 
         currentNote = GetCurrentNote(songTime);
 
@@ -28,10 +30,10 @@ public class SongLoader : MonoBehaviour
     }
     public float GetSongTime()
     {
-        if (!songPlaying)
+        if (audioSource == null)
             return 0f;
 
-        return Time.time - songStartTime;
+        return audioSource.time;
     }
     void LoadSong(string fileName)
     {
@@ -49,7 +51,11 @@ public class SongLoader : MonoBehaviour
 
     public void StartSong()
     {
-        songStartTime = Time.time;
+        if (audioSource != null)
+        {
+            audioSource.Play();
+        }
+
         songPlaying = true;
     }
 

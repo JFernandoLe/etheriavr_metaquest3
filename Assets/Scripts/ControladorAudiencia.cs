@@ -1,11 +1,12 @@
 using UnityEngine;
 using System.Collections.Generic;
+using System;
 
 public class ControladorAudiencia : MonoBehaviour
 {
     [Header("Configuracion de Desempeño")]
     [Range(0f, 100f)]
-    public float puntajeCanto = 50f;
+    public float puntajeCanto = 100f;
     public AudioSource fuenteAplausos;
 
     [Header("Rotaci�n")]
@@ -28,22 +29,35 @@ public class ControladorAudiencia : MonoBehaviour
 
     void Update()
     {
+        if (ScoreManager.Instance != null)
+        {
+            puntajeCanto = Mathf.Lerp(
+                puntajeCanto,
+                ScoreManager.Instance.accuracyPercent,
+                Time.deltaTime * 2f
+            );
+            Debug.Log("Puntaje canto: " + puntajeCanto);
+        }
+
         if (jugador == null) return;
 
         foreach (Animator anim in listaAnimadores)
         {
             if (anim == null) continue;
 
-            // Enviamos el puntaje al Animator
             anim.SetFloat("Calidad", puntajeCanto);
 
-            // Rotar para mirar al jugador en el eje y
             Vector3 direccion = jugador.position - anim.transform.position;
             direccion.y = 0;
+
             if (direccion != Vector3.zero)
             {
                 Quaternion rotacionObjetivo = Quaternion.LookRotation(direccion);
-                anim.transform.rotation = Quaternion.Slerp(anim.transform.rotation, rotacionObjetivo, Time.deltaTime * velocidadRotacion);
+                anim.transform.rotation = Quaternion.Slerp(
+                    anim.transform.rotation,
+                    rotacionObjetivo,
+                    Time.deltaTime * velocidadRotacion
+                );
             }
         }
 
