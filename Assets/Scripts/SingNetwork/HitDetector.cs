@@ -8,6 +8,12 @@ public class HitDetector : MonoBehaviour
     public SongLoader songLoader;
     public TextMeshPro resultText;
 
+    public ParticleSystem perfectEffect;
+    public AudioSource sfxSource;
+    public AudioClip perfectSound;
+
+    bool lastWasPerfect = false;
+
     void Update()
     {
         if (songLoader == null || receiver == null)
@@ -16,6 +22,7 @@ public class HitDetector : MonoBehaviour
         float songTime = songLoader.GetSongTime();
 
         bool foundActiveNote = false;
+        bool currentPerfect = false;
 
         foreach (GameObject noteObj in scroller.GetActiveNotes())
         {
@@ -35,28 +42,50 @@ public class HitDetector : MonoBehaviour
 
                 Renderer rend = noteObj.GetComponent<Renderer>();
 
-                if (diff == 0)
+                if (!sn.evaluated)
                 {
-                    //  PERFECTO
-                    rend.material.color = Color.green;
-                    ShowResult("Perfecto", Color.green);
-                }
-                else if (diff == 1)
-                {
-                    //  REGULAR
-                    rend.material.color = Color.yellow;
-                    ShowResult("Regular", Color.yellow);
-                }
-                else
-                {
-                    //  MAL
-                    rend.material.color = Color.red;
-                    ShowResult("Mal", Color.red);
+                    sn.evaluated = true;
+
+                    if (diff == 0)
+                    {
+                        currentPerfect = true;
+
+                        rend.material.color = Color.green;
+                        ShowResult("Perfecto", Color.green);
+
+                        ScoreManager.Instance.AddScore(10);
+                        ScoreManager.Instance.RegisterHit(1f);
+                    }
+                    else if (diff == 1)
+                    {
+                        rend.material.color = Color.yellow;
+                        ShowResult("Regular", Color.yellow);
+
+                        ScoreManager.Instance.AddScore(5);
+                        ScoreManager.Instance.RegisterHit(0.5f);
+                    }
+                    else
+                    {
+                        rend.material.color = Color.red;
+                        ShowResult("Mal", Color.red);
+
+                        ScoreManager.Instance.RegisterHit(0f);
+                    }
                 }
             }
         }
 
-        // Si no hay nota activa, limpiar texto
+        if (currentPerfect && !lastWasPerfect)
+        {
+            if (perfectEffect != null)
+                perfectEffect.Play();
+
+            if (sfxSource != null && perfectSound != null)
+                sfxSource.PlayOneShot(perfectSound);
+        }
+
+        lastWasPerfect = currentPerfect;
+
         if (!foundActiveNote && resultText != null)
         {
             resultText.text = "";
