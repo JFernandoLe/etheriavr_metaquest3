@@ -93,7 +93,7 @@ LightmapSettings:
     m_ExportTrainingData: 0
     m_TrainingDataDestination: TrainingData
     m_LightProbeSampleCountMultiplier: 4
-  m_LightingDataAsset: {fileID: 20201, guid: 0000000000000000f000000000000000, type: 0}
+  m_LightingDataAsset: {fileID: 112000012, guid: 0011c86f3cdf2b640a678b3fea8bffd1, type: 2}
   m_LightingSettings: {fileID: 0}
 --- !u!196 &4
 NavMeshSettings:
@@ -9220,12 +9220,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f00637a3a2369804487c82535a470f66, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RegistrationController
-  usernameField: {fileID: 871363704}
-  emailField: {fileID: 2030749411}
-  passwordField: {fileID: 31046928}
-  confirmPasswordField: {fileID: 2053541894}
-  registerButton: {fileID: 1963983209}
-  authService: {fileID: 0}
 --- !u!1 &2030749409
 GameObject:
   m_ObjectHideFlags: 0

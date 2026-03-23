@@ -14,6 +14,11 @@ public class ScoreManager : MonoBehaviour
 
     public TextMeshPro scoreText;
 
+    private float rhythmSum = 0f;
+    private int rhythmCount = 0;
+
+    public float rhythmPercent = 0f;
+
     void Awake()
     {
         Instance = this;
@@ -33,7 +38,13 @@ public class ScoreManager : MonoBehaviour
         totalEvaluations++;
 
         accuracyPercent = (accuracySum / totalEvaluations) * 100f;
+    }
 
-        Debug.Log("Accuracy: " + accuracyPercent);
+    public void RegisterRhythm(float value)
+    {
+        rhythmSum += value;
+        rhythmCount++;
+
+        rhythmPercent = (rhythmSum / rhythmCount) * 100f;
     }
 }
