@@ -25,10 +25,12 @@ public class MIDIConnectionManager : MonoBehaviour
             Instance = this;
             DontDestroyOnLoad(gameObject);
             
-            Debug.Log("<color=cyan>[MIDI Manager]</color> Iniciado - Esperando heartbeat del servidor...");
+            Debug.Log("<color=magenta>[MIDI Manager]</color> 🎯 ===== INICIALIZANDO MIDI CONNECTION MANAGER =====");
+            Debug.Log($"<color=cyan>[MIDI Manager]</color> Singleton creado - IsMidiConnected inicial: {IsMidiConnected}");
         } 
         else 
         {
+            Debug.Log("<color=yellow>[MIDI Manager]</color> ⚠️ Ya existe un MIDI Manager, destruyendo duplicado");
             Destroy(gameObject);
             return;
         }
@@ -36,9 +38,22 @@ public class MIDIConnectionManager : MonoBehaviour
     
     void Start()
     {
+        Debug.Log("<color=cyan>[MIDI Manager]</color> Buscando MIDIStatusReceiver...");
+        
         // Crear el receptor de estado MIDI
         statusReceiver = gameObject.AddComponent<MIDIStatusReceiver>();
-        statusReceiver.OnStatusReceived += HandleMidiStatusUpdate;
+        
+        if (statusReceiver != null)
+        {
+            statusReceiver.OnStatusReceived += HandleMidiStatusUpdate;
+            Debug.Log("<color=green>[MIDI Manager]</color> ✅ MIDIStatusReceiver creado y suscrito");
+        }
+        else
+        {
+            Debug.LogError("<color=red>[MIDI Manager]</color> ❌ No se pudo crear MIDIStatusReceiver");
+        }
+        
+        Debug.Log("<color=magenta>[MIDI Manager]</color> 🎯 ===== MIDI MANAGER LISTO =====\n");
     }
     
     /// <summary>
