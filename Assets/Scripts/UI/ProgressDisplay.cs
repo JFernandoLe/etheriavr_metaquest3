@@ -20,6 +20,7 @@ public class ProgressDisplay : MonoBehaviour
     
     private PianoGameManager gameManager;
     private GameplayScoring gameplayScoring;
+    private PianoPublicSystem pianoPublicSystem;
     private float gameStartTime = 0f;
     
     void Start()
@@ -37,6 +38,7 @@ public class ProgressDisplay : MonoBehaviour
         
         // Conectarse a eventos de GameplayScoring
         gameplayScoring = FindObjectOfType<GameplayScoring>();
+        pianoPublicSystem = FindObjectOfType<PianoPublicSystem>();
         if (gameplayScoring != null)
         {
             gameplayScoring.OnNoteHit += OnNoteHit;
@@ -109,7 +111,14 @@ public class ProgressDisplay : MonoBehaviour
         // 2. Notas esperadas AHORA (treble/mano derecha)
         // 3. Tiempo restante de la nota actual
         
-        string displayText = $"<size=50>{currentPercentage:F0}%</size>\n\n";
+        string displayText = $"<size=50>{currentPercentage:F0}%</size>";
+
+        if (pianoPublicSystem != null)
+        {
+            displayText += $"\n<size=28><color=#FFD966>Publico: {pianoPublicSystem.GetCurrentPublicScore():F0}%</color></size>";
+        }
+
+        displayText += "\n\n";
         
         // Obtener notas esperadas en tiempo real
         List<GameNoteData> currentNotes = GetCurrentTrebleNotes();

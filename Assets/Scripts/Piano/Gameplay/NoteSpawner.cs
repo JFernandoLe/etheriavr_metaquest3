@@ -27,6 +27,7 @@ public class NoteSpawner : MonoBehaviour
     private float songStartTime;
     private float currentSongTime = 0f;
     private float currentScrollSpeed = 0.4f;
+    private readonly List<MusicNote> previewNotes = new List<MusicNote>();
 
     /// <summary>
     /// Carga la canción y prepara las notas para spawn
@@ -224,6 +225,8 @@ public class NoteSpawner : MonoBehaviour
         isSpawning = true;
         if (resetProgress)
         {
+            ClearPreviewNotes();
+            ClearAllNotes();
             songStartTime = Time.time;
             currentSongTime = 0f;
             nextNoteIndex = 0;
@@ -293,10 +296,43 @@ public class NoteSpawner : MonoBehaviour
         }
     }
 
+    public void ShowPreviewNotes(float previewSongTime = 0f)
+    {
+        if (currentSong == null)
+        {
+            return;
+        }
+
+        ClearPreviewNotes();
+
+        float previewLookAhead = Mathf.Max(noteTravelTime, 0.1f);
+        for (int i = 0; i < allNotes.Count; i++)
+        {
+            PianoNoteData note = allNotes[i];
+            if (note.time > previewSongTime + previewLookAhead)
+            {
+                break;
+            }
+
+            MusicNote previewNote = SpawnNoteInternal(note, previewSongTime, true);
+            if (previewNote != null)
+            {
+                previewNotes.Add(previewNote);
+            }
+        }
+
+        Debug.Log($"[NoteSpawner] Vista previa mostrada con {previewNotes.Count} notas fijas antes del countdown");
+    }
+
     /// <summary>
     /// Instancia una nota en el pentagrama correcto
     /// </summary>
     private void SpawnNote(PianoNoteData noteData)
+    {
+        SpawnNoteInternal(noteData, currentSongTime, false);
+    }
+
+    private MusicNote SpawnNoteInternal(PianoNoteData noteData, float referenceSongTime, bool previewMode)
     {
         // Determinar qué pentagrama usar
         StaffRenderer targetStaff = (noteData.hand == "right") ? trebleStaff : bassStaff;
@@ -304,7 +340,7 @@ public class NoteSpawner : MonoBehaviour
         if (targetStaff == null)
         {
             Debug.LogError($"[NoteSpawner] ❌ No hay pentagrama para mano {noteData.hand}");
-            return;
+            return null;
         }
         
         // Crear instancia de la nota
@@ -315,7 +351,7 @@ public class NoteSpawner : MonoBehaviour
         {
             Debug.LogError("[NoteSpawner] ❌ El prefab no tiene componente MusicNote!");
             Destroy(noteObj);
-            return;
+            return null;
         }
         
         // IMPORTANTE: Hacer que la nota sea hija del pentagrama para que se mueva con él
@@ -347,7 +383,14 @@ public class NoteSpawner : MonoBehaviour
         float calculatedSpeed = distance / safeTravelTime;
 
         note.Initialize(noteData, spawnPos, hitPos, calculatedSpeed);
-        
+
+        if (previewMode)
+        {
+            note.SetPreviewPose(referenceSongTime);
+        }
+
+        return note;
+
         // DEBUG: Información detallada de sincronización (comentado para reducir spam)
         // Debug.Log($"[NoteSpawner] 🎵 SPAWN Nota MIDI{noteData.midi} ({noteData.hand})\n" +
         //     $"  📍 YPos={noteY:F4}m | Duration={noteData.duration:F3}s\n" +
@@ -368,6 +411,19 @@ public class NoteSpawner : MonoBehaviour
         }
         
         Debug.Log("[NoteSpawner] Todas las notas limpiadas");
+    }
+
+    public void ClearPreviewNotes()
+    {
+        for (int i = previewNotes.Count - 1; i >= 0; i--)
+        {
+            if (previewNotes[i] != null)
+            {
+                Destroy(previewNotes[i].gameObject);
+            }
+        }
+
+        previewNotes.Clear();
     }
 
     void OnDisable()

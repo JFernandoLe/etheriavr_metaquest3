@@ -9,6 +9,13 @@ using System.Linq;
 [RequireComponent(typeof(Rigidbody))]
 public class MusicNote : MonoBehaviour
 {
+    private class BurnSegmentVisual
+    {
+        public GameObject segmentObject;
+        public float startOffset;
+        public float endOffset;
+    }
+
     [Header("Datos de la Nota")]
     public int midiNote; // Número MIDI (60 = C4)
     public float duration; // Duración en segundos (longitud total inicial)
@@ -37,11 +44,12 @@ public class MusicNote : MonoBehaviour
     private MidiAudioManager midiAudioManager;
     private float originalLineLength = 0f; // Longitud original de la línea (mapea de duration)
     private Material durationLineMaterial; // Material de la línea
-    private Material burnedLineMaterial;
     private float fallbackStartTime = 0f;
     private Vector3 localSpawnPosition;
     private Vector3 localHitPosition;
-    private float localBurnedDuration = 0f;
+    private readonly List<BurnSegmentVisual> burnSegments = new List<BurnSegmentVisual>();
+    private BurnSegmentVisual activeBurnSegment;
+    private bool isPreviewMode = false;
     
     /// <summary>
     /// Obtener todas las notas activas en pantalla
@@ -103,6 +111,11 @@ public class MusicNote : MonoBehaviour
     {
         if (!isActive) return;
 
+        if (isPreviewMode)
+        {
+            return;
+        }
+
         float songTime = GetCurrentSongTime();
         transform.localPosition = CalculateHeadPosition(songTime);
 
@@ -111,8 +124,11 @@ public class MusicNote : MonoBehaviour
 
         if (isPlayableWindow && isPressedNow)
         {
-            localBurnedDuration = Mathf.Min(duration, localBurnedDuration + Time.deltaTime);
-            UpdateBurnVisual();
+            ExtendBurnSegment(songTime);
+        }
+        else
+        {
+            activeBurnSegment = null;
         }
 
         if (songTime > spawnTime + duration + destroyAfterEndDelay)
@@ -161,6 +177,17 @@ public class MusicNote : MonoBehaviour
     public void OnNoteRelease()
     {
     }
+
+    public void SetPreviewPose(float songTime)
+    {
+        isPreviewMode = true;
+        transform.localPosition = CalculateHeadPosition(songTime);
+    }
+
+    public void ExitPreviewMode()
+    {
+        isPreviewMode = false;
+    }
     
     /// <summary>
     /// Crea una línea que representa la duración de la nota CON EL NOMBRE incluido
@@ -202,59 +229,89 @@ public class MusicNote : MonoBehaviour
         if (collider != null) DestroyImmediate(collider);
 
         burnedLine = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        burnedLine.name = $"BurnedLine_MIDI{midiNote}";
-        burnedLine.transform.SetParent(transform, false);
-        burnedLine.transform.localPosition = Vector3.zero;
-        burnedLine.transform.localScale = new Vector3(0.001f, 0.1f, 0.1f);
+        DestroyImmediate(burnedLine);
 
-        burnedLineMaterial = new Material(shader);
-        burnedLineMaterial.color = burnedColor;
-
-        Renderer burnedRenderer = burnedLine.GetComponent<Renderer>();
-        burnedRenderer.material = burnedLineMaterial;
-        burnedRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        burnedRenderer.receiveShadows = false;
-
-        Collider burnedCollider = burnedLine.GetComponent<Collider>();
-        if (burnedCollider != null) DestroyImmediate(burnedCollider);
-        
-        // ✅ AGREGAR LABEL CON EL NOMBRE DE LA NOTA ENCIMA DE LA LÍNEA
-        GameObject labelObj = new GameObject("NoteLabel");
-        labelObj.transform.SetParent(durationLine.transform, false);
-        labelObj.transform.localPosition = new Vector3(0, 0.1f, 0); // Encima de la línea
+        GameObject labelObj = new GameObject("HeadNoteLabel");
+        labelObj.transform.SetParent(transform, false);
+        labelObj.transform.localPosition = new Vector3(0f, 0f, -0.055f);
         labelObj.transform.localRotation = Quaternion.identity;
-        
+
         TextMesh textMesh = labelObj.AddComponent<TextMesh>();
         textMesh.text = MidiToNoteName(midiNote);
         textMesh.fontSize = (int)noteLabelFontSize;
-        textMesh.characterSize = 0.01f;
+        textMesh.characterSize = 0.0125f;
         textMesh.anchor = TextAnchor.MiddleCenter;
         textMesh.alignment = TextAlignment.Center;
         textMesh.color = Color.white;
-
-        UpdateBurnVisual();
+        textMesh.richText = false;
     }
 
-    private void UpdateBurnVisual()
+    private void ExtendBurnSegment(float songTime)
     {
-        if (durationLine == null || burnedLine == null || originalLineLength <= 0f)
+        if (durationLine == null || originalLineLength <= 0f || duration <= 0.0001f)
         {
             return;
         }
 
-        float burnedFraction = duration > 0.0001f ? Mathf.Clamp01(localBurnedDuration / duration) : 0f;
-        float burnedLength = originalLineLength * burnedFraction;
-        float remainingLength = Mathf.Max(originalLineLength - burnedLength, 0.001f);
+        float currentOffset = Mathf.Clamp(songTime - spawnTime, 0f, duration);
+        float segmentStep = Mathf.Max(Time.deltaTime, 0.01f);
 
-        durationLine.transform.localPosition = new Vector3(burnedLength + (remainingLength * 0.5f), 0f, 0f);
-        durationLine.transform.localScale = new Vector3(remainingLength, 0.08f, 0.08f);
+        if (activeBurnSegment == null)
+        {
+            activeBurnSegment = CreateBurnSegment(currentOffset);
+            burnSegments.Add(activeBurnSegment);
+        }
 
-        burnedLine.transform.localPosition = new Vector3(burnedLength * 0.5f, 0f, 0f);
-        burnedLine.transform.localScale = new Vector3(Mathf.Max(burnedLength, 0.001f), 0.1f, 0.1f);
+        activeBurnSegment.endOffset = Mathf.Max(activeBurnSegment.endOffset, currentOffset + segmentStep);
+        activeBurnSegment.endOffset = Mathf.Min(activeBurnSegment.endOffset, duration);
+        UpdateBurnSegmentVisual(activeBurnSegment);
+    }
 
-        bool fullyBurned = burnedFraction >= 0.999f;
-        durationLine.SetActive(!fullyBurned);
-        burnedLine.SetActive(burnedLength > 0.0001f);
+    private BurnSegmentVisual CreateBurnSegment(float startOffset)
+    {
+        GameObject segmentObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        segmentObject.name = $"BurnedSegment_MIDI{midiNote}";
+        segmentObject.transform.SetParent(transform, false);
+
+        Shader shader = Shader.Find("Unlit/Color");
+        if (shader == null) shader = Shader.Find("Standard");
+
+        Material segmentMaterial = new Material(shader);
+        segmentMaterial.color = burnedColor;
+
+        Renderer segmentRenderer = segmentObject.GetComponent<Renderer>();
+        segmentRenderer.material = segmentMaterial;
+        segmentRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        segmentRenderer.receiveShadows = false;
+
+        Collider segmentCollider = segmentObject.GetComponent<Collider>();
+        if (segmentCollider != null) DestroyImmediate(segmentCollider);
+
+        BurnSegmentVisual segment = new BurnSegmentVisual
+        {
+            segmentObject = segmentObject,
+            startOffset = startOffset,
+            endOffset = startOffset
+        };
+
+        UpdateBurnSegmentVisual(segment);
+        return segment;
+    }
+
+    private void UpdateBurnSegmentVisual(BurnSegmentVisual segment)
+    {
+        if (segment == null || segment.segmentObject == null)
+        {
+            return;
+        }
+
+        float normalizedStart = Mathf.Clamp01(segment.startOffset / duration);
+        float normalizedEnd = Mathf.Clamp01(segment.endOffset / duration);
+        float segmentLength = Mathf.Max((normalizedEnd - normalizedStart) * originalLineLength, 0.001f);
+        float segmentStartX = normalizedStart * originalLineLength;
+
+        segment.segmentObject.transform.localPosition = new Vector3(segmentStartX + (segmentLength * 0.5f), 0f, 0f);
+        segment.segmentObject.transform.localScale = new Vector3(segmentLength, 0.1f, 0.1f);
     }
     
     /// <summary>

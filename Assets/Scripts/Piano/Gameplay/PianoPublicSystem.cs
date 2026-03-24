@@ -7,18 +7,17 @@ using System.Collections.Generic;
 /// </summary>
 public class PianoPublicSystem : MonoBehaviour
 {
+    private struct PerformanceSample
+    {
+        public float time;
+        public float normalizedScore;
+    }
+
     [Header("Configuración del Público")]
-    [SerializeField] private float publicBaseThreshold = 0.5f;  // Precisión mínima para que aumente
-    [SerializeField] private float perfectIncrement = 2.0f;     // Cuánto sube por nota perfecta
-    [SerializeField] private float goodIncrement = 1.0f;        // Cuánto sube por nota buena
-    [SerializeField] private float missedDecrement = 5.0f;      // Penalización por nota fallida
-    [SerializeField] private float wrongNoteDecrement = 3.0f;   // Penalización por nota equivocada
-    [SerializeField] private float lerpSpeed = 3.0f;            // Velocidad de amortiguación (mayor = más rápido)
-    [SerializeField] private float decayRate = 0.05f;           // Decaimiento natural por segundo sin input
-    
-    [Header("Aplausos")]
-    [SerializeField] private AudioSource applauseSource;
-    [SerializeField] private float maxApplauseVolume = 0.8f;
+    [SerializeField] private float performanceWindowSeconds = 4f;
+    [SerializeField] private float responseLerpSpeed = 7f;
+    [SerializeField] private float excitementCurvePower = 0.65f;
+    [SerializeField] private float idleDecayPerSecond = 18f;
     
     // Estado
     private float currentPublicScore = 0f;     // 0-100
@@ -31,6 +30,7 @@ public class PianoPublicSystem : MonoBehaviour
     private MidiAudioManager midiAudioManager;
     private float gameStartTime;
     private bool isGameActive = false;
+    private readonly List<PerformanceSample> performanceWindow = new List<PerformanceSample>();
     
     // Debug
     private List<string> recentEvents = new List<string>();
@@ -38,27 +38,17 @@ public class PianoPublicSystem : MonoBehaviour
     
     void Awake()
     {
-        // Auto-detectar AudioSource para aplausos
-        if (applauseSource == null)
-        {
-            applauseSource = GetComponent<AudioSource>();
-            if (applauseSource == null)
-            {
-                applauseSource = gameObject.AddComponent<AudioSource>();
-                applauseSource.playOnAwake = false;
-            }
-        }
     }
     
     void Start()
     {
         gameplayScoring = FindObjectOfType<GameplayScoring>();
         midiAudioManager = FindObjectOfType<MidiAudioManager>();
+        EnsureAudienceController();
         
         if (gameplayScoring != null)
         {
-            gameplayScoring.OnNoteHit += OnNoteHitCallback;
-            gameplayScoring.OnNoteMissed += OnNoteMissedCallback;
+            gameplayScoring.OnNoteEvaluated += OnNoteEvaluatedCallback;
             gameplayScoring.OnGameFinished += OnGameFinishedCallback;
             Debug.Log("<color=green>[PianoPublic]</color> ✅ Suscrito a eventos de GameplayScoring");
         }
@@ -74,20 +64,28 @@ public class PianoPublicSystem : MonoBehaviour
     void Update()
     {
         if (!isGameActive) return;
-        
-        // Aplicar decaimiento natural (el público se aburre sin progreso)
-        float decayAmount = decayRate * Time.deltaTime;
-        targetPublicScore = Mathf.Max(0f, targetPublicScore - decayAmount);
-        
-        // Suavizar transición hacia el score objetivo
-        currentPublicScore = Mathf.Lerp(currentPublicScore, targetPublicScore, lerpSpeed * Time.deltaTime);
-        currentPublicScore = Mathf.Clamp01(currentPublicScore / 100f) * 100f; // Clamp 0-100
-        
-        // Actualizar volumen de aplausos según score del público
-        if (applauseSource != null && applauseSource.isPlaying)
+
+        PruneExpiredSamples();
+
+        if (performanceWindow.Count > 0)
         {
-            applauseSource.volume = (currentPublicScore / 100f) * maxApplauseVolume;
+            float accumulatedScore = 0f;
+            foreach (PerformanceSample sample in performanceWindow)
+            {
+                accumulatedScore += sample.normalizedScore;
+            }
+
+            float averageScore = accumulatedScore / performanceWindow.Count;
+            float curvedScore = Mathf.Pow(Mathf.Clamp01(averageScore), excitementCurvePower);
+            targetPublicScore = Mathf.Clamp((curvedScore * 135f) - 15f, 0f, 100f);
         }
+        else
+        {
+            targetPublicScore = Mathf.Max(0f, targetPublicScore - idleDecayPerSecond * Time.deltaTime);
+        }
+
+        currentPublicScore = Mathf.Lerp(currentPublicScore, targetPublicScore, responseLerpSpeed * Time.deltaTime);
+        currentPublicScore = Mathf.Clamp(currentPublicScore, 0f, 100f);
     }
     
     /// <summary>
@@ -102,23 +100,13 @@ public class PianoPublicSystem : MonoBehaviour
         totalNoteCount = 0f;
         correctNoteCount = 0f;
         recentEvents.Clear();
-        
-        // Cargar y tocar aplausos suavecitos al inicio
-        if (applauseSource != null)
+        performanceWindow.Clear();
+
+        if (midiAudioManager != null)
         {
-            AudioClip applauseClip = Resources.Load<AudioClip>("Sounds/aplause");
-            if (applauseClip != null)
-            {
-                applauseSource.clip = applauseClip;
-                applauseSource.volume = 0.1f; // Muy bajo al inicio
-                applauseSource.loop = true;
-                applauseSource.Play();
-                Debug.Log("<color=cyan>[PianoPublic]</color> 🎵 Aplausos iniciados (bajo volumen)");
-            }
-            else
-            {
-                Debug.LogWarning("<color=yellow>[PianoPublic]</color> ⚠️ No se encontró Resources/Sounds/aplause");
-            }
+            midiAudioManager.InitializeApplauseSystem();
+            midiAudioManager.StartApplauseLoop();
+            midiAudioManager.SetApplauseVolume(0f);
         }
         
         Debug.Log("<color=green>[PianoPublic]</color> 🎮 Juego iniciado - Público en 0%");
@@ -130,10 +118,10 @@ public class PianoPublicSystem : MonoBehaviour
     public void EndGame()
     {
         isGameActive = false;
-        
-        if (applauseSource != null && applauseSource.isPlaying)
+
+        if (midiAudioManager != null)
         {
-            applauseSource.Stop();
+            midiAudioManager.StopApplauseLoop();
         }
         
         float accuracy = totalNoteCount > 0 ? (correctNoteCount / totalNoteCount) * 100f : 0f;
@@ -143,36 +131,30 @@ public class PianoPublicSystem : MonoBehaviour
     /// <summary>
     /// Callback cuando aciertas una nota
     /// </summary>
-    private void OnNoteHitCallback(GameNoteData note, bool isPerfect)
+    private void OnNoteEvaluatedCallback(GameNoteData note, float normalizedScore, int successfulUnits, int totalUnits)
     {
         totalNoteCount++;
-        correctNoteCount++;
-        
-        // Aumentar score según precisión
-        float increment = isPerfect ? perfectIncrement : goodIncrement;
-        targetPublicScore = Mathf.Min(100f, targetPublicScore + increment);
-        
-        string eventMsg = isPerfect 
-            ? $"🟢 PERFECTO +{perfectIncrement} → {targetPublicScore:F1}%"
-            : $"🟡 BIEN +{goodIncrement} → {targetPublicScore:F1}%";
-        
+        correctNoteCount += normalizedScore;
+
+        performanceWindow.Add(new PerformanceSample
+        {
+            time = Time.time,
+            normalizedScore = Mathf.Clamp01(normalizedScore)
+        });
+
+        if (normalizedScore >= 0.85f)
+        {
+            performanceWindow.Add(new PerformanceSample
+            {
+                time = Time.time,
+                normalizedScore = Mathf.Clamp01(normalizedScore)
+            });
+        }
+
+        float notePercent = normalizedScore * 100f;
+        string eventMsg = $"🎹 Ventana +{notePercent:F0}% ({successfulUnits}/{totalUnits})";
         AddDebugEvent(eventMsg);
         Debug.Log($"<color=cyan>[PianoPublic]</color> {eventMsg}");
-    }
-    
-    /// <summary>
-    /// Callback cuando fallas una nota
-    /// </summary>
-    private void OnNoteMissedCallback(GameNoteData note)
-    {
-        totalNoteCount++;
-        
-        // Penalización fuerte por fallar
-        targetPublicScore = Mathf.Max(0f, targetPublicScore - missedDecrement);
-        
-        string eventMsg = $"❌ FALLADA -{missedDecrement} → {targetPublicScore:F1}%";
-        AddDebugEvent(eventMsg);
-        Debug.Log($"<color=red>[PianoPublic]</color> {eventMsg}");
     }
     
     /// <summary>
@@ -180,12 +162,13 @@ public class PianoPublicSystem : MonoBehaviour
     /// </summary>
     public void OnWrongNoteDetected(int wrongMidiNote)
     {
-        totalNoteCount++;
-        
-        // Penalización moderada
-        targetPublicScore = Mathf.Max(0f, targetPublicScore - wrongNoteDecrement);
-        
-        string eventMsg = $"⚠️ NOTA EQUIVOCADA (MIDI {wrongMidiNote}) -{wrongNoteDecrement} → {targetPublicScore:F1}%";
+        performanceWindow.Add(new PerformanceSample
+        {
+            time = Time.time,
+            normalizedScore = 0f
+        });
+
+        string eventMsg = $"⚠️ NOTA EQUIVOCADA (MIDI {wrongMidiNote})";
         AddDebugEvent(eventMsg);
         Debug.Log($"<color=orange>[PianoPublic]</color> {eventMsg}");
     }
@@ -234,6 +217,54 @@ public class PianoPublicSystem : MonoBehaviour
         if (recentEvents.Count > MAX_DEBUG_EVENTS)
         {
             recentEvents.RemoveAt(0);
+        }
+    }
+
+    private void PruneExpiredSamples()
+    {
+        float minTime = Time.time - performanceWindowSeconds;
+        for (int i = performanceWindow.Count - 1; i >= 0; i--)
+        {
+            if (performanceWindow[i].time < minTime)
+            {
+                performanceWindow.RemoveAt(i);
+            }
+        }
+    }
+
+    void OnDestroy()
+    {
+        if (gameplayScoring != null)
+        {
+            gameplayScoring.OnNoteEvaluated -= OnNoteEvaluatedCallback;
+            gameplayScoring.OnGameFinished -= OnGameFinishedCallback;
+        }
+    }
+
+    private void EnsureAudienceController()
+    {
+        GameObject gestorAudiencia = GameObject.Find("_GestorAudiencia");
+        if (gestorAudiencia == null)
+        {
+            return;
+        }
+
+        ControladorAudiencia oldController = gestorAudiencia.GetComponent<ControladorAudiencia>();
+        if (oldController != null)
+        {
+            oldController.enabled = false;
+        }
+
+        ControladorAudienciaPiano pianoController = gestorAudiencia.GetComponent<ControladorAudienciaPiano>();
+        if (pianoController == null)
+        {
+            pianoController = gestorAudiencia.AddComponent<ControladorAudienciaPiano>();
+        }
+
+        pianoController.sistemaPublico = this;
+        if (pianoController.jugador == null && Camera.main != null)
+        {
+            pianoController.jugador = Camera.main.transform;
         }
     }
 }

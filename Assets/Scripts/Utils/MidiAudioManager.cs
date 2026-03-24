@@ -23,6 +23,8 @@ public class MidiAudioManager : MonoBehaviour
     
     [Header("Aplausos")]
     private AudioSource applauseSource;
+    [SerializeField] private float applauseMaxVolume = 1.0f;
+    [SerializeField] private float applauseMinAudibleVolume = 0.35f;
 
     private Dictionary<int, AudioClip> pianoSamples = new Dictionary<int, AudioClip>();
     private List<int> availableMidiNotes = new List<int>();
@@ -50,7 +52,7 @@ public class MidiAudioManager : MonoBehaviour
     /// </summary>
     public void SetPianoVolume(float volume)
     {
-        volumeBoost = Mathf.Clamp01(volume);
+        volumeBoost = Mathf.Clamp(volume * 1.75f, 0.85f, 2.5f);
         Debug.Log($"<color=cyan>[MIDI Audio]</color> 🎚️ Piano volume set to {volumeBoost:F3}");
     }
 
@@ -350,6 +352,7 @@ public class MidiAudioManager : MonoBehaviour
             applauseSource = gameObject.AddComponent<AudioSource>();
             applauseSource.playOnAwake = false;
             applauseSource.spatialBlend = 0; // 2D
+            applauseSource.volume = 0f;
             
             AudioClip applauseClip = Resources.Load<AudioClip>("Sounds/aplause");
             if (applauseClip != null)
@@ -372,8 +375,8 @@ public class MidiAudioManager : MonoBehaviour
     {
         if (applauseSource == null) return;
         
-        float normalizedScore = Mathf.Clamp01(publicScore / 100f); // 0-1
-        applauseSource.volume = normalizedScore * 0.8f; // Máximo 0.8 de volumen
+        float normalizedScore = Mathf.Pow(Mathf.Clamp01(publicScore / 100f), 0.75f); // 0-1
+        applauseSource.volume = Mathf.Lerp(applauseMinAudibleVolume, applauseMaxVolume, normalizedScore);
     }
     
     /// <summary>

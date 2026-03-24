@@ -13,34 +13,26 @@ public class ShowRepertorio : MonoBehaviour
     // Lista para mantener referencia de todos los items creados
     private List<SongItem> songItems = new List<SongItem>();
     private bool lastKnownMidiState = false;
+    private bool midiSubscribed = false;
 
     private void Start()
     {
         Debug.Log("<color=magenta>[Repertorio]</color> 📋 ===== INICIANDO REPERTORIO =====");
         
         CargarDatos();
-        
-        // Suscribirse al evento de cambio de estado MIDI
-        if (MIDIConnectionManager.Instance != null)
-        {
-            Debug.Log("<color=green>[Repertorio]</color> ✅ MIDIConnectionManager encontrado");
-            MIDIConnectionManager.Instance.OnMidiConnectionChanged += OnMidiStatusChanged;
-            
-            // Aplicar estado inicial si ya existe el manager
-            bool currentState = MIDIConnectionManager.Instance.IsMidiConnected;
-            Debug.Log($"<color=cyan>[Repertorio]</color> 📡 Estado MIDI inicial: {(currentState ? "CONECTADO ✅" : "DESCONECTADO ❌")}");
-            OnMidiStatusChanged(currentState);
-        }
-        else
-        {
-            Debug.LogError("<color=red>[Repertorio]</color> ❌ MIDIConnectionManager NO ENCONTRADO!");
-        }
+
+        TrySubscribeToMidiManager();
         
         Debug.Log("<color=magenta>[Repertorio]</color> 📋 ===== REPERTORIO LISTO =====\n");
     }
 
     private void Update()
     {
+        if (!midiSubscribed)
+        {
+            TrySubscribeToMidiManager();
+        }
+
         // Validar constantemente el estado de MIDI en tiempo real
         if (MIDIConnectionManager.Instance != null)
         {
@@ -91,6 +83,7 @@ public class ShowRepertorio : MonoBehaviour
     /// </summary>
     private void OnMidiStatusChanged(bool isMidiConnected)
     {
+        lastKnownMidiState = isMidiConnected;
         Debug.Log($"<color=yellow>[Repertorio]</color> MIDI {(isMidiConnected ? "conectado" : "desconectado")} - Actualizando botones...");
         
         // Actualizar todos los items de canción
@@ -148,9 +141,29 @@ public class ShowRepertorio : MonoBehaviour
     private void OnDestroy()
     {
         // Desuscribirse del evento al destruir el componente
-        if (MIDIConnectionManager.Instance != null)
+        if (midiSubscribed && MIDIConnectionManager.Instance != null)
         {
             MIDIConnectionManager.Instance.OnMidiConnectionChanged -= OnMidiStatusChanged;
         }
+    }
+
+    private void TrySubscribeToMidiManager()
+    {
+        MIDIConnectionManager midiManager = MIDIConnectionManager.Instance ?? FindObjectOfType<MIDIConnectionManager>();
+        if (midiManager == null)
+        {
+            return;
+        }
+
+        if (!midiSubscribed)
+        {
+            Debug.Log("<color=green>[Repertorio]</color> ✅ MIDIConnectionManager encontrado");
+            midiManager.OnMidiConnectionChanged += OnMidiStatusChanged;
+            midiSubscribed = true;
+        }
+
+        bool currentState = midiManager.IsMidiConnected;
+        Debug.Log($"<color=cyan>[Repertorio]</color> 📡 Estado MIDI actual: {(currentState ? "CONECTADO ✅" : "DESCONECTADO ❌")}");
+        OnMidiStatusChanged(currentState);
     }
 }

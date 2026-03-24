@@ -6,6 +6,8 @@ public class PianoGameManager : MonoBehaviour
     private static PianoGameManager instance;
     public static PianoGameManager Instance => instance;
     public bool CanTogglePause => gameStarted && (isPlaying || isPaused);
+    public bool HasGameplayStarted => gameStarted;
+    public bool IsReadyToStartGameplay => gameplayReady && !gameStarted && currentSongData != null;
     
     [Header("Referencias")]
     [SerializeField] private PianoSongLoader songLoader;
@@ -388,6 +390,7 @@ public class PianoGameManager : MonoBehaviour
         
         // FASE 3: Configurar sistema visual
         LoadSongIntoSpawner();
+        ShowCountdownPreview();
         SetupCountdown();
         
         gameplayReady = true;
@@ -421,6 +424,14 @@ public class PianoGameManager : MonoBehaviour
         else
         {
             Debug.LogWarning("[PianoGame] No se pudo cargar la canción en el spawner");
+        }
+    }
+
+    private void ShowCountdownPreview()
+    {
+        if (noteSpawner != null)
+        {
+            noteSpawner.ShowPreviewNotes(0f);
         }
     }
     
@@ -487,6 +498,12 @@ public class PianoGameManager : MonoBehaviour
     /// </summary>
     public void StartGame()
     {
+        if (MIDIConnectionManager.Instance != null && !MIDIConnectionManager.Instance.IsMidiConnected)
+        {
+            Debug.LogWarning("<color=yellow>[PianoGame]</color> MIDI desconectado. Esperando reconexión para iniciar gameplay...");
+            return;
+        }
+
         // Evitar inicio múltiple
         if (gameStarted)
         {

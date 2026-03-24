@@ -16,6 +16,7 @@ public class DirectMidiReceiver : MonoBehaviour
     
     // Queue compatible with MidiAudioManager
     public ConcurrentQueue<byte[]> messageQueue = new ConcurrentQueue<byte[]>();
+    public bool IsMidiConnected => isMidiConnected;
     
     // Connection status
     private bool isMidiConnected = false;

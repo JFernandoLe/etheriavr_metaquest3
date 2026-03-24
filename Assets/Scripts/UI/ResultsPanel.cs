@@ -93,9 +93,9 @@ public class ResultsPanel : MonoBehaviour
         if (txtStats != null)
         {
             string stats = $"<size=90%>" +
-                         $"Notas tocadas: <color=green>{currentResults.notes_hit}</color>/{currentResults.total_notes}\n" +
+                         $"Cobertura lograda: <color=green>{currentResults.notes_hit:F1}</color>/{currentResults.total_notes:F1}\n" +
                          $"<color=lime>🟢 Perfectas: {currentResults.perfect_notes}</color>\n" +
-                         $"<color=red>❌ Perdidas: {currentResults.notes_missed}</color>\n" +
+                         $"<color=red>❌ Faltante: {currentResults.notes_missed:F1}</color>\n" +
                          $"⏱️ Tiempo: {currentResults.game_duration:F2}s" +
                          $"</size>";
             txtStats.text = stats;

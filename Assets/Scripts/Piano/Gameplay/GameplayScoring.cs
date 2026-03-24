@@ -8,10 +8,17 @@ using System.Linq;
 /// </summary>
 public class GameplayScoring : MonoBehaviour
 {
+    private class ActivePressState
+    {
+        public float pressStartTime;
+        public float lastProcessedTime;
+    }
+
     [Header("Configuración de Timing")]
     [SerializeField] private float hitWindow = 0.15f; // Gracia para evaluar una nota después de terminar
     [SerializeField] private float minimumHoldForHit = 0.10f; // 10% mínimo de duración
     [SerializeField] private float perfectHoldThreshold = 0.80f;
+    [SerializeField] private float simultaneousChordGrace = 0.045f;
     
     [Header("Referencias")]
     private PianoGameManager gameManager;
@@ -30,10 +37,11 @@ public class GameplayScoring : MonoBehaviour
     private List<GameNoteData> expectedNotes = new List<GameNoteData>();
     private Dictionary<int, GameNoteScore> noteScores = new Dictionary<int, GameNoteScore>(); // index -> score
     private int nextExpectedNoteIndex = 0;
-    private int totalPlayableNoteUnits = 0;
-    private int hitPlayableNoteUnits = 0;
+    private float totalPlayableNoteUnits = 0f;
+    private float weightedHitPlayableNoteUnits = 0f;
     private int perfectPlayableNoteUnits = 0;
     private readonly HashSet<int> currentlyPressedNotes = new HashSet<int>();
+    private readonly Dictionary<int, ActivePressState> activePressStates = new Dictionary<int, ActivePressState>();
     
     // Feedback visual
     private Dictionary<StaffRenderer, float> staffHitFeedbackTime = new Dictionary<StaffRenderer, float>();
@@ -42,10 +50,12 @@ public class GameplayScoring : MonoBehaviour
     // Eventos
     public delegate void OnNoteHitDelegate(GameNoteData expected, bool perfect);
     public delegate void OnNoteMissedDelegate(GameNoteData expected);
+    public delegate void OnNoteEvaluatedDelegate(GameNoteData expected, float normalizedScore, int successfulUnits, int totalUnits);
     public delegate void OnGameFinishedDelegate(GameplayResults results);
     
     public event OnNoteHitDelegate OnNoteHit;
     public event OnNoteMissedDelegate OnNoteMissed;
+    public event OnNoteEvaluatedDelegate OnNoteEvaluated;
     public event OnGameFinishedDelegate OnGameFinished;
     
     /// <summary>
@@ -59,12 +69,13 @@ public class GameplayScoring : MonoBehaviour
         public bool wasEvaluated = false;
         public int successfulUnits = 0;
         public int perfectUnits = 0;
+        public float weightedUnits = 0f;
         public Dictionary<int, float> heldDurations = new Dictionary<int, float>();
     }
 
-    public int TotalPlayableNoteUnits => totalPlayableNoteUnits;
-    public int HitPlayableNoteUnits => hitPlayableNoteUnits;
-    public float CurrentAccuracyPercent => totalPlayableNoteUnits > 0 ? (hitPlayableNoteUnits / (float)totalPlayableNoteUnits) * 100f : 0f;
+    public float TotalPlayableNoteUnits => totalPlayableNoteUnits;
+    public float HitPlayableNoteUnits => weightedHitPlayableNoteUnits;
+    public float CurrentAccuracyPercent => totalPlayableNoteUnits > 0f ? (weightedHitPlayableNoteUnits / totalPlayableNoteUnits) * 100f : 0f;
     
     void Awake()
     {
@@ -132,10 +143,11 @@ public class GameplayScoring : MonoBehaviour
         expectedNotes.Clear();
         noteScores.Clear();
         nextExpectedNoteIndex = 0;
-        totalPlayableNoteUnits = 0;
-        hitPlayableNoteUnits = 0;
+        totalPlayableNoteUnits = 0f;
+        weightedHitPlayableNoteUnits = 0f;
         perfectPlayableNoteUnits = 0;
         currentlyPressedNotes.Clear();
+        activePressStates.Clear();
         
         // Cargar notas esperadas desde all_notes
         if (song.all_notes != null)
@@ -191,6 +203,7 @@ public class GameplayScoring : MonoBehaviour
         isGameActive = true;
         nextExpectedNoteIndex = 0;
         currentlyPressedNotes.Clear();
+        activePressStates.Clear();
         
         // Iniciar sistema público
         if (publicSystem != null)
@@ -280,7 +293,22 @@ public class GameplayScoring : MonoBehaviour
             return; // Ignorar MIDI si el juego no está activo
         }
 
+        float noteOnTime = GetCurrentSongTime();
         currentlyPressedNotes.Add(midiNote);
+
+        if (!activePressStates.ContainsKey(midiNote))
+        {
+            activePressStates[midiNote] = new ActivePressState
+            {
+                pressStartTime = noteOnTime,
+                lastProcessedTime = noteOnTime
+            };
+        }
+        else
+        {
+            activePressStates[midiNote].pressStartTime = noteOnTime;
+            activePressStates[midiNote].lastProcessedTime = noteOnTime;
+        }
         
         Debug.Log($"<color=magenta>[GameplayScoring]</color> 🎹 MIDI {midiNote} PRESIONADO @ {currentGameTime:F3}s (vel={velocity})");
     }
@@ -292,15 +320,37 @@ public class GameplayScoring : MonoBehaviour
             return;
         }
 
+        if (activePressStates.Count == 0)
+        {
+            return;
+        }
+
+        foreach (KeyValuePair<int, ActivePressState> pressedNote in activePressStates)
+        {
+            float intervalStart = pressedNote.Value.lastProcessedTime;
+            float intervalEnd = currentGameTime;
+
+            if (intervalEnd <= intervalStart)
+            {
+                continue;
+            }
+
+            AccumulateHeldDurationForMidiNote(pressedNote.Key, pressedNote.Value, intervalStart, intervalEnd);
+            pressedNote.Value.lastProcessedTime = intervalEnd;
+        }
+    }
+
+    private void AccumulateHeldDurationForMidiNote(int midiNote, ActivePressState pressState, float intervalStart, float intervalEnd)
+    {
         for (int i = nextExpectedNoteIndex; i < expectedNotes.Count; i++)
         {
             GameNoteData note = expectedNotes[i];
-            if (currentGameTime < note.time)
+            if (intervalEnd < note.time)
             {
                 break;
             }
 
-            if (currentGameTime > note.time + note.duration)
+            if (intervalStart > note.time + note.duration)
             {
                 continue;
             }
@@ -310,12 +360,30 @@ public class GameplayScoring : MonoBehaviour
                 continue;
             }
 
-            foreach (int midiNote in GetMidiNotes(note))
+            if (!score.heldDurations.ContainsKey(midiNote))
             {
-                if (currentlyPressedNotes.Contains(midiNote))
-                {
-                    score.heldDurations[midiNote] += Time.deltaTime;
-                }
+                continue;
+            }
+
+            float effectiveIntervalStart = intervalStart;
+            bool qualifiesForSimultaneousGrace =
+                score.heldDurations[midiNote] <= 0.0001f &&
+                pressState != null &&
+                pressState.pressStartTime >= note.time &&
+                pressState.pressStartTime - note.time <= simultaneousChordGrace;
+
+            if (qualifiesForSimultaneousGrace)
+            {
+                effectiveIntervalStart = Mathf.Min(effectiveIntervalStart, note.time);
+            }
+
+            float overlapStart = Mathf.Max(effectiveIntervalStart, note.time);
+            float overlapEnd = Mathf.Min(intervalEnd, note.time + note.duration);
+            float overlap = Mathf.Max(0f, overlapEnd - overlapStart);
+
+            if (overlap > 0f)
+            {
+                score.heldDurations[midiNote] += overlap;
             }
         }
     }
@@ -352,11 +420,15 @@ public class GameplayScoring : MonoBehaviour
         int[] midiNotes = GetMidiNotes(note);
         int successfulUnits = 0;
         int perfectUnits = 0;
+        float weightedUnits = 0f;
 
         foreach (int midiNote in midiNotes)
         {
             float heldDuration = score.heldDurations.TryGetValue(midiNote, out float value) ? value : 0f;
             float holdRatio = note.duration > 0.0001f ? heldDuration / note.duration : (heldDuration > 0f ? 1f : 0f);
+            holdRatio = Mathf.Clamp01(holdRatio);
+
+            weightedUnits += holdRatio;
 
             if (holdRatio >= minimumHoldForHit)
             {
@@ -371,16 +443,20 @@ public class GameplayScoring : MonoBehaviour
 
         score.successfulUnits = successfulUnits;
         score.perfectUnits = perfectUnits;
-        score.wasHit = successfulUnits > 0;
+        score.weightedUnits = weightedUnits;
+        score.wasHit = weightedUnits > 0f;
         score.wasPerfect = successfulUnits == midiNotes.Length && perfectUnits == midiNotes.Length;
         score.wasEvaluated = true;
 
-        if (successfulUnits > 0)
+        float normalizedScore = midiNotes.Length > 0 ? weightedUnits / midiNotes.Length : 0f;
+        weightedHitPlayableNoteUnits += weightedUnits;
+        OnNoteEvaluated?.Invoke(note, normalizedScore, successfulUnits, midiNotes.Length);
+
+        if (weightedUnits > 0f)
         {
-            hitPlayableNoteUnits += successfulUnits;
             perfectPlayableNoteUnits += perfectUnits;
             TriggerHitFeedback(note, score.wasPerfect);
-            Debug.Log($"[GameplayScoring] ✅ HIT {successfulUnits}/{midiNotes.Length} | MIDI {string.Join(",", midiNotes)} | t={note.time:F3}s");
+            Debug.Log($"[GameplayScoring] ✅ HIT ponderado {weightedUnits:F2}/{midiNotes.Length} | MIDI {string.Join(",", midiNotes)} | t={note.time:F3}s");
             OnNoteHit?.Invoke(note, score.wasPerfect);
             return;
         }
@@ -463,9 +539,9 @@ public class GameplayScoring : MonoBehaviour
         {
             song_name = currentSong.song_name ?? currentSong.song_title,
             total_notes = totalPlayableNoteUnits,
-            notes_hit = hitPlayableNoteUnits,
+            notes_hit = weightedHitPlayableNoteUnits,
             perfect_notes = perfectPlayableNoteUnits,
-            notes_missed = Mathf.Max(totalPlayableNoteUnits - hitPlayableNoteUnits, 0),
+            notes_missed = Mathf.Max(totalPlayableNoteUnits - weightedHitPlayableNoteUnits, 0f),
             accuracy_percentage = accuracy,
             game_duration = currentGameTime,
             timestamp = System.DateTime.Now
@@ -502,6 +578,14 @@ public class GameplayScoring : MonoBehaviour
     /// </summary>
     private void ProcessMidiNoteOff(int midiNote, int velocity)
     {
+        float noteOffTime = GetCurrentSongTime();
+
+        if (activePressStates.TryGetValue(midiNote, out ActivePressState pressState))
+        {
+            AccumulateHeldDurationForMidiNote(midiNote, pressState, pressState.lastProcessedTime, noteOffTime);
+            activePressStates.Remove(midiNote);
+        }
+
         currentlyPressedNotes.Remove(midiNote);
         Debug.Log($"<color=orange>[GameplayScoring DEBUG]</color> 🔲 MIDI {midiNote} soltado @ {currentGameTime:F3}s");
     }
@@ -513,6 +597,8 @@ public class GameplayScoring : MonoBehaviour
             midiAudioManager.OnMidiNoteOn -= ProcessMidiNoteOn;
             midiAudioManager.OnMidiNoteOff -= ProcessMidiNoteOff;
         }
+
+        OnNoteEvaluated = null;
     }
 }
 
@@ -523,10 +609,10 @@ public class GameplayScoring : MonoBehaviour
 public class GameplayResults
 {
     public string song_name;
-    public int total_notes;
-    public int notes_hit;
+    public float total_notes;
+    public float notes_hit;
     public int perfect_notes;
-    public int notes_missed;
+    public float notes_missed;
     public float accuracy_percentage;
     public float game_duration;
     public System.DateTime timestamp;
