@@ -3438,9 +3438,9 @@ MonoBehaviour:
     m_SelectOnRight: {fileID: 0}
   m_Transition: 1
   m_Colors:
-    m_NormalColor: {r: 0.16862746, g: 0.16862746, b: 0.16862746, a: 1}
-    m_HighlightedColor: {r: 0.22745098, g: 0.22745098, b: 0.22745098, a: 1}
-    m_PressedColor: {r: 0.101960786, g: 0.101960786, b: 0.101960786, a: 1}
+    m_NormalColor: {r: 0.6509804, g: 0.48235294, b: 0.37254903, a: 1}
+    m_HighlightedColor: {r: 0.49019608, g: 0.38431373, b: 0.31764707, a: 1}
+    m_PressedColor: {r: 0.27450982, g: 0.22352941, b: 0.19215687, a: 1}
     m_SelectedColor: {r: 0.028301895, g: 0.028301895, b: 0.028301895, a: 1}
     m_DisabledColor: {r: 0.33333334, g: 0.33333334, b: 0.33333334, a: 0.5019608}
     m_ColorMultiplier: 1
@@ -3486,7 +3486,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.11764706, g: 0.11764706, b: 0.11764706, a: 1}
+  m_Color: {r: 0.6509804, g: 0.48235294, b: 0.37254903, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -14921,9 +14921,9 @@ MonoBehaviour:
     m_SelectOnRight: {fileID: 0}
   m_Transition: 1
   m_Colors:
-    m_NormalColor: {r: 0.16862746, g: 0.16862746, b: 0.16862746, a: 1}
-    m_HighlightedColor: {r: 0.22745098, g: 0.22745098, b: 0.22745098, a: 1}
-    m_PressedColor: {r: 0.101960786, g: 0.101960786, b: 0.101960786, a: 1}
+    m_NormalColor: {r: 0.6509804, g: 0.48235294, b: 0.37254903, a: 1}
+    m_HighlightedColor: {r: 0.49019608, g: 0.38431373, b: 0.31764707, a: 1}
+    m_PressedColor: {r: 0.27450982, g: 0.22352941, b: 0.19215687, a: 1}
     m_SelectedColor: {r: 0.028301895, g: 0.028301895, b: 0.028301895, a: 1}
     m_DisabledColor: {r: 0.33333334, g: 0.33333334, b: 0.33333334, a: 0.5019608}
     m_ColorMultiplier: 1
@@ -14969,7 +14969,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.11764706, g: 0.11764706, b: 0.11764706, a: 1}
+  m_Color: {r: 0.6509804, g: 0.48235294, b: 0.37254903, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -17097,6 +17097,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PianoGameManager
   songLoader: {fileID: 0}
   backgroundMusicSource: {fileID: 0}
+  midiAudioManager: {fileID: 0}
+  directMidiReceiver: {fileID: 0}
+  gameplayScoring: {fileID: 0}
+  resultsPanel: {fileID: 0}
   countdownManager: {fileID: 0}
   trebleStaff: {fileID: 0}
   bassStaff: {fileID: 0}
@@ -17110,13 +17114,21 @@ MonoBehaviour:
   followSmoothSpeed: 5
   currentSongData:
     song_title: 
+    song_name: 
     artist: 
     tempo: 0
     duration: 0
+    recorded_duration: 0
     background_music: 
+    audio_file: 
+    piano_volume: 1
+    audio_file_volume: 1
+    beatOffsetTime: -1
+    all_notes: []
     melody: []
     chords: []
   isPlaying: 0
+  isPaused: 0
   gameTime: 0
 --- !u!4 &1589599517
 Transform:
@@ -17497,9 +17509,9 @@ MonoBehaviour:
     m_SelectOnRight: {fileID: 0}
   m_Transition: 1
   m_Colors:
-    m_NormalColor: {r: 0.16862746, g: 0.16862746, b: 0.16862746, a: 1}
-    m_HighlightedColor: {r: 0.22745098, g: 0.22745098, b: 0.22745098, a: 1}
-    m_PressedColor: {r: 0.101960786, g: 0.101960786, b: 0.101960786, a: 1}
+    m_NormalColor: {r: 0.6509804, g: 0.48235294, b: 0.37254903, a: 1}
+    m_HighlightedColor: {r: 0.49019608, g: 0.38431373, b: 0.31764707, a: 1}
+    m_PressedColor: {r: 0.27450982, g: 0.22352941, b: 0.19215687, a: 1}
     m_SelectedColor: {r: 0.028301895, g: 0.028301895, b: 0.028301895, a: 1}
     m_DisabledColor: {r: 0.33333334, g: 0.33333334, b: 0.33333334, a: 0.5019608}
     m_ColorMultiplier: 1
@@ -17545,7 +17557,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.11764706, g: 0.11764706, b: 0.11764706, a: 1}
+  m_Color: {r: 0.6509804, g: 0.48235294, b: 0.37254903, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -18719,7 +18731,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1771628453
 MonoBehaviour:
   m_ObjectHideFlags: 0
