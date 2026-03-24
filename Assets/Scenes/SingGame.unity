@@ -6656,7 +6656,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &959523783
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -17097,6 +17097,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PianoGameManager
   songLoader: {fileID: 0}
   backgroundMusicSource: {fileID: 0}
+  midiAudioManager: {fileID: 0}
+  directMidiReceiver: {fileID: 0}
+  gameplayScoring: {fileID: 0}
+  resultsPanel: {fileID: 0}
   countdownManager: {fileID: 0}
   trebleStaff: {fileID: 0}
   bassStaff: {fileID: 0}
@@ -17110,13 +17114,21 @@ MonoBehaviour:
   followSmoothSpeed: 5
   currentSongData:
     song_title: 
+    song_name: 
     artist: 
     tempo: 0
     duration: 0
+    recorded_duration: 0
     background_music: 
+    audio_file: 
+    piano_volume: 1
+    audio_file_volume: 1
+    beatOffsetTime: -1
+    all_notes: []
     melody: []
     chords: []
   isPlaying: 0
+  isPaused: 0
   gameTime: 0
 --- !u!4 &1589599517
 Transform:
@@ -18719,7 +18731,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1771628453
 MonoBehaviour:
   m_ObjectHideFlags: 0
