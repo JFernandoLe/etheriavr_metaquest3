@@ -5,6 +5,7 @@ public class PianoGameManager : MonoBehaviour
     // Singleton para evitar múltiples instancias
     private static PianoGameManager instance;
     public static PianoGameManager Instance => instance;
+    public bool CanTogglePause => gameStarted && (isPlaying || isPaused);
     
     [Header("Referencias")]
     [SerializeField] private PianoSongLoader songLoader;
@@ -640,6 +641,7 @@ public class PianoGameManager : MonoBehaviour
     private void OnGameFinished(GameplayResults results)
     {
         isPlaying = false;
+        isPaused = false;
         gameStarted = false;
         
         Debug.Log("<color=cyan>[PianoGame]</color> 🏁 JUEGO TERMINADO");
@@ -683,9 +685,16 @@ public class PianoGameManager : MonoBehaviour
     void OnDestroy()
     {
         // Desuscribirse del evento
+        PianoCalibrator.OnPianoConfigured -= OnPianoConfigured_StartGame;
+
         if (countdownManager != null)
         {
             countdownManager.OnCountdownComplete -= OnCountdownFinished;
+        }
+
+        if (gameplayScoring != null)
+        {
+            gameplayScoring.OnGameFinished -= OnGameFinished;
         }
     }
 }
