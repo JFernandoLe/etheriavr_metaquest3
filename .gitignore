@@ -8,6 +8,12 @@
 /[Mm]emoryCaptures/
 /[Uu]ser[Ss]ettings/
 
+# --- XR/VR & Meta Quest Specific (Limpieza de Caché de Simulación) ---
+/[Aa]ssets/XR/Temp/
+/[Aa]ssets/XR/Temp.meta
+/[Aa]ssets/XR/Resources/XRSimulationRuntimeSettings.asset
+/[Aa]ssets/XR/Resources/XRSimulationRuntimeSettings.asset.meta
+
 # --- IDEs & Editors (VS Code, Visual Studio, JetBrains) ---
 .vs/
 .vscode/
@@ -25,11 +31,13 @@
 *.opendb
 *.VC.db
 
-# --- Android & Meta Quest Specific ---
-# Ignoramos los archivos finales instalables (se generan al compilar)
+# --- Android & Build Artifacts ---
 *.apk
 *.aab
 *.unitypackage
+**.symbols.zip
+*_BackUpThisFolder_ButDontShipItWithYourGame/
+*_BurstDebugInformation_DoNotShip/
 
 # --- OS Specific ---
 .DS_Store
@@ -38,29 +46,18 @@
 Thumbs.db
 ehthumbs.db
 
-# --- Crashlytics & Reports ---
+# --- Crashlytics & Recovery ---
 sysinfo.txt
 crashlytics-build.properties
-
-*_BackUpThisFolder_ButDontShipItWithYourGame/
-*_BurstDebugInformation_DoNotShip/
-
-/[Aa]ssets/.[Uu]tmp/
-.[Uu]tmp/
-
-.env
-.env.meta
-
-/[Bb]uild/
-/[Bb]uilds/
-# Archivos de depuración de Android
-**.symbols.zip
-
-.metadata/
-
-# --- Unity Recovery & Temp Assets ---
 /[Aa]ssets/_Recovery/
 /[Aa]ssets/_Recovery.meta
 /[Aa]ssets/[Aa]utoplay/
 /[Aa]ssets/[Aa]utoplay.meta
+
+# --- Project Specific & Config ---
 INSTRUCCIONES_FASE3.txt
+.env
+.env.meta
+.metadata/
+/[Aa]ssets/.[Uu]tmp/
+.[Uu]tmp/

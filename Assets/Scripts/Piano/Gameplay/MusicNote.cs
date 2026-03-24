@@ -1,45 +1,74 @@
 using UnityEngine;
+using System.Collections.Generic;
+using System.Linq;
 
 /// <summary>
-/// Representa una nota musical que se mueve por el pentagrama hacia la línea de hit
+/// Representa una nota musical (línea de duración) que se mueve hacia la derecha
+/// Se comporta como Piano Tiles: zona de hit es una trituradora fija
 /// </summary>
 [RequireComponent(typeof(Rigidbody))]
-[RequireComponent(typeof(SphereCollider))]
 public class MusicNote : MonoBehaviour
 {
     [Header("Datos de la Nota")]
     public int midiNote; // Número MIDI (60 = C4)
-    public float duration; // Duración en segundos
+    public float duration; // Duración en segundos (longitud total inicial)
     public float spawnTime; // Tiempo en el que debe aparecer
     public string hand; // "right" o "left"
     
     [Header("Movimiento")]
-    [SerializeField] private float moveSpeed = 1.0f; // Velocidad inicial (se sobrescribe por NoteSpawner)
+    [SerializeField] private float moveSpeed = 1.0f; // Velocidad de avance hacia adelante
+    [SerializeField] private float destroyAfterEndDelay = 1.0f;
     
     [Header("Visual")]
     [SerializeField] private Color rightHandColor = new Color(0.2f, 0.6f, 1f); // Azul
     [SerializeField] private Color leftHandColor = new Color(1f, 0.4f, 0.2f);  // Naranja
     [SerializeField] private float noteLabelFontSize = 100; // Tamaño del texto de la nota
+    [SerializeField] private Color unburnedColor = new Color(1f, 1f, 0.3f);
+    [SerializeField] private Color burnedColor = new Color(1f, 0.35f, 0.1f);
     
-    private Renderer noteRenderer;
     private Rigidbody rb;
     private bool isActive = true;
     private Vector3 targetDirection;
-    private GameObject noteLabel; // TextMesh con el nombre de la nota
-    private GameObject durationLine; // Línea amarilla que indica la duración
+    private GameObject durationLine; // Línea (cuerpo de la nota)
+    private GameObject burnedLine;
+    
+    // Referencias para detección de hit
+    private StaffRenderer staffRenderer; // Parent - el pentagrama
+    private MidiAudioManager midiAudioManager;
+    private float originalLineLength = 0f; // Longitud original de la línea (mapea de duration)
+    private Material durationLineMaterial; // Material de la línea
+    private Material burnedLineMaterial;
+    private float fallbackStartTime = 0f;
+    private Vector3 localSpawnPosition;
+    private Vector3 localHitPosition;
+    private float localBurnedDuration = 0f;
+    
+    /// <summary>
+    /// Obtener todas las notas activas en pantalla
+    /// </summary>
+    public static List<MusicNote> GetActiveNotes()
+    {
+        return FindObjectsOfType<MusicNote>(true).ToList();
+    }
 
     void Awake()
     {
-        noteRenderer = GetComponent<Renderer>();
         rb = GetComponent<Rigidbody>();
         
-        // Configurar Rigidbody
-        rb.isKinematic = false;
+        rb.isKinematic = true;
         rb.useGravity = false;
-        rb.constraints = RigidbodyConstraints.FreezeRotation; // No rotar
+        rb.constraints = RigidbodyConstraints.FreezeRotation;
         
-        // Tamaño GIGANTE para VR - MUY visible
-        transform.localScale = Vector3.one * 0.8f; // 80cm de diámetro - GIGANTESCAS
+        Renderer parentRenderer = GetComponent<Renderer>();
+        if (parentRenderer != null) parentRenderer.enabled = false;
+        
+        Collider parentCollider = GetComponent<Collider>();
+        if (parentCollider != null) Destroy(parentCollider);
+    }
+    
+    void OnDestroy()
+    {
+        // Limpiar referencias si es necesario
     }
 
     /// <summary>
@@ -51,163 +80,181 @@ public class MusicNote : MonoBehaviour
         duration = noteData.duration;
         spawnTime = noteData.time;
         hand = noteData.hand;
+        localSpawnPosition = startPosition;
+        localHitPosition = hitPosition;
         
-        // La posición ya se configuró como localPosition desde el spawner
-        // transform.localPosition ya está configurado
+        staffRenderer = transform.parent?.GetComponent<StaffRenderer>();
+        midiAudioManager = FindObjectOfType<MidiAudioManager>();
         
-        // Calcular dirección hacia el hit point EN ESPACIO LOCAL
         targetDirection = (hitPosition - startPosition).normalized;
         
-        // Aplicar velocidad override si se especifica
         if (speedOverride > 0)
         {
             moveSpeed = speedOverride;
         }
+
+        fallbackStartTime = Time.time;
+        transform.localPosition = CalculateHeadPosition(GetCurrentSongTime());
         
-        // Color según mano
-        if (noteRenderer != null)
-        {
-            Material mat = noteRenderer.material;
-            mat.color = (hand == "right") ? rightHandColor : leftHandColor;
-        }
-        
-        // Crear label con el nombre de la nota
-        CreateNoteLabel();
-        
-        // Crear línea de duración (hold indicator)
         CreateDurationLine(speedOverride);
-        
-        Debug.Log($"[MusicNote] Nota creada: MIDI {midiNote} ({hand}) a {moveSpeed}m/s");
     }
     
-    void FixedUpdate()
+    void Update()
     {
         if (!isActive) return;
-        
-        // Mover EN ESPACIO LOCAL del pentagrama (se mueve con el parent)
-        // Convertir dirección local a dirección mundial
-        Vector3 worldDirection = transform.parent != null 
-            ? transform.parent.TransformDirection(targetDirection) 
-            : targetDirection;
-        
-        rb.linearVelocity = worldDirection * moveSpeed;
+
+        float songTime = GetCurrentSongTime();
+        transform.localPosition = CalculateHeadPosition(songTime);
+
+        bool isPlayableWindow = songTime >= spawnTime && songTime <= (spawnTime + duration);
+        bool isPressedNow = midiAudioManager != null && midiAudioManager.IsNotePressedNow(midiNote);
+
+        if (isPlayableWindow && isPressedNow)
+        {
+            localBurnedDuration = Mathf.Min(duration, localBurnedDuration + Time.deltaTime);
+            UpdateBurnVisual();
+        }
+
+        if (songTime > spawnTime + duration + destroyAfterEndDelay)
+        {
+            isActive = false;
+            Destroy(gameObject);
+        }
+    }
+
+    private float GetCurrentSongTime()
+    {
+        PianoGameManager gameManager = PianoGameManager.Instance;
+        if (gameManager != null && gameManager.BackgroundMusicSource != null && gameManager.BackgroundMusicSource.isPlaying)
+        {
+            return gameManager.BackgroundMusicSource.time;
+        }
+
+        return Time.time - fallbackStartTime;
+    }
+
+    private Vector3 CalculateHeadPosition(float songTime)
+    {
+        float remainingUntilHit = spawnTime - songTime;
+        return localHitPosition - (targetDirection * moveSpeed * remainingUntilHit);
     }
     
     void Start()
     {
-        // Destruir automáticamente después de 10 segundos si no fue destruida antes
-        Destroy(gameObject, 10f);
+        // Las notas NO se destruyen jamás - solo avanzan infinitamente
+        // Comentar el Destroy automático
+        // Destroy(gameObject, 10f);
     }
 
     /// <summary>
-    /// Marca la nota como tocada correctamente
-    /// </summary>
-    public void OnNoteHit()
-    {
-        isActive = false;
-        
-        // Efecto visual de acierto (cambiar color, escala, etc.)
-        if (noteRenderer != null)
-        {
-            noteRenderer.material.color = Color.green;
-        }
-        
-        // Destruir después de un momento
-        Destroy(gameObject, 0.2f);
-        
-        Debug.Log($"[MusicNote] ¡Nota {midiNote} tocada correctamente!");
-    }
-
-    /// <summary>
-    /// Marca la nota como fallada (pasó la línea de hit sin ser tocada)
+    /// Marks note as failed
     /// </summary>
     public void OnNoteMissed()
     {
         isActive = false;
-        
-        // Efecto visual de fallo
-        if (noteRenderer != null)
-        {
-            noteRenderer.material.color = Color.red;
-        }
-        
-        // Destruir después de un momento
-        Destroy(gameObject, 0.2f);
-        
-        Debug.Log($"[MusicNote] Nota {midiNote} fallada.");
+        Destroy(gameObject);
     }
     
     /// <summary>
-    /// Crea un TextMesh con el nombre de la nota
+    /// Called when MIDI key is released
     /// </summary>
-    private void CreateNoteLabel()
+    public void OnNoteRelease()
     {
-        noteLabel = new GameObject("NoteLabel");
-        noteLabel.transform.SetParent(transform, false);
-        noteLabel.transform.localPosition = Vector3.zero; // Centrado en la esfera
-        
-        // El pentagrama NO está rotado, así que el texto tampoco necesita rotación
-        noteLabel.transform.localRotation = Quaternion.identity;
-        
-        TextMesh textMesh = noteLabel.AddComponent<TextMesh>();
-        textMesh.text = MidiToNoteName(midiNote);
-        textMesh.fontSize = (int)noteLabelFontSize;
-        textMesh.characterSize = 0.01f; // Tamaño del texto en el mundo 3D
-        textMesh.anchor = TextAnchor.MiddleCenter;
-        textMesh.alignment = TextAlignment.Center;
-        textMesh.color = Color.white;
-        
-        // Hacer que el texto siempre mire hacia la cámara (billboard)
-        // Este componente se puede agregar si quieres que el texto siempre sea legible
-        // Por ahora lo dejamos fijo
-        
-        Debug.Log($"[MusicNote] Label creado: {textMesh.text}");
     }
     
     /// <summary>
-    /// Crea una línea amarilla que indica la duración que debe sostener la nota
-    /// La línea se extiende en la dirección del movimiento
+    /// Crea una línea que representa la duración de la nota CON EL NOMBRE incluido
     /// </summary>
     private void CreateDurationLine(float noteSpeed)
     {
         if (duration <= 0) return; // No crear línea para notas sin duración
         
-        // Calcular la longitud de la línea basada en duración y velocidad
-        // longitud = velocidad * duración (distancia que recorre en el tiempo de duración)
-        float lineLength = noteSpeed * duration;
+        // Calcular la longitud basada en duración y velocidad (usa moveSpeed si noteSpeed < 0)
+        float speed = noteSpeed > 0 ? noteSpeed : moveSpeed;
+        float lineLength = speed * duration;
         
-        // Limitar longitud máxima para que no sea demasiado larga
-        lineLength = Mathf.Min(lineLength, 2.0f); // Máximo 2 metros
+        // Evitar escalas exageradas sin aplastar notas largas de forma agresiva
+        lineLength = Mathf.Min(lineLength, 8f);
+        
+        // GUARDAR LA LONGITUD FINAL
+        originalLineLength = lineLength;
         
         durationLine = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        durationLine.name = "DurationLine";
+        durationLine.name = $"DurationLine_MIDI{midiNote}";
         durationLine.transform.SetParent(transform, false);
         
-        // Posicionar la línea DETRÁS de la nota (en dirección opuesta al movimiento)
-        // En espacio local, si la nota se mueve en +X, la línea va hacia -X
-        // La línea se extiende DESDE la nota hacia atrás
-        durationLine.transform.localPosition = new Vector3(-lineLength / 2f, 0, 0);
-        
-        // Escala: longitud en X, grosor pequeño en Y y Z
+        durationLine.transform.localPosition = new Vector3(lineLength / 2f, 0, 0);
         durationLine.transform.localScale = new Vector3(lineLength, 0.08f, 0.08f);
         
-        // Material amarillo brillante
         Shader shader = Shader.Find("Unlit/Color");
         if (shader == null) shader = Shader.Find("Standard");
         
-        Material durationMaterial = new Material(shader);
-        durationMaterial.color = new Color(1f, 0.9f, 0f); // Amarillo brillante
+        durationLineMaterial = new Material(shader);
+        durationLineMaterial.color = unburnedColor;
         
         Renderer renderer = durationLine.GetComponent<Renderer>();
-        renderer.material = durationMaterial;
+        renderer.material = durationLineMaterial;
         renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         renderer.receiveShadows = false;
         
-        // Quitar collider para que no interfiera
+        // Quitar collider (es solo visual)
         Collider collider = durationLine.GetComponent<Collider>();
-        if (collider != null) Destroy(collider);
+        if (collider != null) DestroyImmediate(collider);
+
+        burnedLine = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        burnedLine.name = $"BurnedLine_MIDI{midiNote}";
+        burnedLine.transform.SetParent(transform, false);
+        burnedLine.transform.localPosition = Vector3.zero;
+        burnedLine.transform.localScale = new Vector3(0.001f, 0.1f, 0.1f);
+
+        burnedLineMaterial = new Material(shader);
+        burnedLineMaterial.color = burnedColor;
+
+        Renderer burnedRenderer = burnedLine.GetComponent<Renderer>();
+        burnedRenderer.material = burnedLineMaterial;
+        burnedRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        burnedRenderer.receiveShadows = false;
+
+        Collider burnedCollider = burnedLine.GetComponent<Collider>();
+        if (burnedCollider != null) DestroyImmediate(burnedCollider);
         
-        Debug.Log($"[MusicNote] Línea de duración creada: {lineLength:F2}m para {duration:F2}s");
+        // ✅ AGREGAR LABEL CON EL NOMBRE DE LA NOTA ENCIMA DE LA LÍNEA
+        GameObject labelObj = new GameObject("NoteLabel");
+        labelObj.transform.SetParent(durationLine.transform, false);
+        labelObj.transform.localPosition = new Vector3(0, 0.1f, 0); // Encima de la línea
+        labelObj.transform.localRotation = Quaternion.identity;
+        
+        TextMesh textMesh = labelObj.AddComponent<TextMesh>();
+        textMesh.text = MidiToNoteName(midiNote);
+        textMesh.fontSize = (int)noteLabelFontSize;
+        textMesh.characterSize = 0.01f;
+        textMesh.anchor = TextAnchor.MiddleCenter;
+        textMesh.alignment = TextAlignment.Center;
+        textMesh.color = Color.white;
+
+        UpdateBurnVisual();
+    }
+
+    private void UpdateBurnVisual()
+    {
+        if (durationLine == null || burnedLine == null || originalLineLength <= 0f)
+        {
+            return;
+        }
+
+        float burnedFraction = duration > 0.0001f ? Mathf.Clamp01(localBurnedDuration / duration) : 0f;
+        float burnedLength = originalLineLength * burnedFraction;
+        float remainingLength = Mathf.Max(originalLineLength - burnedLength, 0.001f);
+
+        durationLine.transform.localPosition = new Vector3(burnedLength + (remainingLength * 0.5f), 0f, 0f);
+        durationLine.transform.localScale = new Vector3(remainingLength, 0.08f, 0.08f);
+
+        burnedLine.transform.localPosition = new Vector3(burnedLength * 0.5f, 0f, 0f);
+        burnedLine.transform.localScale = new Vector3(Mathf.Max(burnedLength, 0.001f), 0.1f, 0.1f);
+
+        bool fullyBurned = burnedFraction >= 0.999f;
+        durationLine.SetActive(!fullyBurned);
+        burnedLine.SetActive(burnedLength > 0.0001f);
     }
     
     /// <summary>
@@ -231,7 +278,6 @@ public class MusicNote : MonoBehaviour
     {
         if (other.CompareTag("PlayArea"))
         {
-            // La nota salió del área sin ser tocada
             if (isActive)
             {
                 OnNoteMissed();

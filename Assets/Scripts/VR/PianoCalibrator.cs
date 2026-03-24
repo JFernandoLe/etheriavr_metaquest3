@@ -6,6 +6,9 @@ public class PianoCalibrator : MonoBehaviour
     private bool isLocked = false;
     public float moveSpeed = 0.5f;
     public float scaleSpeed = 0.3f;
+    
+    // Evento que se dispara cuando el usuario confirma la configuración
+    public static event System.Action OnPianoConfigured;
 
     void Update()
     {
@@ -37,7 +40,17 @@ public class PianoCalibrator : MonoBehaviour
     }
 
     public void ToggleLock() {
-        isLocked = !isLocked;
-        if (confirmUI != null) confirmUI.SetActive(!isLocked);
+        if (!isLocked)  // Solo permitir LOCK, no unlock
+        {
+            isLocked = true;
+            if (confirmUI != null) confirmUI.SetActive(false);
+            
+            Debug.Log("<color=green>[PianoCalibrator]</color> ✅ Piano BLOQUEADO - ¡Iniciando juego!");
+            OnPianoConfigured?.Invoke();  // Disparar evento UNA SOLA VEZ
+        }
+        else
+        {
+            Debug.Log("<color=yellow>[PianoCalibrator]</color> ⚠️  Piano ya está BLOQUEADO. Presiona otra tecla para desbloquear.");
+        }
     }
 }

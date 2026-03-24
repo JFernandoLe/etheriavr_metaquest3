@@ -4,7 +4,7 @@ using UnityEngine;
 /// Dibuja un pentagrama musical con 5 líneas y su clave
 /// Puede ser Clave de Sol (Treble) o Clave de Fa (Bass)
 /// </summary>
-public class StaffRenderer : MonoBehaviour
+public partial class StaffRenderer : MonoBehaviour
 {
     [Header("Tipo de Pentagrama")]
     [SerializeField] private StaffType staffType = StaffType.Treble;
@@ -19,8 +19,8 @@ public class StaffRenderer : MonoBehaviour
     
     [Header("Líneas Dinámicas")]
     [SerializeField] private float ledgerLineWidth = 0.4f; // Ancho de líneas auxiliares (más cortas)
-    [SerializeField] private int maxLedgerLinesAbove = 3; // Máximo de líneas extras arriba
-    [SerializeField] private int maxLedgerLinesBelow = 3; // Máximo de líneas extras abajo
+    [SerializeField] private int maxLedgerLinesAbove = 10; // Máximo de líneas extras arriba (suficiente para notas altas)
+    [SerializeField] private int maxLedgerLinesBelow = 10; // Máximo de líneas extras abajo (ej: MIDI 36 = C1 requiere ~7 líneas)
 
     private GameObject[] staffLines = new GameObject[5]; // 5 líneas del pentagrama
     private GameObject clefSymbol; // Símbolo de clave (Sol o Fa)
@@ -219,19 +219,16 @@ public class StaffRenderer : MonoBehaviour
     private void CreateHitLine()
     {
         hitLine = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        hitLine.name = "HitLine";
+        hitLine.name = "HitLine_Yellow";
         hitLine.transform.parent = transform;
         
         // Posicionar en ESPACIO LOCAL a la IZQUIERDA (donde deben llegar las notas)
-        // Sin rotación, posición negativa en X = IZQUIERDA
-        // La posición Y debe ser el centro del pentagrama (mitad de la altura total)
         float pentagramHeight = lineSpacing * 4f; // Distancia de línea 0 a línea 4
-        float centerY = pentagramHeight / 2f; // Centro vertical del pentagrama
+        float centerY = pentagramHeight / 2f;
         hitLine.transform.localPosition = new Vector3(staffWidth * -0.4f, centerY, 0);
         
-        // Hacer que sea una línea vertical delgada que cubra todo el pentagrama
-        // Alto = desde debajo de la primera línea hasta arriba de la quinta línea
-        float lineHeight = pentagramHeight + lineSpacing * 0.5f; // Un poco más alta para márgenes
+        // Altura INICIAL (se actualizará dinámicamente con líneas ledger)
+        float lineHeight = pentagramHeight + lineSpacing * 0.5f;
         hitLine.transform.localScale = new Vector3(0.03f, lineHeight, 0.001f);
         
         // Crear material amarillo brillante
@@ -250,66 +247,83 @@ public class StaffRenderer : MonoBehaviour
         Collider collider = hitLine.GetComponent<Collider>();
         if (collider != null) Destroy(collider);
         
-        Debug.Log($"[StaffRenderer] 💛 Línea de hit amarilla creada en localPos={hitLine.transform.localPosition}, altura={lineHeight}m");
+        Debug.Log($"[StaffRenderer] 💛 Línea de hit amarilla creada (altura inicial: {lineHeight:F3}m)");
     }
-
+    
+    /// <summary>
+    /// Ajusta dinámicamente la altura de la línea amarilla según las líneas ledger actuales
+    /// Se llama cuando se crean nuevas líneas ledger
+    /// </summary>
+    public void UpdateHitLineHeight()
+    {
+        if (hitLine == null) return;
+        
+        // Calcular altura total incluyendo líneas ledger
+        float pentagramHeight = lineSpacing * 4f; // Estándar
+        float ledgerMargin = maxLedgerLinesAbove != 0 || maxLedgerLinesBelow != 0 ? lineSpacing * 1f : 0;
+        float totalHeight = pentagramHeight + (maxLedgerLinesAbove * lineSpacing) + (maxLedgerLinesBelow * lineSpacing) + ledgerMargin;
+        
+        // Actualizar escala Y de la línea
+        Vector3 scale = hitLine.transform.localScale;
+        scale.y = totalHeight;
+        hitLine.transform.localScale = scale;
+        
+        // Reposicionar el centro verticalmente
+        float topY = (maxLedgerLinesAbove * lineSpacing) + (pentagramHeight / 2f);
+        float bottomY = -(maxLedgerLinesBelow * lineSpacing) + (pentagramHeight / 2f);
+        float centerY = (topY + bottomY) / 2f;
+        
+        Vector3 pos = hitLine.transform.localPosition;
+        pos.y = centerY;
+        hitLine.transform.localPosition = pos;
+        
+        Debug.Log($"[StaffRenderer] 📐 HitLine actualizada: altura={totalHeight:F3}m, center={centerY:F3}m (ledger: +{maxLedgerLinesAbove}/-{maxLedgerLinesBelow})");
+    }
+    
     /// <summary>
     /// Obtiene la posición Y local para una nota MIDI en este pentagrama
     /// Basado en la teoría musical: cada nota tiene su posición en línea o espacio
     /// </summary>
     public float GetNoteYPosition(int midiNote)
     {
-        // Sistema de posición basado en posiciones visuales del pentagrama
-        float halfSpace = lineSpacing / 2f; // Espacio entre líneas/espacios
+        // Sistema de posición basado en mapeo cromático directo
+        // Cada nota (incluyendo sostenidos/bemoles) tiene posición propia
+        float halfSemitone = lineSpacing / 2f; // Separación por semitono
         
         if (staffType == StaffType.Treble)
         {
             // ========== CLAVE DE SOL (Treble Clef) ==========
-            // Primera línea (y=0): E4 (MIDI 64)
-            // Tabla de referencia completa:
-            // D4=62 (debajo), E4=64 (línea 1), F4=65, G4=67 (línea 2), A4=69, B4=71 (línea 3), C5=72, D5=74 (línea 4), E5=76, F5=77 (línea 5), etc.
+            // Primera línea = E4 (MIDI 64)
+            // Cada semitono = halfSemitone unidades de altura
+            // Referencia: E4 = posición 0
             
-            // Mapeo directo: cada nota natural sube de 2 en 2 semitonos (escala diatónica)
-            // excepto E-F y B-C que son 1 semitono
-            
-            // Referencia: E4 (64) = posición 0
-            int[] midiToPosition = new int[]
-            {
-                // MIDI: posición visual (0 = primera línea)
-                // C4=60 D4 E4 F4 G4 A4 B4 C5 D5 E5 F5 G5 A5 B5 C6
-                //  -4  -3  -2  -1   0   1   2   3   4   5   6   7   8   9  10
-            };
-            
-            // Convertir MIDI a posición relativa desde E4
             int positionFromE4 = GetStaffPositionFromMidi(midiNote, 64);
-            return positionFromE4 * halfSpace;
+            return positionFromE4 * halfSemitone;
         }
         else // Bass Clef
         {
             // ========== CLAVE DE FA (Bass Clef) ==========
-            // Primera línea (y=0): G2 (MIDI 43)
-            // Tabla: G2=43 (línea 1), A2=45, B2=47 (línea 2), C3=48, D3=50 (línea 3), E3=52, F3=53 (línea 4), G3=55, A3=57 (línea 5)
+            // Primera línea = G2 (MIDI 43)
+            // Cada semitono = halfSemitone unidades de altura
+            // Referencia: G2 (posición 0)
             
             int positionFromG2 = GetStaffPositionFromMidi(midiNote, 43);
-            return positionFromG2 * halfSpace;
+            return positionFromG2 * halfSemitone;
         }
     }
     
     /// <summary>
     /// Calcula la posición en el pentagrama desde una nota de referencia
-    /// Usa la escala cromática pero mapea a posiciones diatónicas visuales
+    /// MAPEO CROMÁTICO: Cada nota tiene su propia posición, incluyendo sostenidos/bemoles
+    /// C=0, C#=1, D=2, Eb=3, E=4, F=5, F#=6, G=7, G#=8, A=9, Bb=10, B=11 (por octava)
     /// </summary>
     private int GetStaffPositionFromMidi(int targetMidi, int referenceMidi)
     {
         int semitoneOffset = targetMidi - referenceMidi;
         
-        // Mapeo de semitonos relativos a posiciones en el pentagrama
-        // Cada posición = una línea o espacio
-        // Patrón de la escala cromática mapeado a visual:
-        // C  C# D  Eb E  F  F# G  G# A  Bb B
-        // 0  0  1  1  2  3  3  4  4  5  5  6  (posiciones dentro de la octava)
-        
-        int[] chromaticToPosition = { 0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6 };
+        // CORRECCIÓN: Mapeo cromático DIRECTO
+        // Cada semitono = 1 posición visual
+        // Esto asegura que C y C# estén en diferentes posiciones
         
         // Calcular octavas y posición dentro de la octava
         int octaveOffset = semitoneOffset / 12;
@@ -322,8 +336,9 @@ public class StaffRenderer : MonoBehaviour
             octaveOffset -= 1;
         }
         
-        int positionInOctave = chromaticToPosition[semitoneInOctave];
-        return octaveOffset * 7 + positionInOctave; // 7 posiciones por octava diatónica
+        // 12 posiciones por octava (una para cada nota cromática)
+        int positionInOctave = semitoneInOctave;
+        return octaveOffset * 12 + positionInOctave;
     }
     
     /// <summary>
@@ -406,6 +421,7 @@ public class StaffRenderer : MonoBehaviour
         
         // Determinar cuántas líneas ledger necesitamos y en qué dirección
         float halfSpace = lineSpacing / 2f;
+        bool needsUpdate = false;
         
         if (noteYPosition < pentagramBottom)
         {
@@ -416,7 +432,11 @@ public class StaffRenderer : MonoBehaviour
             for (int i = 1; i <= lineCount; i++)
             {
                 float yPos = pentagramBottom - (i * lineSpacing);
-                CreateSingleLedgerLine(yPos, $"LedgerBelow_{i}");
+                if (ledgerLinesContainer.transform.Find($"LedgerBelow_{i}") == null)
+                {
+                    CreateSingleLedgerLine(yPos, $"LedgerBelow_{i}");
+                    needsUpdate = true;
+                }
             }
         }
         else if (noteYPosition > pentagramTop)
@@ -428,8 +448,18 @@ public class StaffRenderer : MonoBehaviour
             for (int i = 1; i <= lineCount; i++)
             {
                 float yPos = pentagramTop + (i * lineSpacing);
-                CreateSingleLedgerLine(yPos, $"LedgerAbove_{i}");
+                if (ledgerLinesContainer.transform.Find($"LedgerAbove_{i}") == null)
+                {
+                    CreateSingleLedgerLine(yPos, $"LedgerAbove_{i}");
+                    needsUpdate = true;
+                }
             }
+        }
+        
+        // Actualizar altura de la línea amarilla si se crearon nuevas líneas ledger
+        if (needsUpdate)
+        {
+            UpdateHitLineHeight();
         }
     }
     
