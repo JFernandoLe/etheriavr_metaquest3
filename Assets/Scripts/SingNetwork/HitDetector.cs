@@ -33,7 +33,9 @@ public class HitDetector : MonoBehaviour
             float noteStart = sn.startTime;
             float noteEnd = sn.startTime + sn.duration;
 
-            if (songTime >= noteStart && songTime <= noteEnd)
+            float evaluationEnd = noteStart + (sn.duration * 0.7f);
+
+            if (songTime >= noteStart && songTime <= evaluationEnd)
             {
                 foundActiveNote = true;
 
@@ -42,35 +44,33 @@ public class HitDetector : MonoBehaviour
 
                 Renderer rend = noteObj.GetComponent<Renderer>();
 
-                if (!sn.evaluated)
+                if (diff == 0)
                 {
-                    sn.evaluated = true;
+                    currentPerfect = true;
 
-                    if (diff == 0)
-                    {
-                        currentPerfect = true;
+                    rend.material.color = Color.green;
+                    ShowResult("Perfecto", Color.green);
 
-                        rend.material.color = Color.green;
-                        ShowResult("Perfecto", Color.green);
+                    ScoreManager.Instance.AddScore(10);
+                    ScoreManager.Instance.RegisterHit(1f);
+                    ScoreManager.Instance.RegisterRhythm(1f);
+                }
+                else if (diff == 1)
+                {
+                    rend.material.color = Color.yellow;
+                    ShowResult("Regular", Color.yellow);
 
-                        ScoreManager.Instance.AddScore(10);
-                        ScoreManager.Instance.RegisterHit(1f);
-                    }
-                    else if (diff == 1)
-                    {
-                        rend.material.color = Color.yellow;
-                        ShowResult("Regular", Color.yellow);
+                    ScoreManager.Instance.AddScore(5);
+                    ScoreManager.Instance.RegisterHit(0.5f);
+                    ScoreManager.Instance.RegisterRhythm(1f);
+                }
+                else
+                {
+                    rend.material.color = Color.red;
+                    ShowResult("Mal", Color.red);
 
-                        ScoreManager.Instance.AddScore(5);
-                        ScoreManager.Instance.RegisterHit(0.5f);
-                    }
-                    else
-                    {
-                        rend.material.color = Color.red;
-                        ShowResult("Mal", Color.red);
-
-                        ScoreManager.Instance.RegisterHit(0f);
-                    }
+                    ScoreManager.Instance.RegisterHit(0f);
+                    ScoreManager.Instance.RegisterRhythm(0f);
                 }
             }
         }

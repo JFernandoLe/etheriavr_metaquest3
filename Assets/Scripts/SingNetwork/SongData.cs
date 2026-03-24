@@ -1,5 +1,4 @@
 using System;
-using UnityEngine;
 
 [Serializable]
 public class SongNote
@@ -11,8 +10,17 @@ public class SongNote
 }
 
 [Serializable]
+public class LyricLine
+{
+    public float time;
+    public string text;
+}
+
+[Serializable]
 public class SongData
 {
     public string songName;
     public SongNote[] notes;
+
+    public LyricLine[] lyrics;
 }
