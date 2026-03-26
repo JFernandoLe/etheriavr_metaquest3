@@ -66,6 +66,7 @@ public class SongItem : MonoBehaviour
             if (_myFullData.mode == "CANTO")
             {
                 Debug.Log($"<color=cyan>[Escena]</color> Cambiando a SingGame con: {_myFullData.title}");
+                Debug.Log("Seleccionaste: " + _myFullData.file_path);
                 SceneManager.LoadScene("SingGame");
             }else if (_myFullData.mode == "PIANO")
             {
