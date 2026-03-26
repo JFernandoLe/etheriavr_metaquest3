@@ -6656,7 +6656,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &959523783
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -14776,6 +14776,7 @@ MonoBehaviour:
     lyrics: []
   audioSource: {fileID: 957373509}
   songOffset: -0.15
+  songName: song_take_on_me
 --- !u!4 &1366946242
 Transform:
   m_ObjectHideFlags: 0
