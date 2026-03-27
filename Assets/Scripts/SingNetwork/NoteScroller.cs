@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
 
 public class NoteScroller : MonoBehaviour
@@ -12,14 +13,23 @@ public class NoteScroller : MonoBehaviour
 
     private List<GameObject> activeNotes = new List<GameObject>();
 
-    void Start()
+    IEnumerator Start()
     {
+        while (songLoader == null || songLoader.loadedSong == null)
+            yield return null;
+
+        Debug.Log("NOTES COUNT: " + songLoader.loadedSong.notes.Length);
+
         SpawnAllNotes();
+
         songLoader.StartSong();
     }
 
     void Update()
     {
+        if (songLoader == null || songLoader.loadedSong == null)
+            return;
+
         float songTime = songLoader.GetSongTime();
 
         for (int i = activeNotes.Count - 1; i >= 0; i--)
@@ -29,10 +39,8 @@ public class NoteScroller : MonoBehaviour
 
             float noteLength = sn.duration * scrollSpeed;
 
-            //  INICIO REAL DE NOTA
             float startX = (sn.startTime - songTime) * scrollSpeed;
 
-            // COMPENSACIÓN PARA QUE CREZCA HACIA LA DERECHA
             float correctedX = startX + noteLength / 2f;
 
             Vector3 pos = noteObj.transform.position;
@@ -49,6 +57,12 @@ public class NoteScroller : MonoBehaviour
 
     void SpawnAllNotes()
     {
+        if (songLoader.loadedSong.notes == null || songLoader.loadedSong.notes.Length == 0)
+        {
+            Debug.LogError("NO HAY NOTAS EN EL JSON");
+            return;
+        }
+
         foreach (var note in songLoader.loadedSong.notes)
         {
             GameObject obj = Instantiate(notePrefab);
@@ -58,7 +72,6 @@ public class NoteScroller : MonoBehaviour
 
             float noteLength = note.duration * scrollSpeed;
 
-            // Escala correcta
             obj.transform.localScale = new Vector3(noteLength, 0.3f, 0.3f);
 
             ScrollingNote sn = obj.AddComponent<ScrollingNote>();
@@ -68,6 +81,8 @@ public class NoteScroller : MonoBehaviour
 
             activeNotes.Add(obj);
         }
+
+        Debug.Log("Notas generadas: " + activeNotes.Count);
     }
 
     public List<GameObject> GetActiveNotes()

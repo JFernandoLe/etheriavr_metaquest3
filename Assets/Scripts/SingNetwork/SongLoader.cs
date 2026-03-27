@@ -1,19 +1,36 @@
 using UnityEngine;
+using System.Collections;
+using UnityEngine.Networking;
+using System.IO;
 
 public class SongLoader : MonoBehaviour
 {
     public SongData loadedSong;
-    private float songStartTime;
     private bool songPlaying = false;
     private SongNote currentNote;
+
     public AudioSource audioSource;
-    public float songOffset = -0.15f;   
+    public float songOffset = -0.15f;
+
+    public string songName = "song_take_on_me";
 
     void Start()
     {
-        LoadSong("song_take_on_me");
+        if (SelectedSongManager.Instance != null &&
+            SelectedSongManager.Instance.selectedSong != null)
+        {
+            string path = SelectedSongManager.Instance.selectedSong.file_path;
+
+            Debug.Log("PATH DEL BACKEND: " + path);
+
+            songName = Path.GetFileNameWithoutExtension(path);
+
+            Debug.Log("SONG NAME FINAL: " + songName);
+        }
+
+        LoadSong(songName);
     }
-        
+
     void Update()
     {
         if (!songPlaying || loadedSong == null)
@@ -28,6 +45,7 @@ public class SongLoader : MonoBehaviour
             Debug.Log($"Tiempo: {songTime:F2} | Nota esperada: {currentNote.note}");
         }
     }
+
     public float GetSongTime()
     {
         if (audioSource == null)
@@ -35,23 +53,85 @@ public class SongLoader : MonoBehaviour
 
         return audioSource.time;
     }
+
     void LoadSong(string fileName)
     {
-        TextAsset jsonFile = Resources.Load<TextAsset>(fileName);
+        StartCoroutine(LoadSongCoroutine(fileName));
+    }
 
-        if (jsonFile == null)
+    IEnumerator LoadSongCoroutine(string fileName)
+    {
+
+        loadedSong = null;
+        songPlaying = false;
+
+        if (audioSource != null)
         {
-            Debug.LogError("No se encontró el JSON");
-            return;
+            audioSource.Stop();
+            audioSource.clip = null;
         }
 
-        loadedSong = JsonUtility.FromJson<SongData>(jsonFile.text);
-        Debug.Log("Canción cargada: " + loadedSong.songName);
+        string basePath = Application.streamingAssetsPath + "/SingSongs/Songs";
+
+        string jsonPath = basePath + "/" + fileName + ".json";
+
+        Debug.Log("JSON PATH: " + jsonPath);
+
+        UnityWebRequest jsonRequest = UnityWebRequest.Get(jsonPath);
+        yield return jsonRequest.SendWebRequest();
+
+        if (jsonRequest.result != UnityWebRequest.Result.Success)
+        {
+            Debug.LogError("Error cargando JSON: " + jsonRequest.error);
+            yield break;
+        }
+
+        string jsonText = jsonRequest.downloadHandler.text;
+        loadedSong = JsonUtility.FromJson<SongData>(jsonText);
+
+        if (loadedSong == null)
+        {
+            Debug.LogError("JSON inválido o vacío");
+            yield break;
+        }
+
+        Debug.Log("JSON cargado correctamente");
+
+
+        string audioPath = basePath + "/" + fileName + ".wav";
+
+        Debug.Log("AUDIO PATH: " + audioPath);
+
+        UnityWebRequest audioRequest = UnityWebRequestMultimedia.GetAudioClip(audioPath, AudioType.WAV);
+        yield return audioRequest.SendWebRequest();
+
+        if (audioRequest.result != UnityWebRequest.Result.Success)
+        {
+            Debug.LogError("Error cargando audio: " + audioRequest.error);
+            yield break;
+        }
+
+        AudioClip clip = DownloadHandlerAudioClip.GetContent(audioRequest);
+
+        if (clip == null)
+        {
+            Debug.LogError("Clip nulo");
+            yield break;
+        }
+
+        if (audioSource != null)
+        {
+            audioSource.clip = clip;
+        }
+
+        Debug.Log(" AUDIO cargado correctamente");
+
+        StartSong();
     }
 
     public void StartSong()
     {
-        if (audioSource != null)
+        if (audioSource != null && audioSource.clip != null)
         {
             audioSource.Play();
         }
@@ -72,6 +152,7 @@ public class SongLoader : MonoBehaviour
 
         return null;
     }
+
     public SongNote GetCurrentExpectedNote()
     {
         return currentNote;
