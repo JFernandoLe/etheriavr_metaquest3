@@ -11,7 +11,7 @@ public partial class StaffRenderer : MonoBehaviour
     
     [Header("Dimensiones")]
     [SerializeField] private float staffWidth = 3f; // Ancho del pentagrama (3 metros)
-    [SerializeField] private float lineSpacing = 0.15f; // Espaciado entre líneas
+    [SerializeField] private float lineSpacing = 0.13f; // Espaciado entre líneas
     [SerializeField] private float lineThickness = 0.35f; // Grosor de línea (EXTRA EXTRA grueso para VR)
     
     [Header("Colores")]
@@ -34,6 +34,8 @@ public partial class StaffRenderer : MonoBehaviour
         Treble, // Clave de Sol (mano derecha)
         Bass    // Clave de Fa (mano izquierda)
     }
+
+    public StaffType Type => staffType;
 
     void Awake()
     {
@@ -286,95 +288,21 @@ public partial class StaffRenderer : MonoBehaviour
     /// </summary>
     public float GetNoteYPosition(int midiNote)
     {
-        // Sistema de posición basado en mapeo cromático directo
-        // Cada nota (incluyendo sostenidos/bemoles) tiene posición propia
-        float halfSemitone = lineSpacing / 2f; // Separación por semitono
-        
-        if (staffType == StaffType.Treble)
-        {
-            // ========== CLAVE DE SOL (Treble Clef) ==========
-            // Primera línea = E4 (MIDI 64)
-            // Cada semitono = halfSemitone unidades de altura
-            // Referencia: E4 = posición 0
-            
-            int positionFromE4 = GetStaffPositionFromMidi(midiNote, 64);
-            return positionFromE4 * halfSemitone;
-        }
-        else // Bass Clef
-        {
-            // ========== CLAVE DE FA (Bass Clef) ==========
-            // Primera línea = G2 (MIDI 43)
-            // Cada semitono = halfSemitone unidades de altura
-            // Referencia: G2 (posición 0)
-            
-            int positionFromG2 = GetStaffPositionFromMidi(midiNote, 43);
-            return positionFromG2 * halfSemitone;
-        }
+        float halfStep = lineSpacing / 2f;
+        int referenceMidi = staffType == StaffType.Treble ? 64 : 43;
+        float referencePosition = GetChromaticStaffPosition(referenceMidi);
+        float targetPosition = GetChromaticStaffPosition(midiNote);
+        return (targetPosition - referencePosition) * halfStep;
     }
     
     /// <summary>
-    /// Calcula la posición en el pentagrama desde una nota de referencia
-    /// MAPEO CROMÁTICO: Cada nota tiene su propia posición, incluyendo sostenidos/bemoles
-    /// C=0, C#=1, D=2, Eb=3, E=4, F=5, F#=6, G=7, G#=8, A=9, Bb=10, B=11 (por octava)
+    /// Calcula la posición vertical relativa dentro del pentagrama usando una retícula
+    /// cromática uniforme: cada semitono ocupa su propio escalón visual.
+    /// Esto evita que las teclas negras queden "entre" dos marcas de notas blancas.
     /// </summary>
-    private int GetStaffPositionFromMidi(int targetMidi, int referenceMidi)
+    private float GetChromaticStaffPosition(int midiNote)
     {
-        int semitoneOffset = targetMidi - referenceMidi;
-        
-        // CORRECCIÓN: Mapeo cromático DIRECTO
-        // Cada semitono = 1 posición visual
-        // Esto asegura que C y C# estén en diferentes posiciones
-        
-        // Calcular octavas y posición dentro de la octava
-        int octaveOffset = semitoneOffset / 12;
-        int semitoneInOctave = semitoneOffset % 12;
-        
-        // Manejar negativos correctamente
-        if (semitoneInOctave < 0)
-        {
-            semitoneInOctave += 12;
-            octaveOffset -= 1;
-        }
-        
-        // 12 posiciones por octava (una para cada nota cromática)
-        int positionInOctave = semitoneInOctave;
-        return octaveOffset * 12 + positionInOctave;
-    }
-    
-    /// <summary>
-    /// Calcula la posición diatónica de una nota relativa a C
-    /// Maneja sostenidos y bemoles mapeándolos a la posición visual más cercana
-    /// </summary>
-    private int GetDiatonicPosition(int semitonesFromC)
-    {
-        // Cada octava = 7 posiciones diatónicas (C D E F G A B)
-        // Patrones de semitonos en escala diatónica: 2 2 1 2 2 2 1
-        
-        // Tabla de conversión de semitonos a posiciones diatónicas
-        // Para notas con alteraciones (sostenidos/bemoles), usar posición visual correspondiente
-        int[] semitoneToPosition = { 
-            0,  // C  (0 semitonos)
-            0,  // C# (1 semitono) - visual como C
-            1,  // D  (2 semitonos)
-            1,  // Eb (3 semitonos) - visual como D
-            2,  // E  (4 semitonos)
-            3,  // F  (5 semitonos)
-            3,  // F# (6 semitonos) - visual como F
-            4,  // G  (7 semitonos)
-            4,  // G# (8 semitonos) - visual como G
-            5,  // A  (9 semitonos)
-            5,  // Bb (10 semitonos) - visual como A
-            6   // B  (11 semitonos)
-        };
-        
-        int octaves = semitonesFromC / 12;
-        int semitoneInOctave = semitonesFromC % 12;
-        if (semitoneInOctave < 0) semitoneInOctave += 12;
-        
-        int basePosition = octaves * 7; // 7 posiciones por octava
-        int positionInOctave = semitoneToPosition[semitoneInOctave];
-        
-        return basePosition + positionInOctave;
+        return midiNote;
     }
 
     /// <summary>
@@ -420,13 +348,12 @@ public partial class StaffRenderer : MonoBehaviour
         }
         
         // Determinar cuántas líneas ledger necesitamos y en qué dirección
-        float halfSpace = lineSpacing / 2f;
         bool needsUpdate = false;
         
         if (noteYPosition < pentagramBottom)
         {
             // Notas DEBAJO del pentagrama
-            int lineCount = Mathf.CeilToInt((pentagramBottom - noteYPosition) / lineSpacing);
+            int lineCount = Mathf.FloorToInt((pentagramBottom - noteYPosition) / lineSpacing);
             lineCount = Mathf.Min(lineCount, maxLedgerLinesBelow);
             
             for (int i = 1; i <= lineCount; i++)
@@ -442,7 +369,7 @@ public partial class StaffRenderer : MonoBehaviour
         else if (noteYPosition > pentagramTop)
         {
             // Notas ARRIBA del pentagrama
-            int lineCount = Mathf.CeilToInt((noteYPosition - pentagramTop) / lineSpacing);
+            int lineCount = Mathf.FloorToInt((noteYPosition - pentagramTop) / lineSpacing);
             lineCount = Mathf.Min(lineCount, maxLedgerLinesAbove);
             
             for (int i = 1; i <= lineCount; i++)

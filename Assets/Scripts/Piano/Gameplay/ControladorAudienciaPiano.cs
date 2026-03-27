@@ -41,7 +41,7 @@ public class ControladorAudienciaPiano : MonoBehaviour
     {
         if (sistemaPublico != null)
         {
-            puntajePiano = Mathf.Lerp(puntajePiano, sistemaPublico.GetCurrentPublicScore(), Time.deltaTime * 3f);
+            puntajePiano = Mathf.Lerp(puntajePiano, sistemaPublico.GetCurrentPublicScore(), Time.deltaTime * 1.4f);
         }
 
         if (jugador == null)

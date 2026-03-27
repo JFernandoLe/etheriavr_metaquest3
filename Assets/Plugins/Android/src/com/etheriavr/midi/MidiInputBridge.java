@@ -2,6 +2,7 @@ package com.etheriavr.midi;
 
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Bundle;
 import android.content.Context;
 import android.media.midi.MidiManager;
 import android.media.midi.MidiDevice;
@@ -36,6 +37,7 @@ public class MidiInputBridge {
     
     // Status
     public static boolean isConnected = false;
+    private static String currentDeviceName = "NO REGISTRADO";
     
     private MidiInputBridge(Context context) {
         this.context = context.getApplicationContext();
@@ -84,19 +86,25 @@ public class MidiInputBridge {
             
             if (devices.length == 0) {
                 Log.w(TAG, "No MIDI devices found");
+                currentDeviceName = "NO REGISTRADO";
+                isConnected = false;
                 return;
             }
             
             // Try to open first device with input ports
             for (MidiDeviceInfo deviceInfo : devices) {
                 int inputPorts = deviceInfo.getInputPortCount();
-                Log.d(TAG, "Device: " + inputPorts + " input port(s)");
+                String deviceName = buildDeviceName(deviceInfo);
+                Log.d(TAG, "Device: " + deviceName + " | " + inputPorts + " input port(s)");
                 
                 if (inputPorts > 0) {
                     openDevice(deviceInfo);
                     return;
                 }
             }
+
+            currentDeviceName = "NO REGISTRADO";
+            isConnected = false;
         } catch (Exception e) {
             Log.e(TAG, "Error scanning: " + e.getMessage());
         }
@@ -106,11 +114,12 @@ public class MidiInputBridge {
      * Open device asynchronously
      */
     private void openDevice(MidiDeviceInfo deviceInfo) {
-        Log.d(TAG, "Opening device...");
+        final String deviceName = buildDeviceName(deviceInfo);
+        Log.d(TAG, "Opening device: " + deviceName);
         midiManager.openDevice(deviceInfo, new MidiManager.OnDeviceOpenedListener() {
             @Override
             public void onDeviceOpened(MidiDevice device) {
-                handleDeviceOpened(device);
+                handleDeviceOpened(device, deviceName);
             }
         }, mainHandler);
     }
@@ -118,9 +127,11 @@ public class MidiInputBridge {
     /**
      * Handle device opened callback - called on main thread
      */
-    private void handleDeviceOpened(MidiDevice device) {
+    private void handleDeviceOpened(MidiDevice device, String deviceName) {
         if (device == null) {
             Log.w(TAG, "Device open failed");
+            currentDeviceName = "NO REGISTRADO";
+            isConnected = false;
             return;
         }
         
@@ -140,10 +151,52 @@ public class MidiInputBridge {
             outputPort.connect(receiver);
             
             isConnected = true;
+            currentDeviceName = deviceName != null && !deviceName.trim().isEmpty()
+                ? deviceName
+                : "NO REGISTRADO";
             Log.d(TAG, "✅ MIDI Connected and listening");
         } catch (Exception e) {
             Log.e(TAG, "Error opening port: " + e.getMessage());
+            currentDeviceName = "NO REGISTRADO";
+            isConnected = false;
         }
+    }
+
+    private String buildDeviceName(MidiDeviceInfo deviceInfo) {
+        if (deviceInfo == null) {
+            return "NO REGISTRADO";
+        }
+
+        try {
+            Bundle properties = deviceInfo.getProperties();
+            String name = properties != null ? properties.getString(MidiDeviceInfo.PROPERTY_NAME) : null;
+            String manufacturer = properties != null ? properties.getString(MidiDeviceInfo.PROPERTY_MANUFACTURER) : null;
+            String product = properties != null ? properties.getString(MidiDeviceInfo.PROPERTY_PRODUCT) : null;
+
+            if (name != null && !name.trim().isEmpty()) {
+                return name.trim();
+            }
+
+            StringBuilder builder = new StringBuilder();
+            if (manufacturer != null && !manufacturer.trim().isEmpty()) {
+                builder.append(manufacturer.trim());
+            }
+
+            if (product != null && !product.trim().isEmpty()) {
+                if (builder.length() > 0) {
+                    builder.append(" ");
+                }
+                builder.append(product.trim());
+            }
+
+            if (builder.length() > 0) {
+                return builder.toString();
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Could not resolve MIDI device name: " + e.getMessage());
+        }
+
+        return "NO REGISTRADO";
     }
     
     /**
@@ -212,6 +265,12 @@ public class MidiInputBridge {
             return eventCount;
         }
     }
+
+    public static String getConnectedDeviceName() {
+        return currentDeviceName != null && !currentDeviceName.trim().isEmpty()
+            ? currentDeviceName
+            : "NO REGISTRADO";
+    }
     
     /**
      * Close and cleanup
@@ -225,6 +284,7 @@ public class MidiInputBridge {
                 midiDevice.close();
             }
             isConnected = false;
+            currentDeviceName = "NO REGISTRADO";
             Log.d(TAG, "Closed");
         } catch (Exception e) {
             Log.e(TAG, "Error closing: " + e.getMessage());

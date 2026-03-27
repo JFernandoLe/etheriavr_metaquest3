@@ -9,4 +9,6 @@ public class UserLoginResponse
     public string username;
     public string email;
     public string tessitura;
+    public UserConfigurationData configuration;
+    public UserConfigurationData user_configuration;
 }

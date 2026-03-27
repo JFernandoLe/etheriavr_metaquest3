@@ -6,10 +6,12 @@ public class RecenterPlayer : MonoBehaviour
 {
     public XROrigin xrOrigin;
     public Transform pianoSpawnPoint;
+    [SerializeField] private bool autoRecenterOnStart = false;
+    [SerializeField] private bool autoRecenterOnApplicationFocus = false;
 
     void Start()
     {
-        if (xrOrigin != null && pianoSpawnPoint != null)
+        if (autoRecenterOnStart && xrOrigin != null && pianoSpawnPoint != null)
         {
             StartCoroutine(WaitAndRecenter());
         }
@@ -17,7 +19,7 @@ public class RecenterPlayer : MonoBehaviour
 
     private void OnApplicationFocus(bool hasFocus)
     {
-        if (hasFocus && xrOrigin != null && pianoSpawnPoint != null)
+        if (autoRecenterOnApplicationFocus && hasFocus && xrOrigin != null && pianoSpawnPoint != null)
         {
             DoRecenter();
         }

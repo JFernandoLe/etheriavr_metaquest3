@@ -9,6 +9,8 @@ using System;
 [DefaultExecutionOrder(-1000)]
 public class DirectMidiReceiver : MonoBehaviour
 {
+    private const string UnregisteredMidiDeviceName = "NO REGISTRADO";
+
     [Header("Configuración")]
     [SerializeField] private float checkInterval = 0.001f;  // 1ms polling = ultra responsivo
     [SerializeField] private int maxEventsPerFrame = 32;
@@ -20,6 +22,7 @@ public class DirectMidiReceiver : MonoBehaviour
     
     // Connection status
     private bool isMidiConnected = false;
+    private string currentMidiDeviceName = UnregisteredMidiDeviceName;
     private float nextCheckTime = 0f;
     private float lastActivityTime = 0f;
     private const float TIMEOUT_SECONDS = 10f;
@@ -27,6 +30,10 @@ public class DirectMidiReceiver : MonoBehaviour
     // Events
     public delegate void ConnectionStatusChangedDelegate(bool isConnected);
     public event ConnectionStatusChangedDelegate OnConnectionStatusChanged;
+
+    public string CurrentMidiDeviceName => string.IsNullOrWhiteSpace(currentMidiDeviceName)
+        ? UnregisteredMidiDeviceName
+        : currentMidiDeviceName;
     
 #if UNITY_ANDROID
     private AndroidJavaObject midiService;
@@ -34,6 +41,7 @@ public class DirectMidiReceiver : MonoBehaviour
 
     void Start()
     {
+        maxEventsPerFrame = Mathf.Max(maxEventsPerFrame, 256);
         Debug.Log("<color=magenta>[MIDI]</color> 🎹 ===== INICIALIZANDO RECEPTOR MIDI =====");
         Debug.Log("<color=cyan>[MIDI]</color> Modo: Servicio Android compilado (sin threads)");
         Debug.Log($"<color=yellow>[MIDI DIAG]</color> Platform: {Application.platform}");
@@ -117,6 +125,10 @@ public class DirectMidiReceiver : MonoBehaviour
                 // Get static variables from Java bridge
                 AndroidJavaClass bridgeClass = new AndroidJavaClass("com.etheriavr.midi.MidiInputBridge");
                 bool javaConnected = bridgeClass.GetStatic<bool>("isConnected");
+                string javaDeviceName = bridgeClass.CallStatic<string>("getConnectedDeviceName");
+                currentMidiDeviceName = string.IsNullOrWhiteSpace(javaDeviceName)
+                    ? UnregisteredMidiDeviceName
+                    : javaDeviceName;
                 
                 // Update connection status
                 if (javaConnected != isMidiConnected)
@@ -127,7 +139,8 @@ public class DirectMidiReceiver : MonoBehaviour
                 // Dequeue todos los eventos disponibles con un límite seguro por frame.
                 int eventsDequeued = 0;
                 
-                for (int i = 0; i < Mathf.Max(1, maxEventsPerFrame); i++)
+                int safeEventBudget = Mathf.Max(1, maxEventsPerFrame);
+                for (int i = 0; i < safeEventBudget; i++)
                 {
                     // Call Java method that returns sbyte[3] array (JNI uses signed bytes)
                     sbyte[] eventData = bridgeClass.CallStatic<sbyte[]>("dequeueEvent");
@@ -179,11 +192,39 @@ public class DirectMidiReceiver : MonoBehaviour
         if (isMidiConnected != connected)
         {
             isMidiConnected = connected;
+            if (!connected)
+            {
+                currentMidiDeviceName = UnregisteredMidiDeviceName;
+            }
+
             string status = connected ? "CONECTADO ✅" : "DESCONECTADO ❌";
             Debug.Log($"<color=green>[MIDI]</color> {status}");
             OnConnectionStatusChanged?.Invoke(connected);
             lastActivityTime = Time.time;
         }
+    }
+
+    public bool TryGetConnectedDeviceName(out string deviceName)
+    {
+        if (isMidiConnected && !string.IsNullOrWhiteSpace(currentMidiDeviceName) &&
+            !string.Equals(currentMidiDeviceName, UnregisteredMidiDeviceName, StringComparison.OrdinalIgnoreCase))
+        {
+            deviceName = currentMidiDeviceName;
+            return true;
+        }
+
+        deviceName = null;
+        return false;
+    }
+
+    public string GetRegistrationDeviceName()
+    {
+        if (TryGetConnectedDeviceName(out string deviceName))
+        {
+            return deviceName;
+        }
+
+        return UnregisteredMidiDeviceName;
     }
 
     public void SimulateMidiNoteOn(byte note, byte velocity)

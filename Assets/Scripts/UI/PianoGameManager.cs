@@ -1,4 +1,6 @@
 using UnityEngine;
+using System;
+using System.Globalization;
 
 public class PianoGameManager : MonoBehaviour
 {
@@ -23,6 +25,7 @@ public class PianoGameManager : MonoBehaviour
     [Header("Sistema de Gameplay")]
     [SerializeField] private GameplayScoring gameplayScoring;
     [SerializeField] private ResultsPanel resultsPanel;
+    [SerializeField] private AuthService authService;
     
     [Header("FASE 3 - Sistema Visual")]
     [SerializeField] private CountdownManager countdownManager;
@@ -44,10 +47,14 @@ public class PianoGameManager : MonoBehaviour
     public bool isPlaying = false;
     public bool isPaused = false;
     public float gameTime = 0f;
+    private SongListarResponse selectedSongMetadata;
     private bool gameplayReady = false;
     private bool gameStarted = false; // Bandera para evitar inicio múltiple
+    private bool countdownPending = false;
+    private bool countdownCompleted = false;
     private float pauseStartTime = 0f;
     private float totalPausedTime = 0f;
+    private bool saveAndExitInProgress = false;
     
     void Awake()
     {
@@ -63,6 +70,8 @@ public class PianoGameManager : MonoBehaviour
     
     void Start()
     {
+        AdoptConfiguredReferencesFromScene();
+
         // Suscribirse al evento del PianoCalibrator
         // El juego NO iniciará hasta que el usuario confirme la posición del piano (presione X)
         PianoCalibrator.OnPianoConfigured += OnPianoConfigured_StartGame;
@@ -99,10 +108,29 @@ public class PianoGameManager : MonoBehaviour
         
         if (resultsPanel == null)
         {
-            resultsPanel = FindObjectOfType<ResultsPanel>(true); // Incluir inactivos
+            GameObject endGameUi = FindSceneObjectByName("EndGameUI");
+            if (endGameUi != null)
+            {
+                resultsPanel = endGameUi.GetComponent<ResultsPanel>();
+                if (resultsPanel == null)
+                {
+                    resultsPanel = endGameUi.AddComponent<ResultsPanel>();
+                }
+            }
+
+            if (resultsPanel == null)
+            {
+                resultsPanel = FindObjectOfType<ResultsPanel>(true); // Incluir inactivos
+            }
+
             if (resultsPanel == null)
             {
                 Debug.LogWarning("[PianoGame] ⚠️ No se encontró ResultsPanel en la escena");
+            }
+            else
+            {
+                resultsPanel.HideImmediate();
+                Debug.Log("<color=green>[PianoGame]</color> ✅ EndGameUI conectado para resultados");
             }
         }
         
@@ -305,6 +333,7 @@ public class PianoGameManager : MonoBehaviour
         }
         
         var selectedSong = SelectedSongManager.Instance.selectedSong;
+        selectedSongMetadata = selectedSong;
         
         Debug.Log($"<color=green>[PianoGame]</color> 📂 Cargando desde BD: {selectedSong.title}");
         Debug.Log($"<color=cyan>[PianoGame]</color> 🎵 {selectedSong.artist_name} | {selectedSong.musical_genre} | {selectedSong.tempo} BPM");
@@ -324,14 +353,15 @@ public class PianoGameManager : MonoBehaviour
     /// </summary>
     private void OnSongLoaded(PianoSongData songData)
     {
+        ApplySelectedSongMetadata(songData);
         currentSongData = songData;
         
-        Debug.Log($"<color=green>[PianoGame]</color> ✅ Canción cargada: {songData.song_title ?? songData.song_name}");
+        Debug.Log($"<color=green>[PianoGame]</color> ✅ Canción cargada: {songData.song_title}");
         Debug.Log($"<color=green>[PianoGame]</color> 🎵 Formato: {(songData.all_notes != null ? "NUEVO (all_notes)" : "ANTIGUO (melody/chords)")}");
         
         if (songData.all_notes != null)
         {
-            Debug.Log($"<color=green>[PianoGame]</color> 📝 Notas: {songData.all_notes.Count} | Duración: {songData.recorded_duration:F2}s");
+            Debug.Log($"<color=green>[PianoGame]</color> 📝 Notas: {songData.all_notes.Count} | Duración juego: {songData.GetGameDuration():F2}s");
         }
         else if (songData.melody != null)
         {
@@ -340,7 +370,6 @@ public class PianoGameManager : MonoBehaviour
         }
         
         // Configurar el audio de fondo - usar nuevo formato primero (audio_file)
-        string audioPath = songData.GetAudioPath();
         if (songData.backgroundAudioClip != null)
         {
             backgroundMusicSource.clip = songData.backgroundAudioClip;
@@ -380,6 +409,24 @@ public class PianoGameManager : MonoBehaviour
         Debug.LogError($"<color=red>[PianoGame]</color> ❌ Error cargando canción: {error}");
         // TODO: Mostrar mensaje al usuario y volver al menú
     }
+
+    private void ApplySelectedSongMetadata(PianoSongData songData)
+    {
+        if (songData == null || selectedSongMetadata == null)
+        {
+            return;
+        }
+
+        songData.song_title = string.IsNullOrWhiteSpace(selectedSongMetadata.title)
+            ? songData.song_title
+            : selectedSongMetadata.title;
+        songData.song_name = songData.song_title;
+        songData.artist = string.IsNullOrWhiteSpace(selectedSongMetadata.artist_name)
+            ? songData.artist
+            : selectedSongMetadata.artist_name;
+        songData.tempo = selectedSongMetadata.tempo > 0 ? selectedSongMetadata.tempo : songData.tempo;
+        songData.duration = selectedSongMetadata.duration > 0 ? selectedSongMetadata.duration : songData.duration;
+    }
     
     /// <summary>
     /// Prepara el juego para empezar
@@ -392,6 +439,8 @@ public class PianoGameManager : MonoBehaviour
         LoadSongIntoSpawner();
         ShowCountdownPreview();
         SetupCountdown();
+        countdownPending = false;
+        countdownCompleted = false;
         
         gameplayReady = true;
         
@@ -472,8 +521,22 @@ public class PianoGameManager : MonoBehaviour
     /// </summary>
     private void StartCountdownSequence()
     {
+        if (countdownCompleted)
+        {
+            OnCountdownFinished();
+            return;
+        }
+
+        if (countdownPending)
+        {
+            Debug.Log("[PianoGame] Countdown ya solicitado, esperando finalización...");
+            return;
+        }
+
         if (countdownManager != null)
         {
+            countdownPending = true;
+            SetupCountdown();
             countdownManager.StartCountdown();
         }
         else
@@ -489,8 +552,10 @@ public class PianoGameManager : MonoBehaviour
     /// </summary>
     private void OnCountdownFinished()
     {
+        countdownPending = false;
+        countdownCompleted = true;
         Debug.Log("<color=green>[PianoGame]</color> 🎵 ¡Countdown terminado! Iniciando juego...");
-        StartGame();
+        StartGameplayNow();
     }
     
     /// <summary>
@@ -498,12 +563,17 @@ public class PianoGameManager : MonoBehaviour
     /// </summary>
     public void StartGame()
     {
-        if (MIDIConnectionManager.Instance != null && !MIDIConnectionManager.Instance.IsMidiConnected)
+        if (!countdownCompleted && countdownManager != null)
         {
-            Debug.LogWarning("<color=yellow>[PianoGame]</color> MIDI desconectado. Esperando reconexión para iniciar gameplay...");
+            StartCountdownSequence();
             return;
         }
 
+        StartGameplayNow();
+    }
+
+    private void StartGameplayNow()
+    {
         // Evitar inicio múltiple
         if (gameStarted)
         {
@@ -660,6 +730,11 @@ public class PianoGameManager : MonoBehaviour
         isPlaying = false;
         isPaused = false;
         gameStarted = false;
+
+        if (selectedSongMetadata != null)
+        {
+            results.mode_name = selectedSongMetadata.mode;
+        }
         
         Debug.Log("<color=cyan>[PianoGame]</color> 🏁 JUEGO TERMINADO");
         Debug.Log($"<color=cyan>[PianoGame]</color> 🎯 Resultado: {results.notes_hit}/{results.total_notes} ({results.accuracy_percentage:F1}%)");
@@ -675,7 +750,7 @@ public class PianoGameManager : MonoBehaviour
         {
             noteSpawner.StopSpawning();
         }
-        
+
         // Mostrar modal de resultados
         if (resultsPanel != null)
         {
@@ -686,6 +761,69 @@ public class PianoGameManager : MonoBehaviour
         {
             Debug.LogWarning("<color=yellow>[PianoGame]</color> ⚠️ No hay ResultsPanel para mostrar resultados");
         }
+    }
+
+    public void SaveAndExitToRepertorio(GameplayResults results)
+    {
+        if (saveAndExitInProgress)
+        {
+            return;
+        }
+
+        saveAndExitInProgress = true;
+
+        if (results == null)
+        {
+            LoadRepertorioScene();
+            return;
+        }
+
+        if (UserSession.Instance == null || !UserSession.Instance.IsLoggedIn || selectedSongMetadata == null)
+        {
+            LoadRepertorioScene();
+            return;
+        }
+
+        if (authService == null)
+        {
+            authService = FindObjectOfType<AuthService>(true);
+            if (authService == null)
+            {
+                GameObject runtimeAuthService = new GameObject("AuthService_Runtime");
+                authService = runtimeAuthService.AddComponent<AuthService>();
+            }
+        }
+
+        PracticeSessionRequest practiceRequest = new PracticeSessionRequest
+        {
+            user_id = UserSession.Instance.userId,
+            song_id = selectedSongMetadata.id,
+            practice_datetime = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture),
+            practice_mode = string.IsNullOrWhiteSpace(results.mode_name) ? "PIANO" : results.mode_name,
+            rhythm_score = results.rhythm_percentage,
+            harmony_score = results.harmony_percentage,
+            tuning_score = null
+        };
+
+        StartCoroutine(authService.SavePracticeSession(
+            practiceRequest,
+            onSuccess: (_) =>
+            {
+                Debug.Log("[PianoGame] ✅ Sesión de práctica guardada en API");
+                LoadRepertorioScene();
+            },
+            onError: (error) =>
+            {
+                Debug.LogWarning($"[PianoGame] No se pudo guardar la sesión de práctica: {error}");
+                LoadRepertorioScene();
+            }
+        ));
+    }
+
+    private void LoadRepertorioScene()
+    {
+        saveAndExitInProgress = false;
+        UnityEngine.SceneManagement.SceneManager.LoadScene("RepertorioScene");
     }
     
     /// <summary>
@@ -713,5 +851,82 @@ public class PianoGameManager : MonoBehaviour
         {
             gameplayScoring.OnGameFinished -= OnGameFinished;
         }
+    }
+
+    private void AdoptConfiguredReferencesFromScene()
+    {
+        PianoGameManager[] managers = Resources.FindObjectsOfTypeAll<PianoGameManager>();
+        PianoGameManager bestConfiguredManager = null;
+        int bestScore = -1;
+
+        foreach (PianoGameManager manager in managers)
+        {
+            if (manager == null || manager == this || !manager.gameObject.scene.IsValid())
+            {
+                continue;
+            }
+
+            int score = 0;
+            if (manager.countdownManager != null) score += 4;
+            if (manager.noteSpawner != null) score += 3;
+            if (manager.trebleStaff != null) score += 2;
+            if (manager.bassStaff != null) score += 2;
+            if (manager.vrCamera != null) score += 1;
+            if (manager.chordDetectorUI != null) score += 1;
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestConfiguredManager = manager;
+            }
+        }
+
+        if (bestConfiguredManager == null || bestScore <= 0)
+        {
+            return;
+        }
+
+        if (countdownManager == null) countdownManager = bestConfiguredManager.countdownManager;
+        if (noteSpawner == null) noteSpawner = bestConfiguredManager.noteSpawner;
+        if (trebleStaff == null) trebleStaff = bestConfiguredManager.trebleStaff;
+        if (bassStaff == null) bassStaff = bestConfiguredManager.bassStaff;
+        if (chordDetectorUI == null) chordDetectorUI = bestConfiguredManager.chordDetectorUI;
+        if (vrCamera == null) vrCamera = bestConfiguredManager.vrCamera;
+        if (backgroundMusicSource == null) backgroundMusicSource = bestConfiguredManager.backgroundMusicSource;
+        if (songLoader == null) songLoader = bestConfiguredManager.songLoader;
+        if (midiAudioManager == null) midiAudioManager = bestConfiguredManager.midiAudioManager;
+        if (directMidiReceiver == null) directMidiReceiver = bestConfiguredManager.directMidiReceiver;
+        if (gameplayScoring == null) gameplayScoring = bestConfiguredManager.gameplayScoring;
+        if (resultsPanel == null) resultsPanel = bestConfiguredManager.resultsPanel;
+
+        Debug.Log($"<color=cyan>[PianoGame]</color> Referencias heredadas desde '{bestConfiguredManager.gameObject.name}' para estabilizar la escena.");
+    }
+
+    private GameObject FindSceneObjectByName(string objectName)
+    {
+        Transform[] transforms = Resources.FindObjectsOfTypeAll<Transform>();
+        for (int i = 0; i < transforms.Length; i++)
+        {
+            Transform candidate = transforms[i];
+            if (candidate == null || candidate.name != objectName)
+            {
+                continue;
+            }
+
+            GameObject candidateObject = candidate.gameObject;
+            if (!candidateObject.scene.IsValid())
+            {
+                continue;
+            }
+
+            if ((candidate.hideFlags & HideFlags.NotEditable) != 0 || (candidate.hideFlags & HideFlags.HideAndDontSave) != 0)
+            {
+                continue;
+            }
+
+            return candidateObject;
+        }
+
+        return null;
     }
 }

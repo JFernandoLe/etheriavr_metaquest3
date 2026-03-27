@@ -65,19 +65,36 @@ public class PianoPauseMenu : MonoBehaviour
 
         bool shouldPause = !pianoGameManager.isPaused;
 
-        if (menuPausa != null)
-        {
-            menuPausa.SetActive(shouldPause);
-        }
-
         if (shouldPause)
         {
-            pianoGameManager.PauseGame();
-            ColocarMenuFrenteJugador();
+            ShowPauseMenu();
         }
         else
         {
-            pianoGameManager.ResumeGame();
+            TryResumeFromPauseMenu();
+        }
+    }
+
+    public void ShowPauseMenu(bool pauseGameplay = true)
+    {
+        if (menuPausa != null)
+        {
+            menuPausa.SetActive(true);
+        }
+
+        if (pauseGameplay && pianoGameManager != null && !pianoGameManager.isPaused)
+        {
+            pianoGameManager.PauseGame();
+        }
+
+        ColocarMenuFrenteJugador();
+    }
+
+    public void HidePauseMenu()
+    {
+        if (menuPausa != null)
+        {
+            menuPausa.SetActive(false);
         }
     }
 
@@ -134,14 +151,17 @@ public class PianoPauseMenu : MonoBehaviour
 
     private void CloseMenuAndResumeIfNeeded()
     {
-        if (menuPausa != null)
-        {
-            menuPausa.SetActive(false);
-        }
+        HidePauseMenu();
 
         if (pianoGameManager != null && pianoGameManager.isPaused)
         {
             pianoGameManager.ResumeGame();
         }
+    }
+
+    private void TryResumeFromPauseMenu()
+    {
+        HidePauseMenu();
+        pianoGameManager.ResumeGame();
     }
 }

@@ -1,10 +1,7 @@
 {
-  "song_name": "testing",
   "audio_file": "PianoSongs/BackgroundMusic/testing.mp3",
   "piano_volume": 0.8,
   "audio_file_volume": 0.7,
-  "duration": 248.89,
-  "recorded_duration": 135.57,
   "all_notes": [
     {
       "time": 2.078,

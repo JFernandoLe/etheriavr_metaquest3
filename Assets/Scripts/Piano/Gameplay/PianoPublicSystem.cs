@@ -14,10 +14,14 @@ public class PianoPublicSystem : MonoBehaviour
     }
 
     [Header("Configuración del Público")]
-    [SerializeField] private float performanceWindowSeconds = 4f;
-    [SerializeField] private float responseLerpSpeed = 7f;
-    [SerializeField] private float excitementCurvePower = 0.65f;
-    [SerializeField] private float idleDecayPerSecond = 18f;
+    [SerializeField] private float performanceWindowSeconds = 10f;
+    [SerializeField] private float samplesForFullConfidence = 10f;
+    [SerializeField] private float riseUnitsPerSecond = 14f;
+    [SerializeField] private float fallUnitsPerSecond = 5.5f;
+    [SerializeField] private float excitementCurvePower = 1.2f;
+    [SerializeField] private float idleDecayPerSecond = 2.2f;
+    [SerializeField] private float maxTargetScore = 88f;
+    [SerializeField] private float targetPenaltyOffset = 8f;
     
     // Estado
     private float currentPublicScore = 0f;     // 0-100
@@ -77,14 +81,18 @@ public class PianoPublicSystem : MonoBehaviour
 
             float averageScore = accumulatedScore / performanceWindow.Count;
             float curvedScore = Mathf.Pow(Mathf.Clamp01(averageScore), excitementCurvePower);
-            targetPublicScore = Mathf.Clamp((curvedScore * 135f) - 15f, 0f, 100f);
+            float confidence = Mathf.Clamp01(performanceWindow.Count / Mathf.Max(samplesForFullConfidence, 1f));
+            float mappedScore = Mathf.Clamp((curvedScore * maxTargetScore) - targetPenaltyOffset, 0f, 100f);
+            float desiredTarget = mappedScore * confidence;
+            targetPublicScore = Mathf.Lerp(targetPublicScore, desiredTarget, Time.deltaTime * Mathf.Lerp(0.7f, 1.4f, confidence));
         }
         else
         {
             targetPublicScore = Mathf.Max(0f, targetPublicScore - idleDecayPerSecond * Time.deltaTime);
         }
 
-        currentPublicScore = Mathf.Lerp(currentPublicScore, targetPublicScore, responseLerpSpeed * Time.deltaTime);
+        float responseRate = targetPublicScore >= currentPublicScore ? riseUnitsPerSecond : fallUnitsPerSecond;
+        currentPublicScore = Mathf.MoveTowards(currentPublicScore, targetPublicScore, responseRate * Time.deltaTime);
         currentPublicScore = Mathf.Clamp(currentPublicScore, 0f, 100f);
     }
     
@@ -141,15 +149,6 @@ public class PianoPublicSystem : MonoBehaviour
             time = Time.time,
             normalizedScore = Mathf.Clamp01(normalizedScore)
         });
-
-        if (normalizedScore >= 0.85f)
-        {
-            performanceWindow.Add(new PerformanceSample
-            {
-                time = Time.time,
-                normalizedScore = Mathf.Clamp01(normalizedScore)
-            });
-        }
 
         float notePercent = normalizedScore * 100f;
         string eventMsg = $"🎹 Ventana +{notePercent:F0}% ({successfulUnits}/{totalUnits})";

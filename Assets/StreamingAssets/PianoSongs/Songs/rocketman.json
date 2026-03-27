@@ -1,10 +1,7 @@
 {
-  "song_name": "1",
   "audio_file": "PianoSongs/BackgroundMusic/rocketman.mp3",
   "piano_volume": 1,
   "audio_file_volume": 1,
-  "duration": 282.12,
-  "recorded_duration": 285.28,
   "all_notes": [
     {
       "time": 0.164,

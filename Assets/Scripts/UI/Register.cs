@@ -14,8 +14,12 @@ public class Registrar : MonoBehaviour
     [Header("Servicios")]
     [SerializeField] private AuthService authService;
 
+    private DirectMidiReceiver midiReceiver;
+
     private void Start()
     {
+        midiReceiver = FindObjectOfType<DirectMidiReceiver>();
+
         if (registerButton != null)
             registerButton.onClick.AddListener(OnRegisterClicked);
     }
@@ -41,7 +45,9 @@ public class Registrar : MonoBehaviour
             username = usernameField.text,
             email = emailField.text,
             password = passwordField.text,
-            confirm_password = confirmPasswordField.text
+            confirm_password = confirmPasswordField.text,
+            midi_device_name = ResolveRegistrationMidiDeviceName(),
+            audience_intensity = UserSession.DefaultAudienceIntensity
         };
 
         StartCoroutine(authService.Register(requestData,
@@ -60,5 +66,17 @@ public class Registrar : MonoBehaviour
                 registerButton.interactable = true;
             }
         ));
+    }
+
+    private string ResolveRegistrationMidiDeviceName()
+    {
+        if (midiReceiver == null)
+        {
+            midiReceiver = FindObjectOfType<DirectMidiReceiver>();
+        }
+
+        return midiReceiver != null
+            ? midiReceiver.GetRegistrationDeviceName()
+            : UserSession.UnregisteredMidiDeviceName;
     }
 }

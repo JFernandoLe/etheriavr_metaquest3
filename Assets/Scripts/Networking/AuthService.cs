@@ -3,50 +3,35 @@ using UnityEngine.Networking;
 using System.Collections;
 using System;
 using System.Text;
+using System.Globalization;
 
 public class AuthService : MonoBehaviour
 {
     private string RegisterUrl => NetworkConfig.Instance.BaseUrl + "/api/users";
     private string LoginUrl => NetworkConfig.Instance.BaseUrl + "/api/login";
     private string SongsUrl => NetworkConfig.Instance.BaseUrl + "/api/songs/listar";
+    private string PracticeSessionsUrl => NetworkConfig.Instance.BaseUrl + "/api/practice-sessions";
+
+    private string GetUserConfigurationUrl(int userId)
+    {
+        return NetworkConfig.Instance.BaseUrl + $"/api/users/{userId}/configuration";
+    }
 
     public IEnumerator Register(UserCreateRequest data, Action<string> onSuccess, Action<string> onError)
     {
-        string json = JsonUtility.ToJson(data);
-
-        using (UnityWebRequest request = new UnityWebRequest(RegisterUrl, "POST"))
-        {
-            byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
-            request.uploadHandler = new UploadHandlerRaw(bodyRaw);
-            request.downloadHandler = new DownloadHandlerBuffer();
-            request.SetRequestHeader("Content-Type", "application/json");
-            request.timeout = 10;
-
-            yield return request.SendWebRequest();
-
-            if (request.result == UnityWebRequest.Result.Success)
-            {
-                onSuccess?.Invoke(request.downloadHandler.text);
-            }
-            else
-            {
-                string errorResponse = request.downloadHandler.text;
-                if (string.IsNullOrEmpty(errorResponse)) errorResponse = "Error de conexión";
-                onError?.Invoke(errorResponse);
-            }
-        }
+        yield return SendJsonRequest(RegisterUrl, "POST", JsonUtility.ToJson(data), false, onSuccess, onError);
     }
 
     public IEnumerator Login(UserLoginRequest data, Action<string> onSuccess, Action<string> onError)
     {
-        string json = JsonUtility.ToJson(data);
+        yield return SendJsonRequest(LoginUrl, "POST", JsonUtility.ToJson(data), false, onSuccess, onError);
+    }
 
-        using (UnityWebRequest request = new UnityWebRequest(LoginUrl, "POST"))
+    public IEnumerator GetUserConfiguration(int userId, Action<string> onSuccess, Action<string> onError)
+    {
+        using (UnityWebRequest request = UnityWebRequest.Get(GetUserConfigurationUrl(userId)))
         {
-            byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
-            request.uploadHandler = new UploadHandlerRaw(bodyRaw);
-            request.downloadHandler = new DownloadHandlerBuffer();
-            request.SetRequestHeader("Content-Type", "application/json");
+            ApplyAuthorizationHeader(request);
             request.timeout = 10;
 
             yield return request.SendWebRequest();
@@ -58,23 +43,28 @@ public class AuthService : MonoBehaviour
             else
             {
                 string errorResponse = request.downloadHandler.text;
-                if (string.IsNullOrEmpty(errorResponse)) errorResponse = "Error de conexión";
-                onError?.Invoke(errorResponse);
+                if (string.IsNullOrEmpty(errorResponse)) errorResponse = request.error;
+                onError?.Invoke(string.IsNullOrEmpty(errorResponse) ? "Error de conexión" : errorResponse);
             }
         }
     }
 
-    
+    public IEnumerator UpdateUserConfiguration(int userId, UserConfigurationRequest data, Action<string> onSuccess, Action<string> onError)
+    {
+        yield return SendJsonRequest(GetUserConfigurationUrl(userId), "PUT", JsonUtility.ToJson(data), true, onSuccess, onError);
+    }
+
+    public IEnumerator SavePracticeSession(PracticeSessionRequest data, Action<string> onSuccess, Action<string> onError)
+    {
+        yield return SendJsonRequest(PracticeSessionsUrl, "POST", SerializePracticeSessionRequest(data), true, onSuccess, onError);
+    }
 
     public IEnumerator GetSongs(Action<string> onSuccess, Action<string> onError)
     {
         using (UnityWebRequest request = UnityWebRequest.Get(SongsUrl))
         {
             // Enviamos el Token que guardamos en el UserSession
-            if (UserSession.Instance != null && !string.IsNullOrEmpty(UserSession.Instance.token))
-            {
-                request.SetRequestHeader("Authorization", "Bearer " + UserSession.Instance.token);
-            }
+            ApplyAuthorizationHeader(request);
 
             yield return request.SendWebRequest();
 
@@ -90,5 +80,83 @@ public class AuthService : MonoBehaviour
                 onError?.Invoke(request.error);
             }
         }
+    }
+
+    private IEnumerator SendJsonRequest(string url, string method, string json, bool includeAuth, Action<string> onSuccess, Action<string> onError)
+    {
+        using (UnityWebRequest request = new UnityWebRequest(url, method))
+        {
+            byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
+            request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+            request.downloadHandler = new DownloadHandlerBuffer();
+            request.SetRequestHeader("Content-Type", "application/json");
+            request.timeout = 10;
+
+            if (includeAuth)
+            {
+                ApplyAuthorizationHeader(request);
+            }
+
+            yield return request.SendWebRequest();
+
+            if (request.result == UnityWebRequest.Result.Success)
+            {
+                onSuccess?.Invoke(request.downloadHandler.text);
+            }
+            else
+            {
+                string errorResponse = request.downloadHandler.text;
+                if (string.IsNullOrEmpty(errorResponse)) errorResponse = request.error;
+                onError?.Invoke(string.IsNullOrEmpty(errorResponse) ? "Error de conexión" : errorResponse);
+            }
+        }
+    }
+
+    private void ApplyAuthorizationHeader(UnityWebRequest request)
+    {
+        if (request == null)
+        {
+            return;
+        }
+
+        if (UserSession.Instance != null && !string.IsNullOrEmpty(UserSession.Instance.token))
+        {
+            request.SetRequestHeader("Authorization", "Bearer " + UserSession.Instance.token);
+        }
+    }
+
+    private string SerializePracticeSessionRequest(PracticeSessionRequest data)
+    {
+        if (data == null)
+        {
+            return "{}";
+        }
+
+        return "{" +
+            $"\"user_id\":{data.user_id}," +
+            $"\"song_id\":{data.song_id}," +
+            $"\"practice_datetime\":\"{EscapeJson(data.practice_datetime)}\"," +
+            $"\"practice_mode\":\"{EscapeJson(data.practice_mode)}\"," +
+            $"\"rhythm_score\":{SerializeNullableFloat(data.rhythm_score)}," +
+            $"\"harmony_score\":{SerializeNullableFloat(data.harmony_score)}," +
+            $"\"tuning_score\":{SerializeNullableFloat(data.tuning_score)}" +
+            "}";
+    }
+
+    private string SerializeNullableFloat(float? value)
+    {
+        return value.HasValue
+            ? value.Value.ToString(CultureInfo.InvariantCulture)
+            : "null";
+    }
+
+    private string EscapeJson(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return string.Empty;
+        }
+
+        return value.Replace("\\", "\\\\").Replace("\"", "\\\"");
     }
 }

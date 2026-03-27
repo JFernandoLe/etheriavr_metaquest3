@@ -104,12 +104,26 @@ public class PianoSongData
     }
     
     /// <summary>
-    /// Obtiene la duración correcta (intenta recorded_duration primero)
+    /// Obtiene la duración correcta del gameplay.
     /// </summary>
     public float GetGameDuration()
     {
-        if (recorded_duration > 0) return recorded_duration;
-        return duration;
+        if (duration > 0f) return duration;
+        if (backgroundAudioClip != null && backgroundAudioClip.length > 0f) return backgroundAudioClip.length;
+
+        if (all_notes != null && all_notes.Count > 0)
+        {
+            float latestEnd = 0f;
+            for (int i = 0; i < all_notes.Count; i++)
+            {
+                GameNoteData note = all_notes[i];
+                latestEnd = Mathf.Max(latestEnd, note.time + note.duration);
+            }
+
+            return latestEnd;
+        }
+
+        return 0f;
     }
     
     /// <summary>

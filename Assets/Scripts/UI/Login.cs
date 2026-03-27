@@ -13,8 +13,12 @@ public class Login : MonoBehaviour
     [Header("Servicios")]
     [SerializeField] private AuthService authService;
 
+    private DirectMidiReceiver midiReceiver;
+
     private void Start()
     {
+        midiReceiver = FindObjectOfType<DirectMidiReceiver>();
+
         if (loginButton != null)
             loginButton.onClick.AddListener(OnLoginClicked);
     }
@@ -35,7 +39,8 @@ public class Login : MonoBehaviour
         UserLoginRequest loginData = new UserLoginRequest
         {
             email = email,
-            password = password
+            password = password,
+            midi_device_name = ResolveConnectedMidiDeviceName()
         };
 
         StartCoroutine(authService.Login(loginData,
@@ -56,15 +61,35 @@ public class Login : MonoBehaviour
 
                 Debug.Log($"<color=cyan>Token JWT guardado: {res.access_token}</color>");
 
-                AlertManager.Instance.ShowAlert(
-                    "¡Bienvenido!",
-                    $"Hola de nuevo, {res.username}.",
-                    true,
-                    onClose: () =>
+                string connectedMidiDeviceName = ResolveConnectedMidiDeviceName();
+                if (!string.IsNullOrWhiteSpace(connectedMidiDeviceName) && UserSession.Instance != null)
+                {
+                    UserConfigurationRequest configurationRequest = new UserConfigurationRequest
                     {
-                        UnityEngine.SceneManagement.SceneManager.LoadScene("HomeScene");
-                    }
-                );
+                        midi_device_name = connectedMidiDeviceName,
+                        audience_intensity = string.IsNullOrWhiteSpace(UserSession.Instance.audienceIntensity)
+                            ? UserSession.DefaultAudienceIntensity
+                            : UserSession.Instance.audienceIntensity
+                    };
+
+                    StartCoroutine(authService.UpdateUserConfiguration(
+                        UserSession.Instance.userId,
+                        configurationRequest,
+                        onSuccess: (_) =>
+                        {
+                            UserSession.Instance.UpdateMidiDeviceName(connectedMidiDeviceName);
+                            ShowLoginSuccess(res.username);
+                        },
+                        onError: (configError) =>
+                        {
+                            Debug.LogWarning($"[Login] No se pudo sincronizar la configuración MIDI tras login: {configError}");
+                            ShowLoginSuccess(res.username);
+                        }
+                    ));
+                    return;
+                }
+
+                ShowLoginSuccess(res.username);
             },
             onError: (errorJson) =>
             {
@@ -73,5 +98,33 @@ public class Login : MonoBehaviour
                 loginButton.interactable = true;
             }
         ));
+    }
+
+    private string ResolveConnectedMidiDeviceName()
+    {
+        if (midiReceiver == null)
+        {
+            midiReceiver = FindObjectOfType<DirectMidiReceiver>();
+        }
+
+        if (midiReceiver != null && midiReceiver.TryGetConnectedDeviceName(out string deviceName))
+        {
+            return deviceName;
+        }
+
+        return null;
+    }
+
+    private void ShowLoginSuccess(string username)
+    {
+        AlertManager.Instance.ShowAlert(
+            "¡Bienvenido!",
+            $"Hola de nuevo, {username}.",
+            true,
+            onClose: () =>
+            {
+                UnityEngine.SceneManagement.SceneManager.LoadScene("HomeScene");
+            }
+        );
     }
 }

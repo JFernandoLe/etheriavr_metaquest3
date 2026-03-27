@@ -12,39 +12,13 @@ public class ShowRepertorio : MonoBehaviour
     
     // Lista para mantener referencia de todos los items creados
     private List<SongItem> songItems = new List<SongItem>();
-    private bool lastKnownMidiState = false;
-    private bool midiSubscribed = false;
-
     private void Start()
     {
         Debug.Log("<color=magenta>[Repertorio]</color> 📋 ===== INICIANDO REPERTORIO =====");
         
         CargarDatos();
-
-        TrySubscribeToMidiManager();
         
         Debug.Log("<color=magenta>[Repertorio]</color> 📋 ===== REPERTORIO LISTO =====\n");
-    }
-
-    private void Update()
-    {
-        if (!midiSubscribed)
-        {
-            TrySubscribeToMidiManager();
-        }
-
-        // Validar constantemente el estado de MIDI en tiempo real
-        if (MIDIConnectionManager.Instance != null)
-        {
-            bool currentMidiState = MIDIConnectionManager.Instance.IsMidiConnected;
-            
-            // Si cambió el estado, actualizar botones
-            if (currentMidiState != lastKnownMidiState)
-            {
-                lastKnownMidiState = currentMidiState;
-                OnMidiStatusChanged(currentMidiState);
-            }
-        }
     }
 
     private void CargarDatos()
@@ -68,8 +42,6 @@ public class ShowRepertorio : MonoBehaviour
                     {
                         item.Setup(song);
                         songItems.Add(item);
-                        
-                        // Aplicar estado inicial del botón según MIDI
                         UpdateSongItemButton(item);
                     }
                 }
@@ -79,26 +51,7 @@ public class ShowRepertorio : MonoBehaviour
     }
     
     /// <summary>
-    /// Callback cuando cambia el estado de conexión MIDI
-    /// </summary>
-    private void OnMidiStatusChanged(bool isMidiConnected)
-    {
-        lastKnownMidiState = isMidiConnected;
-        Debug.Log($"<color=yellow>[Repertorio]</color> MIDI {(isMidiConnected ? "conectado" : "desconectado")} - Actualizando botones...");
-        
-        // Actualizar todos los items de canción
-        foreach (var item in songItems)
-        {
-            if (item != null)
-            {
-                UpdateSongItemButton(item);
-            }
-        }
-    }
-    
-    /// <summary>
-    /// Actualiza el estado del botón de un SongItem específico
-    /// Solo deshabilita canciones de PIANO cuando no hay MIDI
+    /// Mantiene todos los botones del repertorio habilitados.
     /// </summary>
     private void UpdateSongItemButton(SongItem item)
     {
@@ -107,63 +60,6 @@ public class ShowRepertorio : MonoBehaviour
             Debug.LogWarning("<color=yellow>[Repertorio]</color> ⚠️ SongItem es NULL");
             return;
         }
-        
-        bool shouldEnable = true;
-        string songTitle = item.gameObject.name;
-        
-        // Si es modo PIANO y NO hay MIDI conectado, deshabilitar
-        if (item.IsPianoMode)
-        {
-            Debug.Log($"<color=cyan>[Repertorio]</color> 🎹 Canción PIANO detectada: {songTitle}");
-            
-            if (MIDIConnectionManager.Instance != null)
-            {
-                bool isMidiConnected = MIDIConnectionManager.Instance.IsMidiConnected;
-                shouldEnable = isMidiConnected;
-                
-                string status = isMidiConnected ? "CONECTADO ✅ → HABILITADO" : "DESCONECTADO ❌ → DESHABILITADO";
-                Debug.Log($"<color=cyan>[Repertorio]</color> {status} | {songTitle}");
-            }
-            else
-            {
-                Debug.LogError("<color=red>[Repertorio]</color> ❌ MIDIConnectionManager no encontrado, deshabilitando PIANO");
-                shouldEnable = false;
-            }
-        }
-        else
-        {
-            Debug.Log($"<color=blue>[Repertorio]</color> 🎤 Canción CANTO/OTRO: {songTitle} → SIEMPRE HABILITADO");
-        }
-        
-        item.UpdateButtonState(shouldEnable);
-    }
-    
-    private void OnDestroy()
-    {
-        // Desuscribirse del evento al destruir el componente
-        if (midiSubscribed && MIDIConnectionManager.Instance != null)
-        {
-            MIDIConnectionManager.Instance.OnMidiConnectionChanged -= OnMidiStatusChanged;
-        }
-    }
-
-    private void TrySubscribeToMidiManager()
-    {
-        MIDIConnectionManager midiManager = MIDIConnectionManager.Instance ?? FindObjectOfType<MIDIConnectionManager>();
-        if (midiManager == null)
-        {
-            return;
-        }
-
-        if (!midiSubscribed)
-        {
-            Debug.Log("<color=green>[Repertorio]</color> ✅ MIDIConnectionManager encontrado");
-            midiManager.OnMidiConnectionChanged += OnMidiStatusChanged;
-            midiSubscribed = true;
-        }
-
-        bool currentState = midiManager.IsMidiConnected;
-        Debug.Log($"<color=cyan>[Repertorio]</color> 📡 Estado MIDI actual: {(currentState ? "CONECTADO ✅" : "DESCONECTADO ❌")}");
-        OnMidiStatusChanged(currentState);
+        item.UpdateButtonState(true);
     }
 }

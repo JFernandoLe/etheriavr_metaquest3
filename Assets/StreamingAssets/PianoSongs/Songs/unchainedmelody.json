@@ -1,10 +1,7 @@
 {
-  "song_name": "10",
   "audio_file": "PianoSongs/BackgroundMusic/unchainedmelody.mp3",
   "piano_volume": 0.8,
   "audio_file_volume": 0.7,
-  "duration": 216.35,
-  "recorded_duration": 221.6,
   "all_notes": [
     {
       "time": 0.491,

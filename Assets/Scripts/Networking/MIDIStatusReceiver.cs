@@ -26,17 +26,19 @@ public class MIDIStatusReceiver : MonoBehaviour
 
     void Update()
     {
-        if (isSubscribed && midiReceiver != null)
-        {
-            return;
-        }
-
         if (Time.unscaledTime < nextSearchTime)
         {
             return;
         }
 
         nextSearchTime = Time.unscaledTime + SearchIntervalSeconds;
+
+        if (isSubscribed && midiReceiver != null)
+        {
+            HandleMidiStatusChange(midiReceiver.IsMidiConnected);
+            return;
+        }
+
         TryAttachToReceiver();
     }
 

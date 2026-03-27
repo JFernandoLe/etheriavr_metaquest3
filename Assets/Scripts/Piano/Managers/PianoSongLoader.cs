@@ -10,14 +10,13 @@ using System.Collections.Generic;
 [System.Serializable]
 public class PianoSongDataWrapper
 {
-    public string song_name;
     public string song_title;
     public string artist;
     public int tempo;
-    public float duration;
-    public float recorded_duration;
     public string background_music;
     public string audio_file;
+    public float piano_volume = 1.0f;
+    public float audio_file_volume = 1.0f;
     
     public GameNoteData[] all_notes;  // Array en lugar de List
     public PianoNoteData[] melody;     // Array en lugar de List
@@ -125,14 +124,13 @@ public class PianoSongLoader : MonoBehaviour
         
         // 4. Convertir wrapper a PianoSongData y convertir arrays a listas
         PianoSongData songData = new PianoSongData();
-        songData.song_name = wrapper.song_name;
         songData.song_title = wrapper.song_title;
         songData.artist = wrapper.artist;
         songData.tempo = wrapper.tempo;
-        songData.duration = wrapper.duration;
-        songData.recorded_duration = wrapper.recorded_duration;
         songData.background_music = wrapper.background_music;
         songData.audio_file = wrapper.audio_file;
+        songData.piano_volume = wrapper.piano_volume;
+        songData.audio_file_volume = wrapper.audio_file_volume;
         
         // Convertir arrays a listas
         songData.all_notes = new List<GameNoteData>(wrapper.all_notes ?? new GameNoteData[0]);

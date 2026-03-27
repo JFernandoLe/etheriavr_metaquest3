@@ -1,4 +1,5 @@
 using UnityEngine;
+using System;
 using TMPro;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
@@ -19,7 +20,7 @@ public class SongItem : MonoBehaviour
     public string SongMode => _myFullData?.mode;
     
     // Propiedad pública para verificar si es modo PIANO
-    public bool IsPianoMode => _myFullData?.mode == "PIANO";
+    public bool IsPianoMode => string.Equals(_myFullData?.mode, "PIANO", StringComparison.OrdinalIgnoreCase);
 
     public void Setup(SongListarResponse data)
     {
@@ -63,11 +64,11 @@ public class SongItem : MonoBehaviour
         {
             SelectedSongManager.Instance.selectedSong = _myFullData;
             Debug.Log(_myFullData.mode);
-            if (_myFullData.mode == "CANTO")
+            if (string.Equals(_myFullData.mode, "CANTO", StringComparison.OrdinalIgnoreCase))
             {
                 Debug.Log($"<color=cyan>[Escena]</color> Cambiando a SingGame con: {_myFullData.title}");
                 SceneManager.LoadScene("SingGame");
-            }else if (_myFullData.mode == "PIANO")
+            }else if (string.Equals(_myFullData.mode, "PIANO", StringComparison.OrdinalIgnoreCase))
             {
                 Debug.Log($"<color=cyan>[Escena]</color> Cambiando a PianoGame con: {_myFullData.title}");
                 SceneManager.LoadScene("PianoGame");

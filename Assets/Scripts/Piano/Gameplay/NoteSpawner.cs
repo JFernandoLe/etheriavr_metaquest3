@@ -73,8 +73,7 @@ public class NoteSpawner : MonoBehaviour
                 {
                     foreach (int midiNote in gameNote.midi_notes)
                     {
-                        // Determinar mano según clef
-                        string hand = (gameNote.clef == "bass") ? "left" : "right";
+                        string hand = GetHandForMidiNote(midiNote);
                         
                         PianoNoteData pianoNote = new PianoNoteData
                         {
@@ -104,6 +103,8 @@ public class NoteSpawner : MonoBehaviour
             return;
         }
         
+        NormalizeHandsByMidiSplit();
+
         // Ordenar por tiempo de aparición
         allNotes.Sort((a, b) => a.time.CompareTo(b.time));
 
@@ -123,6 +124,20 @@ public class NoteSpawner : MonoBehaviour
         Debug.Log($"[NoteSpawner] ⏱️  Duración juego: {songData.GetGameDuration()}s | Audio: {(songData.backgroundAudioClip != null ? songData.backgroundAudioClip.length : 0):F1}s");
         Debug.Log($"[NoteSpawner] Scroll lead time: {noteTravelTime:F2}s | Scroll speed: {currentScrollSpeed:F2}m/s");
         Debug.Log($"=== [NoteSpawner] FIN CARGA ===\n");
+    }
+
+    private void NormalizeHandsByMidiSplit()
+    {
+        for (int i = 0; i < allNotes.Count; i++)
+        {
+            PianoNoteData note = allNotes[i];
+            note.hand = GetHandForMidiNote(note.midi);
+        }
+    }
+
+    private string GetHandForMidiNote(int midiNote)
+    {
+        return midiNote >= 60 ? "right" : "left";
     }
 
     private void RecalculateScrollSpeed()

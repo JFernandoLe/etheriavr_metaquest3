@@ -20,6 +20,7 @@ public class CountdownManager : MonoBehaviour
     [Header("Configuración")]
     [SerializeField] private float countdownDuration = 1f; // 1 segundo por número
     [SerializeField] private float textScale = 2f; // Escala del texto
+    [SerializeField] private float bipPlaybackDuration = 0.2f;
     
     private bool isCountdownActive = false;
     
@@ -112,7 +113,7 @@ public class CountdownManager : MonoBehaviour
     {
         if (audioSource != null && bipSound != null)
         {
-            audioSource.PlayOneShot(bipSound);
+            StartCoroutine(PlayTrimmedClip(bipSound, bipPlaybackDuration));
         }
     }
 
@@ -126,6 +127,27 @@ public class CountdownManager : MonoBehaviour
             {
                 audioSource.PlayOneShot(soundToPlay);
             }
+        }
+    }
+
+    private IEnumerator PlayTrimmedClip(AudioClip clip, float duration)
+    {
+        if (audioSource == null || clip == null)
+        {
+            yield break;
+        }
+
+        audioSource.Stop();
+        audioSource.clip = clip;
+        audioSource.time = 0f;
+        audioSource.Play();
+
+        float safeDuration = Mathf.Min(duration, clip.length);
+        yield return new WaitForSeconds(safeDuration);
+
+        if (audioSource.clip == clip)
+        {
+            audioSource.Stop();
         }
     }
 }
