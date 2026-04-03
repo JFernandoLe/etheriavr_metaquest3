@@ -30,11 +30,18 @@ public class EndGameManager : MonoBehaviour
         if (songLoader == null || songLoader.audioSource == null)
             return;
 
-        float time = songLoader.GetSongTime();
-        float duration = songLoader.audioSource.clip.length;
+        AudioSource audio = songLoader.audioSource;
 
-        //DETECCIÓN FIABLE
-        if (time >= duration - 0.1f)
+        if (audio.clip == null)
+            return;
+
+        if (!audio.isPlaying)
+            return;
+
+        float time = audio.time;
+        float duration = audio.clip.length;
+
+        if (!shown && audio.clip != null && audio.isPlaying && audio.time >= audio.clip.length - 0.1f)
         {
             ShowResults();
         }

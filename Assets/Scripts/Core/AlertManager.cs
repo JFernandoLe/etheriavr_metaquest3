@@ -34,7 +34,12 @@ public class AlertManager : MonoBehaviour
         panel.SetActive(true);
         titleText.text = title;
         messageText.text = message;
-        titleText.color = isSuccess ? Color.green : Color.red;
+        Color c;
+        if (isSuccess)
+            ColorUtility.TryParseHtmlString("#6B9080", out c);
+        else
+            ColorUtility.TryParseHtmlString("#906B6D", out c);
+        titleText.color = c;
         onClosedCallback = onClose;
     }
 
