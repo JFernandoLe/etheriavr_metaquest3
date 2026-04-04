@@ -1,0 +1,2817 @@
+{
+  "audio_file": "PianoSongs/BackgroundMusic/demusicaligera.mp3",
+  "piano_volume": 0.8,
+  "audio_file_volume": 0.7,
+  "all_notes": [
+    {
+      "time": 0.95,
+      "duration": 0.666,
+      "midi_notes": [
+        59,
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 1.893,
+      "duration": 0.563,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 2.83,
+      "duration": 0.497,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 3.791,
+      "duration": 0.49,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 4.703,
+      "duration": 0.407,
+      "midi_notes": [
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 4.723,
+      "duration": 0.428,
+      "midi_notes": [
+        59
+      ],
+      "clef": "bass",
+      "is_chord": false
+    },
+    {
+      "time": 5.72,
+      "duration": 0.46,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 6.697,
+      "duration": 0.47,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 7.659,
+      "duration": 0.431,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 8.586,
+      "duration": 0.437,
+      "midi_notes": [
+        59,
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 9.581,
+      "duration": 0.456,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 10.556,
+      "duration": 0.539,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 11.531,
+      "duration": 0.514,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 12.49,
+      "duration": 0.453,
+      "midi_notes": [
+        59,
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 13.428,
+      "duration": 0.457,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 14.398,
+      "duration": 0.449,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 15.329,
+      "duration": 0.451,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 16.279,
+      "duration": 0.421,
+      "midi_notes": [
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 16.302,
+      "duration": 0.432,
+      "midi_notes": [
+        59
+      ],
+      "clef": "bass",
+      "is_chord": false
+    },
+    {
+      "time": 17.309,
+      "duration": 0.431,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 18.256,
+      "duration": 0.446,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 19.218,
+      "duration": 0.432,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 20.185,
+      "duration": 0.341,
+      "midi_notes": [
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 20.206,
+      "duration": 0.351,
+      "midi_notes": [
+        59
+      ],
+      "clef": "bass",
+      "is_chord": false
+    },
+    {
+      "time": 21.147,
+      "duration": 0.44,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 22.163,
+      "duration": 0.433,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 23.104,
+      "duration": 0.382,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 24.064,
+      "duration": 0.353,
+      "midi_notes": [
+        59,
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 25.041,
+      "duration": 0.311,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 25.993,
+      "duration": 0.44,
+      "midi_notes": [
+        50,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 26.014,
+      "duration": 0.346,
+      "midi_notes": [
+        62
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 26.966,
+      "duration": 0.414,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 27.928,
+      "duration": 0.374,
+      "midi_notes": [
+        59,
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 28.929,
+      "duration": 0.306,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 29.85,
+      "duration": 0.324,
+      "midi_notes": [
+        50
+      ],
+      "clef": "bass",
+      "is_chord": false
+    },
+    {
+      "time": 29.878,
+      "duration": 0.299,
+      "midi_notes": [
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 30.813,
+      "duration": 0.404,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 31.821,
+      "duration": 0.329,
+      "midi_notes": [
+        59,
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 32.767,
+      "duration": 0.275,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 33.731,
+      "duration": 0.316,
+      "midi_notes": [
+        50,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 33.754,
+      "duration": 0.236,
+      "midi_notes": [
+        62
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 34.681,
+      "duration": 0.355,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 35.656,
+      "duration": 0.231,
+      "midi_notes": [
+        59,
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 36.591,
+      "duration": 0.28,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 37.604,
+      "duration": 0.393,
+      "midi_notes": [
+        50,
+        66
+      ],
+      "clef": "bass",
+      "is_chord": true
+    },
+    {
+      "time": 37.624,
+      "duration": 0.303,
+      "midi_notes": [
+        62,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 38.525,
+      "duration": 0.383,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 39.525,
+      "duration": 0.234,
+      "midi_notes": [
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 39.546,
+      "duration": 0.202,
+      "midi_notes": [
+        59
+      ],
+      "clef": "bass",
+      "is_chord": false
+    },
+    {
+      "time": 40.504,
+      "duration": 0.195,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 41.458,
+      "duration": 0.223,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 42.433,
+      "duration": 0.26,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 43.349,
+      "duration": 0.223,
+      "midi_notes": [
+        59,
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 44.352,
+      "duration": 0.183,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 45.323,
+      "duration": 0.23,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 46.286,
+      "duration": 0.232,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 47.216,
+      "duration": 0.175,
+      "midi_notes": [
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 47.239,
+      "duration": 0.123,
+      "midi_notes": [
+        59
+      ],
+      "clef": "bass",
+      "is_chord": false
+    },
+    {
+      "time": 48.191,
+      "duration": 0.202,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 49.186,
+      "duration": 0.351,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 50.146,
+      "duration": 0.444,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 51.179,
+      "duration": 0.252,
+      "midi_notes": [
+        59,
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 52.08,
+      "duration": 0.167,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 53.059,
+      "duration": 0.4,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 53.998,
+      "duration": 0.346,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 54.934,
+      "duration": 0.282,
+      "midi_notes": [
+        59,
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 55.918,
+      "duration": 0.37,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 56.919,
+      "duration": 0.398,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 57.876,
+      "duration": 0.345,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 58.856,
+      "duration": 0.254,
+      "midi_notes": [
+        59,
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 59.834,
+      "duration": 0.247,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 60.81,
+      "duration": 0.238,
+      "midi_notes": [
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 60.831,
+      "duration": 0.206,
+      "midi_notes": [
+        50
+      ],
+      "clef": "bass",
+      "is_chord": false
+    },
+    {
+      "time": 61.739,
+      "duration": 0.266,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 62.715,
+      "duration": 0.289,
+      "midi_notes": [
+        59,
+        71,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 62.735,
+      "duration": 0.279,
+      "midi_notes": [
+        74
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 63.687,
+      "duration": 0.313,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 64.631,
+      "duration": 0.379,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 65.606,
+      "duration": 0.299,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 66.557,
+      "duration": 0.228,
+      "midi_notes": [
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 66.584,
+      "duration": 0.181,
+      "midi_notes": [
+        59
+      ],
+      "clef": "bass",
+      "is_chord": false
+    },
+    {
+      "time": 67.536,
+      "duration": 0.45,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 68.527,
+      "duration": 0.358,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 69.494,
+      "duration": 0.329,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 70.451,
+      "duration": 0.294,
+      "midi_notes": [
+        59,
+        78
+      ],
+      "clef": "bass",
+      "is_chord": true
+    },
+    {
+      "time": 70.472,
+      "duration": 0.28,
+      "midi_notes": [
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 71.405,
+      "duration": 0.341,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 72.417,
+      "duration": 0.379,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 73.342,
+      "duration": 0.393,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 74.302,
+      "duration": 0.402,
+      "midi_notes": [
+        59,
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 75.298,
+      "duration": 0.352,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 76.24,
+      "duration": 0.377,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 77.208,
+      "duration": 0.442,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 78.18,
+      "duration": 0.347,
+      "midi_notes": [
+        59,
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 79.111,
+      "duration": 0.356,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 80.118,
+      "duration": 0.384,
+      "midi_notes": [
+        50,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 80.14,
+      "duration": 0.291,
+      "midi_notes": [
+        62
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 81.077,
+      "duration": 0.391,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 82.041,
+      "duration": 0.311,
+      "midi_notes": [
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 82.063,
+      "duration": 0.322,
+      "midi_notes": [
+        59
+      ],
+      "clef": "bass",
+      "is_chord": false
+    },
+    {
+      "time": 82.989,
+      "duration": 0.333,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 83.96,
+      "duration": 0.376,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 84.884,
+      "duration": 0.362,
+      "midi_notes": [
+        57
+      ],
+      "clef": "bass",
+      "is_chord": false
+    },
+    {
+      "time": 84.904,
+      "duration": 0.317,
+      "midi_notes": [
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 85.865,
+      "duration": 0.253,
+      "midi_notes": [
+        59,
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 86.84,
+      "duration": 0.35,
+      "midi_notes": [
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 86.862,
+      "duration": 0.33,
+      "midi_notes": [
+        55
+      ],
+      "clef": "bass",
+      "is_chord": false
+    },
+    {
+      "time": 87.854,
+      "duration": 0.411,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 88.776,
+      "duration": 0.323,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 89.764,
+      "duration": 0.317,
+      "midi_notes": [
+        59,
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 90.737,
+      "duration": 0.284,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 91.7,
+      "duration": 0.303,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 92.642,
+      "duration": 0.335,
+      "midi_notes": [
+        57,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 92.664,
+      "duration": 0.257,
+      "midi_notes": [
+        69
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 93.595,
+      "duration": 0.265,
+      "midi_notes": [
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 93.62,
+      "duration": 0.249,
+      "midi_notes": [
+        59
+      ],
+      "clef": "bass",
+      "is_chord": false
+    },
+    {
+      "time": 94.565,
+      "duration": 0.285,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 95.591,
+      "duration": 0.383,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 96.511,
+      "duration": 0.358,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 97.468,
+      "duration": 0.3,
+      "midi_notes": [
+        59,
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 98.468,
+      "duration": 0.276,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 99.406,
+      "duration": 0.246,
+      "midi_notes": [
+        50,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 99.435,
+      "duration": 0.166,
+      "midi_notes": [
+        62
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 100.321,
+      "duration": 0.307,
+      "midi_notes": [
+        57
+      ],
+      "clef": "bass",
+      "is_chord": false
+    },
+    {
+      "time": 100.345,
+      "duration": 0.298,
+      "midi_notes": [
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 101.305,
+      "duration": 0.206,
+      "midi_notes": [
+        59,
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 102.302,
+      "duration": 0.289,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 103.311,
+      "duration": 0.316,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 104.196,
+      "duration": 0.33,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 105.238,
+      "duration": 0.268,
+      "midi_notes": [
+        59,
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 106.195,
+      "duration": 0.288,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 107.173,
+      "duration": 0.362,
+      "midi_notes": [
+        50,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 107.195,
+      "duration": 0.256,
+      "midi_notes": [
+        62
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 108.094,
+      "duration": 0.291,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 109.075,
+      "duration": 0.281,
+      "midi_notes": [
+        59,
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 110.051,
+      "duration": 0.295,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 111.01,
+      "duration": 0.313,
+      "midi_notes": [
+        50,
+        66
+      ],
+      "clef": "bass",
+      "is_chord": true
+    },
+    {
+      "time": 111.031,
+      "duration": 0.265,
+      "midi_notes": [
+        62,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 112.018,
+      "duration": 0.159,
+      "midi_notes": [
+        57,
+        69,
+        73
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 112.047,
+      "duration": 0.073,
+      "midi_notes": [
+        76
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 112.99,
+      "duration": 0.218,
+      "midi_notes": [
+        59,
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 113.932,
+      "duration": 0.191,
+      "midi_notes": [
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 113.962,
+      "duration": 0.171,
+      "midi_notes": [
+        55
+      ],
+      "clef": "bass",
+      "is_chord": false
+    },
+    {
+      "time": 114.861,
+      "duration": 0.174,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 115.84,
+      "duration": 0.291,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 116.812,
+      "duration": 0.565,
+      "midi_notes": [
+        71
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 117.524,
+      "duration": 0.53,
+      "midi_notes": [
+        69
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 118.271,
+      "duration": 0.548,
+      "midi_notes": [
+        71
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 118.996,
+      "duration": 0.428,
+      "midi_notes": [
+        69
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 119.734,
+      "duration": 0.275,
+      "midi_notes": [
+        71
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 120.194,
+      "duration": 0.147,
+      "midi_notes": [
+        69
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 120.695,
+      "duration": 0.411,
+      "midi_notes": [
+        66
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 121.426,
+      "duration": 0.345,
+      "midi_notes": [
+        64
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 121.906,
+      "duration": 0.198,
+      "midi_notes": [
+        66
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 122.58,
+      "duration": 0.121,
+      "midi_notes": [
+        69
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 122.841,
+      "duration": 0.11,
+      "midi_notes": [
+        66
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 123.075,
+      "duration": 0.169,
+      "midi_notes": [
+        66
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 123.589,
+      "duration": 0.198,
+      "midi_notes": [
+        69
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 124.094,
+      "duration": 0.118,
+      "midi_notes": [
+        71
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 124.621,
+      "duration": 0.142,
+      "midi_notes": [
+        76
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 125.056,
+      "duration": 0.162,
+      "midi_notes": [
+        74
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 125.527,
+      "duration": 0.145,
+      "midi_notes": [
+        73
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 125.993,
+      "duration": 0.192,
+      "midi_notes": [
+        74
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 126.466,
+      "duration": 0.185,
+      "midi_notes": [
+        76
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 126.799,
+      "duration": 0.109,
+      "midi_notes": [
+        74
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 127.051,
+      "duration": 0.172,
+      "midi_notes": [
+        73
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 127.285,
+      "duration": 0.291,
+      "midi_notes": [
+        71
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 127.711,
+      "duration": 0.213,
+      "midi_notes": [
+        73
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 127.953,
+      "duration": 0.119,
+      "midi_notes": [
+        71
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 128.19,
+      "duration": 0.1,
+      "midi_notes": [
+        69
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 128.403,
+      "duration": 0.104,
+      "midi_notes": [
+        69
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 128.749,
+      "duration": 0.136,
+      "midi_notes": [
+        64
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 129.128,
+      "duration": 0.305,
+      "midi_notes": [
+        69
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 129.597,
+      "duration": 0.38,
+      "midi_notes": [
+        71
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 130.263,
+      "duration": 0.151,
+      "midi_notes": [
+        69
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 130.668,
+      "duration": 0.129,
+      "midi_notes": [
+        64
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 131.042,
+      "duration": 0.566,
+      "midi_notes": [
+        69
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 132.237,
+      "duration": 0.487,
+      "midi_notes": [
+        78
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 132.944,
+      "duration": 0.149,
+      "midi_notes": [
+        76
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 133.226,
+      "duration": 0.424,
+      "midi_notes": [
+        78
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 133.969,
+      "duration": 0.122,
+      "midi_notes": [
+        76
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 134.21,
+      "duration": 0.125,
+      "midi_notes": [
+        78
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 134.483,
+      "duration": 0.18,
+      "midi_notes": [
+        79
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 134.719,
+      "duration": 0.139,
+      "midi_notes": [
+        78
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 134.938,
+      "duration": 0.311,
+      "midi_notes": [
+        76
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 135.634,
+      "duration": 0.124,
+      "midi_notes": [
+        76
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 135.897,
+      "duration": 0.128,
+      "midi_notes": [
+        78
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 136.162,
+      "duration": 0.329,
+      "midi_notes": [
+        79
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 136.641,
+      "duration": 0.179,
+      "midi_notes": [
+        78
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 137.078,
+      "duration": 0.176,
+      "midi_notes": [
+        76
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 137.577,
+      "duration": 0.157,
+      "midi_notes": [
+        74
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 138.054,
+      "duration": 0.105,
+      "midi_notes": [
+        73
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 138.322,
+      "duration": 0.143,
+      "midi_notes": [
+        74
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 138.558,
+      "duration": 0.164,
+      "midi_notes": [
+        76
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 138.818,
+      "duration": 0.177,
+      "midi_notes": [
+        74
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 139.257,
+      "duration": 0.201,
+      "midi_notes": [
+        73
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 139.932,
+      "duration": 0.329,
+      "midi_notes": [
+        66
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 140.665,
+      "duration": 0.495,
+      "midi_notes": [
+        69
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 141.463,
+      "duration": 0.48,
+      "midi_notes": [
+        66
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 142.182,
+      "duration": 0.311,
+      "midi_notes": [
+        69
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 143.134,
+      "duration": 0.572,
+      "midi_notes": [
+        66
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 143.887,
+      "duration": 0.451,
+      "midi_notes": [
+        69
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 144.572,
+      "duration": 0.492,
+      "midi_notes": [
+        66
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 145.323,
+      "duration": 0.509,
+      "midi_notes": [
+        69
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 146.012,
+      "duration": 0.311,
+      "midi_notes": [
+        66
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 146.503,
+      "duration": 0.146,
+      "midi_notes": [
+        69
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 146.833,
+      "duration": 0.174,
+      "midi_notes": [
+        71
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 147.673,
+      "duration": 0.444,
+      "midi_notes": [
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 147.701,
+      "duration": 0.463,
+      "midi_notes": [
+        59
+      ],
+      "clef": "bass",
+      "is_chord": false
+    },
+    {
+      "time": 148.732,
+      "duration": 0.441,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 149.724,
+      "duration": 0.358,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 150.644,
+      "duration": 0.413,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 151.647,
+      "duration": 0.383,
+      "midi_notes": [
+        59,
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 152.577,
+      "duration": 0.323,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 153.504,
+      "duration": 0.306,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 154.464,
+      "duration": 0.378,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 155.462,
+      "duration": 0.233,
+      "midi_notes": [
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 155.485,
+      "duration": 0.214,
+      "midi_notes": [
+        59
+      ],
+      "clef": "bass",
+      "is_chord": false
+    },
+    {
+      "time": 156.415,
+      "duration": 0.299,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 157.388,
+      "duration": 0.289,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 158.347,
+      "duration": 0.305,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 159.284,
+      "duration": 0.204,
+      "midi_notes": [
+        59,
+        71,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 159.304,
+      "duration": 0.189,
+      "midi_notes": [
+        74
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 160.326,
+      "duration": 0.319,
+      "midi_notes": [
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 160.347,
+      "duration": 0.317,
+      "midi_notes": [
+        55
+      ],
+      "clef": "bass",
+      "is_chord": false
+    },
+    {
+      "time": 161.311,
+      "duration": 0.301,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 162.236,
+      "duration": 0.333,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 163.167,
+      "duration": 0.31,
+      "midi_notes": [
+        71,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 163.187,
+      "duration": 0.323,
+      "midi_notes": [
+        59,
+        74
+      ],
+      "clef": "bass",
+      "is_chord": true
+    },
+    {
+      "time": 164.129,
+      "duration": 0.372,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 165.114,
+      "duration": 0.339,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 166.125,
+      "duration": 0.331,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 167.072,
+      "duration": 0.214,
+      "midi_notes": [
+        71,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 167.095,
+      "duration": 0.189,
+      "midi_notes": [
+        59,
+        74
+      ],
+      "clef": "bass",
+      "is_chord": true
+    },
+    {
+      "time": 168.012,
+      "duration": 0.246,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 168.972,
+      "duration": 0.392,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 169.941,
+      "duration": 0.408,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 170.892,
+      "duration": 0.35,
+      "midi_notes": [
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 170.912,
+      "duration": 0.356,
+      "midi_notes": [
+        59
+      ],
+      "clef": "bass",
+      "is_chord": false
+    },
+    {
+      "time": 171.902,
+      "duration": 0.439,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 172.929,
+      "duration": 0.318,
+      "midi_notes": [
+        50,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 172.955,
+      "duration": 0.256,
+      "midi_notes": [
+        62
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 173.842,
+      "duration": 0.418,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 174.82,
+      "duration": 0.336,
+      "midi_notes": [
+        59,
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 175.754,
+      "duration": 0.365,
+      "midi_notes": [
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 175.778,
+      "duration": 0.385,
+      "midi_notes": [
+        55
+      ],
+      "clef": "bass",
+      "is_chord": false
+    },
+    {
+      "time": 176.759,
+      "duration": 0.418,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 177.698,
+      "duration": 0.349,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 178.659,
+      "duration": 0.325,
+      "midi_notes": [
+        59,
+        71,
+        74,
+        78
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 179.636,
+      "duration": 0.372,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 180.599,
+      "duration": 0.374,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 181.552,
+      "duration": 0.325,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 182.46,
+      "duration": 0.356,
+      "midi_notes": [
+        78
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 182.48,
+      "duration": 0.351,
+      "midi_notes": [
+        59,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 183.456,
+      "duration": 0.334,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 184.427,
+      "duration": 0.312,
+      "midi_notes": [
+        50,
+        62,
+        66
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 184.449,
+      "duration": 0.22,
+      "midi_notes": [
+        69
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 185.406,
+      "duration": 0.243,
+      "midi_notes": [
+        57,
+        69,
+        73,
+        76
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 186.395,
+      "duration": 2.207,
+      "midi_notes": [
+        78
+      ],
+      "clef": "treble",
+      "is_chord": false
+    },
+    {
+      "time": 186.418,
+      "duration": 2.172,
+      "midi_notes": [
+        59,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 194.861,
+      "duration": 0.365,
+      "midi_notes": [
+        55,
+        67,
+        71,
+        74
+      ],
+      "clef": "treble",
+      "is_chord": true
+    },
+    {
+      "time": 195.451,
+      "duration": 5.543,
+      "midi_notes": [
+        50,
+        62,
+        66,
+        69
+      ],
+      "clef": "treble",
+      "is_chord": true
+    }
+  ]
+}
