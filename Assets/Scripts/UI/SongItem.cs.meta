@@ -1,2 +1,16 @@
 fileFormatVersion: 2
 guid: dc391776157555449abdf7a2fb2f1a5f
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - txtTituloArtista: {instanceID: 0}
+  - txtTonalidadTempo: {instanceID: 0}
+  - txtDetalles: {instanceID: 0}
+  - btnJugar: {instanceID: 0}
+  - fuenteNueva: {fileID: 11400000, guid: 228ee8a8844f2f94a80ca895973e4f17, type: 2}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

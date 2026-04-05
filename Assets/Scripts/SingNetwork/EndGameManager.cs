@@ -9,7 +9,7 @@ public class EndGameManager : MonoBehaviour
     public SongLoader songLoader;
     public ScoreManager scoreManager;
 
-    public GameObject endGameUI;
+    public GameObject endGameUISing;
 
     public TextMeshPro globalText;
     public TextMeshPro pitchText;
@@ -20,7 +20,7 @@ public class EndGameManager : MonoBehaviour
     void Start()
     {
         gameEnded = false;
-        endGameUI.SetActive(false);
+        endGameUISing.SetActive(false);
     }
 
     void Update()
@@ -30,24 +30,16 @@ public class EndGameManager : MonoBehaviour
         if (songLoader == null || songLoader.audioSource == null)
             return;
 
-        AudioSource audio = songLoader.audioSource;
+        float time = songLoader.audioSource.time;
+        float duration = songLoader.audioSource.clip.length;
 
-        if (audio.clip == null)
-            return;
-
-        if (!audio.isPlaying)
-            return;
-
-        float time = audio.time;
-        float duration = audio.clip.length;
-
-        if (!shown && audio.clip != null && audio.isPlaying && audio.time >= audio.clip.length - 0.1f)
+        if (time >= duration - 0.1f)
         {
-            ShowResults();
+            ShowResultsSing();
         }
     }
 
-    void ShowResults()
+    void ShowResultsSing()
     {
         if (shown) return;
 
@@ -62,15 +54,12 @@ public class EndGameManager : MonoBehaviour
         rhythmText.text = rhythm.ToString("F0") + "%";
         globalText.text = global.ToString("F0") + "%";
 
-        //posicionar frente al jugador
         Transform cam = Camera.main.transform;
-        endGameUI.transform.position = cam.position + cam.forward * 4f;
-        endGameUI.transform.LookAt(cam);
-        endGameUI.transform.Rotate(0, 180, 0);
+        endGameUISing.transform.position = new Vector3(0, 1, -10);    //cam.position + cam.forward * 4f;
+        endGameUISing.transform.LookAt(cam);
+        endGameUISing.transform.Rotate(0, 180, 0);
 
-        endGameUI.SetActive(true);
-
-        //SOLO PAUSA AUDIO
+        endGameUISing.SetActive(true);
         songLoader.audioSource.Pause();
     }
 

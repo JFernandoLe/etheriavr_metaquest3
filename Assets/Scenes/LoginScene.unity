@@ -8049,6 +8049,8 @@ MonoBehaviour:
   username: 
   email: 
   tessitura: 
+  midiDeviceName: NO REGISTRADO
+  audienceIntensity: Medio
   IsLoggedIn: 0
 --- !u!4 &1910755218
 Transform:
