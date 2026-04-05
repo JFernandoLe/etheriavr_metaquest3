@@ -20,6 +20,8 @@ public class LyricLine
 public class SongData
 {
     public string songName;
+    public float songDuration;
+
     public SongNote[] notes;
 
     public LyricLine[] lyrics;

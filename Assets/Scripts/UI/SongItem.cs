@@ -32,17 +32,15 @@ public class SongItem : MonoBehaviour
 
         // 2. Tonalidad y Tempo
         if (txtTonalidadTempo != null)
-            txtTonalidadTempo.text = $"Tonalidad: {data.musical_key} | Tempo: {data.tempo} BPM";
+            txtTonalidadTempo.text = $"Tonalidad: {data.musical_key} | Tempo: {data.tempo} BPM \n";
 
         // 3. Detalles: Género, Duración y Modo
         if (txtDetalles != null)
         {
             // La fórmula es: $minutos = \frac{segundos}{60}$
-            float duracionMinutos = data.duration / 60f; 
+            float duracionMinutos = (data.duration / 60f)%60; 
             
-            txtDetalles.text = $"Género: {data.musical_genre} | " +
-                               $"Duración: {duracionMinutos:F1} min | " +
-                               $"Modo: {data.mode}";
+            txtDetalles.text = $"Modo: {data.mode}";
         }
 
         // Configuración del botón específico
