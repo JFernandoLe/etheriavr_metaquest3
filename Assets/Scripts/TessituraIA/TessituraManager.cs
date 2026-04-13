@@ -33,20 +33,31 @@ public class TessituraManager : MonoBehaviour
     void Update()
     {
         if (!isMeasuring) return;
-
         if (receiver == null) return;
 
         int midi = receiver.GetCurrentMidi();
 
-        if (midi <= 0) return;
+        //  FILTRO BÁSICO
+        if (midi < 40 || midi > 85) return;
 
         totalFrames++;
 
-        // estabilidad
+        //  ESTABILIDAD CORRECTA (persistente)
         if (midi == lastMidi)
             stableFrames++;
+        else
+            stableFrames = 0;
 
         lastMidi = midi;
+
+        //  SOLO NOTAS ESTABLES
+        if (stableFrames < 3) return;
+
+        //  PROMEDIO ACTUAL (dinámico)
+        float currentAvg = (count > 0) ? totalMidi / count : midi;
+
+        //  IGNORAR PICOS EXTREMOS
+        if (midi > currentAvg + 10) return;
 
         // rango
         if (midi < minMidi) minMidi = midi;
@@ -58,30 +69,33 @@ public class TessituraManager : MonoBehaviour
 
         // UI
         if (currentNoteText != null)
-            currentNoteText.text = "Nota: " + MidiToNote(midi);
+            currentNoteText.text = MidiToNote(midi);
 
         if (rangeText != null)
-            rangeText.text = $"Rango: {MidiToNote(minMidi)} - {MidiToNote(maxMidi)}";
+            rangeText.text = $"{MidiToNote(minMidi)} - {MidiToNote(maxMidi)}";
     }
 
     public void FinishMeasurement()
     {
-        Debug.Log(" TERMINÉ MEDICIÓN");
+        Debug.Log("TERMINÉ MEDICIÓN");
 
         isMeasuring = false;
 
         float avg = totalMidi / Mathf.Max(count, 1);
-        float range = maxMidi - minMidi;
+
+        //  AJUSTE INTELIGENTE
+        float adjustedMax = Mathf.Min(maxMidi, avg + 8);
+        float range = adjustedMax - minMidi;
+
         float stability = (float)stableFrames / Mathf.Max(totalFrames, 1);
 
-        Debug.Log($"TESITURA: {minMidi}-{maxMidi} | AVG:{avg} | STAB:{stability}");
+        Debug.Log($"{minMidi}-{maxMidi} | AVG:{avg} | STAB:{stability}");
 
-        StartCoroutine(SendToAI(minMidi, maxMidi, avg, range, stability));
+        StartCoroutine(SendToAI(minMidi, adjustedMax, avg, range, stability));
     }
 
-    IEnumerator SendToAI(int min, int max, float avg, float range, float stability)
+    IEnumerator SendToAI(float min, float max, float avg, float range, float stability)
     {
-        // VALIDACIÓN IMPORTANTE
         if (string.IsNullOrEmpty(AIServerFinder.ServerURL))
         {
             Debug.LogError(" Servidor aún no encontrado");
@@ -92,8 +106,8 @@ public class TessituraManager : MonoBehaviour
 
         TessituraData data = new TessituraData
         {
-            min = min,
-            max = max,
+            min = (int)min,
+            max = (int)max,
             avg = avg,
             range = range,
             stability = stability
@@ -120,7 +134,6 @@ public class TessituraManager : MonoBehaviour
 
             Debug.Log(" IA RESPONSE: " + response);
 
-            //  PARSEAR JSON
             AIResponse ai = JsonUtility.FromJson<AIResponse>(response);
 
             if (ai != null && resultText != null)

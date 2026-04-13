@@ -7,14 +7,19 @@ using System.Net.Sockets;
 public class AIServerFinder : MonoBehaviour
 {
     public static string ServerURL;
-
+    private static bool alreadySearching = false;
     void Start()
     {
+        if (alreadySearching) return;
+
+        alreadySearching = true;
         StartCoroutine(FindServer());
     }
 
     IEnumerator FindServer()
     {
+        if (!string.IsNullOrEmpty(ServerURL))
+            yield break;
         string baseIP = GetNetworkBase();
 
         Debug.Log("Escaneando red: " + baseIP + ".X");
