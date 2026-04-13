@@ -335,6 +335,7 @@ MonoBehaviour:
   m_ApplyIfChildIsTarget: 1
   m_ClampToMaxDistance: 1
   m_MaxDistance: 20
+  m_PokeFilter: {fileID: 0}
 --- !u!222 &4282329443994395017
 CanvasRenderer:
   m_ObjectHideFlags: 0

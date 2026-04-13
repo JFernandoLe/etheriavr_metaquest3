@@ -193,7 +193,6 @@ MonoBehaviour:
   txtTonalidadTempo: {fileID: 1922375399981161109}
   txtDetalles: {fileID: 7089418544607014779}
   btnJugar: {fileID: 3107371076684897749}
-  fuenteNueva: {fileID: 0}
 --- !u!114 &5374688014250686949
 MonoBehaviour:
   m_ObjectHideFlags: 0
