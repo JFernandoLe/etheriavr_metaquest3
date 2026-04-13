@@ -658,8 +658,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_PokeFollowTransform: {fileID: 5251477148904607974}
   m_PokeFill: {fileID: 3052109201295664413}
-  m_PokeFillMaxSizeX: 150
-  m_PokeFillMaxSizeY: 150
   m_SmoothingSpeed: 8
   m_ReturnToInitialPosition: 1
   m_ApplyIfChildIsTarget: 1
