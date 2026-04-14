@@ -1,64 +1,133 @@
 using UnityEngine;
 using System.Collections.Generic;
-using System;
 
 public class ControladorAudiencia : MonoBehaviour
 {
     [Header("Configuracion de Desempeño")]
     [Range(0f, 100f)]
-    public float puntajeCanto = 100f;
+    public float puntajeCanto = 0f;
     public AudioSource fuenteAplausos;
 
-    [Header("Rotaci�n")]
-    public Transform jugador;
-    public float velocidadRotacion = 2f;
+    [Header("Dificultad (normalizacion)")]
+    [Tooltip("Valor máximo esperado del accuracy")]
+    public float dificultad = 40f;
 
-    private List<Animator> listaAnimadores = new List<Animator>();
+    [Header("Comportamiento del puntaje")]
+    public float velocidadSubida = 5f;
+    public float velocidadBajada = 10f;
+    public float inercia = 2f;
+
+    [Header("Rotación")]
+    public Transform jugador;
+    public float velocidadRotacionBase = 2f;
+
+    private float puntajeSuavizado = 0f;
     private bool yaEstaAplaudiendo = false;
+
+    class DatosAnimador
+    {
+        public Animator anim;
+        public float offset;
+        public float velocidad;
+        public float velocidadRotacion;
+    }
+
+    private List<DatosAnimador> animadores = new List<DatosAnimador>();
 
     void Start()
     {
-        // Buscamps personajes con el Tag "Publico"
         GameObject[] personajes = GameObject.FindGameObjectsWithTag("Publico");
+
         foreach (GameObject personaje in personajes)
         {
-            Animator anim = personaje.GetComponent<Animator>();
-            if (anim != null) listaAnimadores.Add(anim);
+            Animator anim = personaje.GetComponentInChildren<Animator>();
+
+            if (anim != null)
+            {
+                DatosAnimador datos = new DatosAnimador();
+                datos.anim = anim;
+
+                // Variación natural
+                datos.offset = Random.Range(-10f, 10f);
+                datos.velocidad = Random.Range(0.5f, 2f);
+                datos.velocidadRotacion = Random.Range(0.5f, 1.5f);
+
+                animadores.Add(datos);
+            }
         }
+
+        Debug.Log("Animadores encontrados: " + animadores.Count);
     }
 
     void Update()
     {
         if (ScoreManager.Instance != null)
         {
-            puntajeCanto = Mathf.Lerp(
-                puntajeCanto,
-                ScoreManager.Instance.accuracyPercent,
-                Time.deltaTime * 2f
-            );
-            Debug.Log("Puntaje canto: " + puntajeCanto);
+            float raw = ScoreManager.Instance.accuracyPercent;
+
+            // 🔥 Normalización con dificultad
+            float target = Mathf.InverseLerp(0f, dificultad, raw) * 100f;
+
+            // Subida / bajada controlada
+            if (target > puntajeCanto)
+            {
+                puntajeCanto = Mathf.Lerp(puntajeCanto, target, Time.deltaTime * velocidadSubida);
+            }
+            else
+            {
+                puntajeCanto = Mathf.Lerp(puntajeCanto, target, Time.deltaTime * velocidadBajada);
+            }
+
+            puntajeCanto = Mathf.Clamp(puntajeCanto, 0f, 100f);
+
+            // Inercia (tendencia)
+            puntajeSuavizado = Mathf.Lerp(puntajeSuavizado, puntajeCanto, Time.deltaTime * inercia);
+
+            // Debug ligero
+            if (Time.frameCount % 120 == 0)
+            {
+                Debug.Log("Raw: " + raw + " | Puntaje: " + puntajeCanto);
+            }
         }
 
-        if (jugador == null) return;
-
-        foreach (Animator anim in listaAnimadores)
+        // ROTACIÓN NATURAL
+        if (jugador != null)
         {
-            if (anim == null) continue;
-
-            anim.SetFloat("Calidad", puntajeCanto);
-
-            Vector3 direccion = jugador.position - anim.transform.position;
-            direccion.y = 0;
-
-            if (direccion != Vector3.zero)
+            foreach (var datos in animadores)
             {
-                Quaternion rotacionObjetivo = Quaternion.LookRotation(direccion);
-                anim.transform.rotation = Quaternion.Slerp(
-                    anim.transform.rotation,
-                    rotacionObjetivo,
-                    Time.deltaTime * velocidadRotacion
-                );
+                if (datos.anim == null) continue;
+
+                Vector3 direccion = jugador.position - datos.anim.transform.position;
+                direccion.y = 0;
+
+                if (direccion.sqrMagnitude > 0.01f)
+                {
+                    Quaternion rotacionObjetivo = Quaternion.LookRotation(direccion);
+
+                    datos.anim.transform.rotation = Quaternion.Slerp(
+                        datos.anim.transform.rotation,
+                        rotacionObjetivo,
+                        Time.deltaTime * 5f * velocidadRotacionBase * datos.velocidadRotacion
+                    );
+                }
             }
+        }
+
+        // ANIMACIÓN NATURAL
+        foreach (var datos in animadores)
+        {
+            if (datos.anim == null) continue;
+
+            float calidadFinal = puntajeSuavizado + datos.offset;
+            calidadFinal = Mathf.Clamp(calidadFinal, 0f, 100f);
+
+            float suavizado = Mathf.Lerp(
+                datos.anim.GetFloat("Calidad"),
+                calidadFinal,
+                Time.deltaTime * datos.velocidad
+            );
+
+            datos.anim.SetFloat("Calidad", suavizado);
         }
 
         ManejarAudio();

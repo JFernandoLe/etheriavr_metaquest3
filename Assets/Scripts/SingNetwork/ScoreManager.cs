@@ -21,6 +21,7 @@ public class ScoreManager : MonoBehaviour
 
     void Awake()
     {
+        Debug.Log("ScoreManager activo: " + gameObject.name);
         Instance = this;
     }
 
@@ -38,6 +39,10 @@ public class ScoreManager : MonoBehaviour
         totalEvaluations++;
 
         accuracyPercent = (accuracySum / totalEvaluations) * 100f;
+
+        Debug.Log(" RegisterHit llamado: " + value +
+                  " | Total: " + totalEvaluations +
+                  " | Accuracy: " + accuracyPercent);
     }
 
     public void RegisterRhythm(float value)
