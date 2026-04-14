@@ -294,10 +294,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2a63e3644b08d344cb8fc9f7f0430002, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ControladorAudiencia
-  puntajeCanto: 100
+  puntajeCanto: 0
   fuenteAplausos: {fileID: 55347879}
-  jugador: {fileID: 0}
-  velocidadRotacion: 2
+  dificultad: 60
+  velocidadSubida: 5
+  velocidadBajada: 10
+  inercia: 2
+  jugador: {fileID: 1492198130}
+  velocidadRotacionBase: 2
 --- !u!4 &55347878
 Transform:
   m_ObjectHideFlags: 0
@@ -16004,17 +16008,6 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 1717954561962503725, guid: f6336ac4ac8b4d34bc5072418cdc62a0, type: 3}
   m_PrefabInstance: {fileID: 1028999479}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &1492198126 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 1178791450436251564, guid: f6336ac4ac8b4d34bc5072418cdc62a0, type: 3}
-  m_PrefabInstance: {fileID: 1028999479}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1492198121}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e0cb9aa70a22847b5925ee5f067c10a9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!114 &1492198128
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -16167,6 +16160,11 @@ MonoBehaviour:
   _readOnlyWideMotionModeHandPosesEnabled: 0
   wideMotionModeHandPosesEnabled: 0
   dynamicResolutionVersion: 1
+--- !u!4 &1492198130 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 1717954561962503726, guid: f6336ac4ac8b4d34bc5072418cdc62a0, type: 3}
+  m_PrefabInstance: {fileID: 1028999479}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &1494465764 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3775619882160141235, guid: 2a3e1e176c8dcfd4db59e20030b74013, type: 3}
@@ -17261,103 +17259,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 6367566384277174298, guid: 87a7b985b15a4244091de35d7df9169a, type: 3}
   m_PrefabInstance: {fileID: 1587903128}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &1589599515
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1589599517}
-  - component: {fileID: 1589599516}
-  - component: {fileID: 1589599518}
-  m_Layer: 0
-  m_Name: GameManager
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1589599516
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1589599515}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6d36ac23d750b9b408e76d27cf69efd8, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PianoGameManager
-  songLoader: {fileID: 0}
-  backgroundMusicSource: {fileID: 0}
-  midiAudioManager: {fileID: 0}
-  directMidiReceiver: {fileID: 0}
-  gameplayScoring: {fileID: 0}
-  resultsPanel: {fileID: 0}
-  authService: {fileID: 0}
-  countdownManager: {fileID: 0}
-  trebleStaff: {fileID: 0}
-  bassStaff: {fileID: 0}
-  noteSpawner: {fileID: 0}
-  chordDetectorUI: {fileID: 0}
-  vrCamera: {fileID: 0}
-  enableFollowCanvas: 0
-  staffDistance: 0.7
-  trebleYOffset: 0.3
-  bassYOffset: -0.2
-  followSmoothSpeed: 5
-  currentSongData:
-    song_title: 
-    song_name: 
-    artist: 
-    tempo: 0
-    duration: 0
-    recorded_duration: 0
-    background_music: 
-    audio_file: 
-    piano_volume: 1
-    audio_file_volume: 1
-    beatOffsetTime: -1
-    all_notes: []
-    melody: []
-    chords: []
-  isPlaying: 0
-  isPaused: 0
-  gameTime: 0
---- !u!4 &1589599517
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1589599515}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1.8, z: 10.33592}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1589599518
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1589599515}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 736c88a03acba2940a4be7ddd188c236, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::RecenterPlayer
-  xrOrigin: {fileID: 1492198126}
-  pianoSpawnPoint: {fileID: 0}
-  autoRecenterOnStart: 0
-  autoRecenterOnApplicationFocus: 0
 --- !u!23 &1591179478
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -18932,7 +18833,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1771628453
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -21931,7 +21832,6 @@ SceneRoots:
   - {fileID: 1783572214}
   - {fileID: 1825945902}
   - {fileID: 55347878}
-  - {fileID: 1589599517}
   - {fileID: 268289856}
   - {fileID: 410401271}
   - {fileID: 1028999479}

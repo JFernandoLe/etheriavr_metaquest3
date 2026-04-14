@@ -42,8 +42,17 @@ public class SongLoader : MonoBehaviour
 
         if (currentNote != null)
         {
-            Debug.Log($"Tiempo: {songTime:F2} | Nota esperada: {currentNote.note}");
+            //Debug.Log($"Tiempo: {songTime:F2} | Nota esperada: {currentNote.note}");
         }
+    }
+    void OnDisable()
+    {
+        Debug.Log(" ME DESACTIVARON ");
+    }
+
+    void OnDestroy()
+    {
+        Debug.Log(" ME DESTRUYERON ");
     }
 
     public float GetSongTime()
