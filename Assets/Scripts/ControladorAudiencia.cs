@@ -12,6 +12,9 @@ public class ControladorAudiencia : MonoBehaviour
     [Tooltip("Valor máximo esperado del accuracy")]
     public float dificultad = 40f;
 
+    [Header("Dificultad automática (UserSession)")]
+    public bool usarDificultadDeUsuario = true;
+
     [Header("Comportamiento del puntaje")]
     public float velocidadSubida = 5f;
     public float velocidadBajada = 10f;
@@ -36,6 +39,10 @@ public class ControladorAudiencia : MonoBehaviour
 
     void Start()
     {
+        if (usarDificultadDeUsuario)
+        {
+            AplicarDificultadDesdeSesion();
+        }
         GameObject[] personajes = GameObject.FindGameObjectsWithTag("Publico");
 
         foreach (GameObject personaje in personajes)
@@ -65,7 +72,7 @@ public class ControladorAudiencia : MonoBehaviour
         {
             float raw = ScoreManager.Instance.accuracyPercent;
 
-            // 🔥 Normalización con dificultad
+            // Normalización con dificultad
             float target = Mathf.InverseLerp(0f, dificultad, raw) * 100f;
 
             // Subida / bajada controlada
@@ -147,5 +154,33 @@ public class ControladorAudiencia : MonoBehaviour
             fuenteAplausos.Stop();
             yaEstaAplaudiendo = false;
         }
+    }
+
+    void AplicarDificultadDesdeSesion()
+    {
+        if (UserSession.Instance == null) return;
+
+        string nivel = UserSession.Instance.audienceIntensity;
+
+        switch (nivel)
+        {
+            case "Bajo":
+                dificultad = 40f;
+                break;
+
+            case "Medio":
+                dificultad = 70f;
+                break;
+
+            case "Alto":
+                dificultad = 100f;
+                break;
+
+            default:
+                dificultad = 70f;
+                break;
+        }
+
+        Debug.Log("Dificultad aplicada: " + nivel + " → " + dificultad);
     }
 }
