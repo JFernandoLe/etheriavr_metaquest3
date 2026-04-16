@@ -17,7 +17,7 @@ public class MenuPausa : MonoBehaviour
         InputDevice leftHand = InputDevices.GetDeviceAtXRNode(XRNode.LeftHand);
 
         bool boton;
-        if (leftHand.TryGetFeatureValue(CommonUsages.primaryButton, out boton))
+        if (leftHand.TryGetFeatureValue(CommonUsages.menuButton, out boton))
         {
             if (boton && !botonPresionadoAnterior)
             {
