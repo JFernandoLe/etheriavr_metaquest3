@@ -58,7 +58,39 @@ public class AuthService : MonoBehaviour
     {
         yield return SendJsonRequest(PracticeSessionsUrl, "POST", SerializePracticeSessionRequest(data), true, onSuccess, onError);
     }
+    // Método para obtener el historial de sesiones del usuario
+    public IEnumerator GetUserHistory(int userId, Action<string> onSuccess, Action<string> onError)
+    {
+        // Construimos la URL: BaseUrl + /api/practice-sessions/user/{id}
+        string url = NetworkConfig.Instance.BaseUrl + $"/api/practice-sessions/user/{userId}";
 
+        using (UnityWebRequest request = UnityWebRequest.Get(url))
+        {
+            // Aplicamos el Token de seguridad que ya tienes implementado
+            ApplyAuthorizationHeader(request);
+
+            yield return request.SendWebRequest();
+
+            if (request.result == UnityWebRequest.Result.Success)
+            {
+                string json = request.downloadHandler.text;
+
+                // Si el backend devuelve una lista plana [], la envolvemos para que JsonUtility la entienda
+                if (json.StartsWith("["))
+                {
+                    json = "{\"sessions\":" + json + "}";
+                }
+
+                onSuccess?.Invoke(json);
+            }
+            else
+            {
+                string errorResponse = request.downloadHandler.text;
+                if (string.IsNullOrEmpty(errorResponse)) errorResponse = request.error;
+                onError?.Invoke(errorResponse);
+            }
+        }
+    }
     public IEnumerator GetSongs(Action<string> onSuccess, Action<string> onError)
     {
         using (UnityWebRequest request = UnityWebRequest.Get(SongsUrl))

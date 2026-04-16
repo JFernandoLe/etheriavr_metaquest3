@@ -137,7 +137,7 @@ public class TessituraManager : MonoBehaviour
             AIResponse ai = JsonUtility.FromJson<AIResponse>(response);
 
             if (ai != null && resultText != null)
-                resultText.text = "Tipo de voz: " + ai.voice;
+                resultText.text = ai.voice;
         }
         else
         {
