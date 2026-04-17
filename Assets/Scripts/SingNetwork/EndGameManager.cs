@@ -12,10 +12,17 @@ public class EndGameManager : MonoBehaviour
     public ScoreManager scoreManager;
     public GameObject endGameUISing;
 
-    [Header("UI Textos")]
+    [Header("UI Puntajes Centrales")]
     public TextMeshPro globalText;
     public TextMeshPro pitchText;
     public TextMeshPro rhythmText;
+
+    [Header("UI Detalles Inferiores (NUEVO)")]
+    public TextMeshPro cancionDetalleTxt;
+    public TextMeshPro modoDetalleTxt;
+    public TextMeshPro fechaDetalleTxt;
+    public TextMeshPro horaDetalleTxt;
+    public TextMeshPro duracionDetalleTxt;
 
     private bool shown = false;
     private AuthService authService;
@@ -24,17 +31,13 @@ public class EndGameManager : MonoBehaviour
     {
         gameEnded = false;
         endGameUISing.SetActive(false);
-
-        // Busca automáticamente el AuthService en la escena
         authService = FindObjectOfType<AuthService>();
     }
 
     void Update()
     {
         if (shown) return;
-
-        if (songLoader == null || songLoader.audioSource == null)
-            return;
+        if (songLoader == null || songLoader.audioSource == null) return;
 
         float time = songLoader.audioSource.time;
         float duration = songLoader.audioSource.clip.length;
@@ -52,45 +55,63 @@ public class EndGameManager : MonoBehaviour
         shown = true;
         gameEnded = true;
 
+        // 1. Cálculos de puntaje
         float pitch = scoreManager.accuracyPercent;
         float rhythm = scoreManager.rhythmPercent;
         float global = (pitch + rhythm) / 2f;
 
+        // 2. Asignar puntajes centrales
         pitchText.text = pitch.ToString("F0") + "%";
         rhythmText.text = rhythm.ToString("F0") + "%";
         globalText.text = global.ToString("F0") + "%";
 
-        // --- INICIO DEL GUARDADO ---
-        EnviarSesionAlBackend(pitch, rhythm);
+        // 3. LLENAR DATOS INFERIORES (NUEVO)
+        LlenarDatosInferiores();
 
-        // Ajuste visual de la UI
+        // 4. Guardado y UI
+        EnviarSesionAlBackend(pitch, rhythm);
         ConfigurarUIAlFinal();
 
         endGameUISing.SetActive(true);
         songLoader.audioSource.Pause();
     }
 
+    private void LlenarDatosInferiores()
+    {
+        // Obtener nombre de la canción
+        if (SelectedSongManager.Instance != null && SelectedSongManager.Instance.selectedSong != null)
+        {
+            if (cancionDetalleTxt != null)
+                cancionDetalleTxt.text = "Cancion: " + SelectedSongManager.Instance.selectedSong.title;
+        }
+
+        // Modo (Fijo en CANTO para esta escena)
+        if (modoDetalleTxt != null) modoDetalleTxt.text = "Modo: Canto";
+
+        // Fecha y Hora actuales
+        DateTime ahora = DateTime.Now;
+        if (fechaDetalleTxt != null) fechaDetalleTxt.text = "Fecha: " + ahora.ToString("yyyy-MM-dd");
+        if (horaDetalleTxt != null) horaDetalleTxt.text = "Hora: " + ahora.ToString("HH:mm");
+
+        // Duración (calculada del AudioSource)
+        if (duracionDetalleTxt != null && songLoader.audioSource.clip != null)
+        {
+            float totalSeconds = songLoader.audioSource.clip.length;
+            int minutes = Mathf.FloorToInt(totalSeconds / 60);
+            int seconds = Mathf.FloorToInt(totalSeconds % 60);
+            duracionDetalleTxt.text = string.Format("Duracion: {0:0}:{1:00}", minutes, seconds);
+        }
+    }
+
     private void EnviarSesionAlBackend(float tuning, float rhythm)
     {
-        // 1. Verificación de Usuario (vía UserSession persistente)
-        if (UserSession.Instance == null || !UserSession.Instance.IsLoggedIn)
-        {
-            Debug.LogWarning("[EndGame] No se guarda: Usuario no logueado.");
-            return;
-        }
+        if (UserSession.Instance == null || !UserSession.Instance.IsLoggedIn) return;
+        if (SelectedSongManager.Instance == null || SelectedSongManager.Instance.selectedSong == null) return;
 
-        // 2. Verificación de Canción (vía SelectedSongManager persistente)
-        if (SelectedSongManager.Instance == null || SelectedSongManager.Instance.selectedSong == null)
-        {
-            Debug.LogWarning("[EndGame] No se guarda: No hay canción seleccionada.");
-            return;
-        }
-
-        // 3. Crear la petición con tus modelos exactos
         PracticeSessionRequest request = new PracticeSessionRequest
         {
             user_id = UserSession.Instance.userId,
-            song_id = SelectedSongManager.Instance.selectedSong.id, // Verifica que sea .id
+            song_id = SelectedSongManager.Instance.selectedSong.id,
             practice_datetime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
             practice_mode = "CANTO",
             tuning_score = tuning,
@@ -98,24 +119,19 @@ public class EndGameManager : MonoBehaviour
             harmony_score = 0
         };
 
-        // 4. Envío mediante el AuthService de la escena
         if (authService != null)
         {
             StartCoroutine(authService.SavePracticeSession(request,
-                onSuccess: (res) => Debug.Log("<color=green>[Backend] Sesión guardada con éxito.</color>"),
-                onError: (err) => Debug.LogError("[Backend] Error al guardar: " + err)
+                onSuccess: (res) => Debug.Log("<color=green>[Backend] Sesión guardada.</color>"),
+                onError: (err) => Debug.LogError("[Backend] Error: " + err)
             ));
-        }
-        else
-        {
-            Debug.LogError("[EndGame] No se encontró AuthService en la escena.");
         }
     }
 
     private void ConfigurarUIAlFinal()
     {
         Transform cam = Camera.main.transform;
-        endGameUISing.transform.position = new Vector3(0, 1, -10);
+        endGameUISing.transform.position = cam.position + cam.forward * 2.5f;
         endGameUISing.transform.LookAt(cam);
         endGameUISing.transform.Rotate(0, 180, 0);
     }
