@@ -17,6 +17,19 @@ public class AuthService : MonoBehaviour
         return NetworkConfig.Instance.BaseUrl + $"/api/users/{userId}/configuration";
     }
 
+    public IEnumerator UpdateTessitura(int userId, string tessitura, Action<string> onSuccess, Action<string> onError)
+    {
+        // Construimos la URL usando tu NetworkConfig
+        string url = NetworkConfig.Instance.BaseUrl + $"/api/users/{userId}/tessitura";
+
+        // Creamos el JSON manualmente o con un objeto anónimo
+        // Como tu base de datos usa ENUMs, nos aseguramos de enviarlo en MAYÚSCULAS
+        string json = "{\"tessitura\":\"" + tessitura.ToUpper() + "\"}";
+
+        // Usamos tu método SendJsonRequest para heredar toda tu lógica de seguridad
+        yield return SendJsonRequest(url, "PUT", json, true, onSuccess, onError);
+    }
+
     public IEnumerator Register(UserCreateRequest data, Action<string> onSuccess, Action<string> onError)
     {
         yield return SendJsonRequest(RegisterUrl, "POST", JsonUtility.ToJson(data), false, onSuccess, onError);
@@ -191,4 +204,6 @@ public class AuthService : MonoBehaviour
 
         return value.Replace("\\", "\\\\").Replace("\"", "\\\"");
     }
+
+
 }
