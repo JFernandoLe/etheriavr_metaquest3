@@ -2,6 +2,7 @@ using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
 using System;
+using UnityEngine.SceneManagement;
 
 public class Login : MonoBehaviour
 {
@@ -102,6 +103,11 @@ public class Login : MonoBehaviour
 
     private string ResolveConnectedMidiDeviceName()
     {
+        if (!MidiInitializer.ShouldEnableMidiForScene(SceneManager.GetActiveScene().name))
+        {
+            return null;
+        }
+
         if (midiReceiver == null)
         {
             midiReceiver = FindObjectOfType<DirectMidiReceiver>();

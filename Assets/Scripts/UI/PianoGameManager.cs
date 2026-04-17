@@ -55,6 +55,14 @@ public class PianoGameManager : MonoBehaviour
     private float pauseStartTime = 0f;
     private float totalPausedTime = 0f;
     private bool saveAndExitInProgress = false;
+    private MIDIConnectionManager midiConnectionManager;
+    private PianoPauseMenu pianoPauseMenu;
+    private bool waitingForMidiConnectionToStart = false;
+    private bool pausedByMidiDisconnect = false;
+    private float nextMidiManagerLookupTime = 0f;
+    private PianoPublicSystem cachedPublicSystem;
+
+    private const float MidiManagerLookupInterval = 0.5f;
     
     void Awake()
     {
@@ -71,6 +79,8 @@ public class PianoGameManager : MonoBehaviour
     void Start()
     {
         AdoptConfiguredReferencesFromScene();
+        TryAttachMidiConnectionManager(true);
+        TryAttachPauseMenu(true);
 
         // Suscribirse al evento del PianoCalibrator
         // El juego NO iniciará hasta que el usuario confirme la posición del piano (presione X)
@@ -220,6 +230,9 @@ public class PianoGameManager : MonoBehaviour
     
     void Update()
     {
+        TryAttachMidiConnectionManager(false);
+        TryAttachPauseMenu(false);
+
         // Actualizar el tiempo del juego cuando está en reproducción
         if (isPlaying)
         {
@@ -586,6 +599,23 @@ public class PianoGameManager : MonoBehaviour
             Debug.LogError("<color=red>[PianoGame]</color> No hay datos de canción cargados");
             return;
         }
+
+        if (!IsMidiReadyForGameplay())
+        {
+            waitingForMidiConnectionToStart = true;
+            pausedByMidiDisconnect = false;
+
+            Debug.LogWarning("<color=yellow>[PianoGame]</color> ⏸️ MIDI no disponible. Esperando reconexión antes de iniciar el gameplay.");
+            MidiStatusWidgetController.Instance?.PromptGameplayReconnect(
+                "Conecta el controlador MIDI para iniciar la práctica.",
+                "Iniciar juego",
+                ContinueAfterMidiReconnect);
+            return;
+        }
+
+        waitingForMidiConnectionToStart = false;
+        pausedByMidiDisconnect = false;
+        MidiStatusWidgetController.Instance?.ClearGameplayPrompt();
         
         gameStarted = true;
         isPlaying = false;
@@ -678,6 +708,8 @@ public class PianoGameManager : MonoBehaviour
         {
             noteSpawner.StopSpawning();
         }
+
+        SilenceAudienceApplause();
         
         Debug.Log("<color=yellow>[PianoGame]</color> ⏸️ Juego pausado");
         
@@ -694,9 +726,21 @@ public class PianoGameManager : MonoBehaviour
             Debug.LogWarning("[PianoGame] El juego no está pausado");
             return;
         }
+
+        if (!IsMidiReadyForGameplay())
+        {
+            pausedByMidiDisconnect = true;
+            MidiStatusWidgetController.Instance?.PromptGameplayReconnect(
+                "Reconecta el controlador MIDI para continuar la práctica.",
+                "Continuar juego",
+                ContinueAfterMidiReconnect);
+            return;
+        }
         
         isPaused = false;
         isPlaying = true;
+        pausedByMidiDisconnect = false;
+        MidiStatusWidgetController.Instance?.ClearGameplayPrompt();
         
         // Contar el tiempo pausado para no afectar la sincronización
         totalPausedTime += Time.time - pauseStartTime;
@@ -715,6 +759,8 @@ public class PianoGameManager : MonoBehaviour
         {
             noteSpawner.ResumeSpawning();
         }
+
+        ResumeAudienceApplause();
         
         Debug.Log("<color=green>[PianoGame]</color> ▶️ Juego reanudado");
         
@@ -730,6 +776,9 @@ public class PianoGameManager : MonoBehaviour
         isPlaying = false;
         isPaused = false;
         gameStarted = false;
+        waitingForMidiConnectionToStart = false;
+        pausedByMidiDisconnect = false;
+        MidiStatusWidgetController.Instance?.ClearGameplayPrompt();
 
         if (selectedSongMetadata != null)
         {
@@ -750,6 +799,8 @@ public class PianoGameManager : MonoBehaviour
         {
             noteSpawner.StopSpawning();
         }
+
+        SilenceAudienceApplause();
 
         // Mostrar modal de resultados
         if (resultsPanel != null)
@@ -823,7 +874,31 @@ public class PianoGameManager : MonoBehaviour
     private void LoadRepertorioScene()
     {
         saveAndExitInProgress = false;
+        SilenceAudienceApplause();
         UnityEngine.SceneManagement.SceneManager.LoadScene("RepertorioScene");
+    }
+
+    public void PrepareForSceneExit()
+    {
+        SilenceAudienceApplause();
+
+        if (backgroundMusicSource != null)
+        {
+            backgroundMusicSource.Stop();
+        }
+
+        if (noteSpawner != null)
+        {
+            noteSpawner.StopSpawning();
+        }
+
+        if (gameplayScoring != null)
+        {
+            gameplayScoring.PauseScoring();
+        }
+
+        isPlaying = false;
+        isPaused = false;
     }
     
     /// <summary>
@@ -842,6 +917,11 @@ public class PianoGameManager : MonoBehaviour
         // Desuscribirse del evento
         PianoCalibrator.OnPianoConfigured -= OnPianoConfigured_StartGame;
 
+        if (midiConnectionManager != null)
+        {
+            midiConnectionManager.OnMidiConnectionChanged -= HandleMidiConnectionChanged;
+        }
+
         if (countdownManager != null)
         {
             countdownManager.OnCountdownComplete -= OnCountdownFinished;
@@ -850,6 +930,177 @@ public class PianoGameManager : MonoBehaviour
         if (gameplayScoring != null)
         {
             gameplayScoring.OnGameFinished -= OnGameFinished;
+        }
+
+        SilenceAudienceApplause();
+        MidiStatusWidgetController.Instance?.ClearGameplayPrompt();
+    }
+
+    public void ContinueAfterMidiReconnect()
+    {
+        if (!IsMidiReadyForGameplay())
+        {
+            MidiStatusWidgetController.Instance?.PromptGameplayReconnect(
+                waitingForMidiConnectionToStart
+                    ? "Conecta el controlador MIDI para iniciar la práctica."
+                    : "Reconecta el controlador MIDI para continuar la práctica.",
+                waitingForMidiConnectionToStart ? "Iniciar juego" : "Continuar juego",
+                ContinueAfterMidiReconnect);
+            return;
+        }
+
+        if (waitingForMidiConnectionToStart)
+        {
+            waitingForMidiConnectionToStart = false;
+            StartGameplayNow();
+            return;
+        }
+
+        if (isPaused && pausedByMidiDisconnect)
+        {
+            if (pianoPauseMenu != null)
+            {
+                pianoPauseMenu.HidePauseMenu();
+            }
+
+            ResumeGame();
+        }
+    }
+
+    private void TryAttachMidiConnectionManager(bool forceLookup)
+    {
+        if (!forceLookup && Time.unscaledTime < nextMidiManagerLookupTime)
+        {
+            return;
+        }
+
+        nextMidiManagerLookupTime = Time.unscaledTime + MidiManagerLookupInterval;
+
+        if (midiConnectionManager == null)
+        {
+            midiConnectionManager = FindObjectOfType<MIDIConnectionManager>();
+            if (midiConnectionManager != null)
+            {
+                midiConnectionManager.OnMidiConnectionChanged -= HandleMidiConnectionChanged;
+                midiConnectionManager.OnMidiConnectionChanged += HandleMidiConnectionChanged;
+            }
+        }
+    }
+
+    private void TryAttachPauseMenu(bool forceLookup)
+    {
+        if (pianoPauseMenu != null)
+        {
+            return;
+        }
+
+        if (!forceLookup && Time.unscaledTime < nextMidiManagerLookupTime)
+        {
+            return;
+        }
+
+        pianoPauseMenu = FindObjectOfType<PianoPauseMenu>(true);
+    }
+
+    private void HandleMidiConnectionChanged(bool isConnected)
+    {
+        if (isConnected)
+        {
+            if (waitingForMidiConnectionToStart || pausedByMidiDisconnect)
+            {
+                MidiStatusWidgetController.Instance?.PromptGameplayReconnect(
+                    waitingForMidiConnectionToStart
+                        ? "MIDI detectado. Ya puedes iniciar la práctica."
+                        : "MIDI reconectado. Ya puedes continuar la práctica.",
+                    waitingForMidiConnectionToStart ? "Iniciar juego" : "Continuar juego",
+                    ContinueAfterMidiReconnect);
+            }
+            return;
+        }
+
+        if (waitingForMidiConnectionToStart)
+        {
+            MidiStatusWidgetController.Instance?.PromptGameplayReconnect(
+                "Conecta el controlador MIDI para iniciar la práctica.",
+                "Iniciar juego",
+                ContinueAfterMidiReconnect);
+            return;
+        }
+
+        if (isPlaying)
+        {
+            pausedByMidiDisconnect = true;
+            if (pianoPauseMenu != null)
+            {
+                pianoPauseMenu.ShowPauseMenu();
+            }
+            else
+            {
+                PauseGame();
+            }
+
+            MidiStatusWidgetController.Instance?.PromptGameplayReconnect(
+                "El controlador MIDI se desconectó. Reconéctalo para continuar la práctica.",
+                "Continuar juego",
+                ContinueAfterMidiReconnect);
+        }
+    }
+
+    private bool IsMidiReadyForGameplay()
+    {
+        if (midiConnectionManager != null)
+        {
+            return midiConnectionManager.IsMidiConnected;
+        }
+
+        return directMidiReceiver != null && directMidiReceiver.IsMidiConnected;
+    }
+
+    private PianoPublicSystem ResolvePublicSystem()
+    {
+        if (cachedPublicSystem == null)
+        {
+            cachedPublicSystem = FindObjectOfType<PianoPublicSystem>();
+        }
+
+        return cachedPublicSystem;
+    }
+
+    private void SilenceAudienceApplause()
+    {
+        if (midiAudioManager == null)
+        {
+            midiAudioManager = FindObjectOfType<MidiAudioManager>();
+        }
+
+        if (midiAudioManager == null)
+        {
+            return;
+        }
+
+        midiAudioManager.SetApplauseVolume(0f);
+        midiAudioManager.StopApplauseLoop();
+    }
+
+    private void ResumeAudienceApplause()
+    {
+        if (midiAudioManager == null)
+        {
+            midiAudioManager = FindObjectOfType<MidiAudioManager>();
+        }
+
+        if (midiAudioManager == null || !gameStarted || !isPlaying)
+        {
+            return;
+        }
+
+        midiAudioManager.InitializeApplauseSystem();
+        midiAudioManager.StartApplauseLoop();
+
+        PianoPublicSystem publicSystem = ResolvePublicSystem();
+        if (publicSystem != null)
+        {
+            midiAudioManager.SetApplauseVolume(publicSystem.GetCurrentPublicScoreForApplause());
         }
     }
 

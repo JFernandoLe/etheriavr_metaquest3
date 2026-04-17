@@ -24,6 +24,9 @@ public class MidiAudioManager : MonoBehaviour
     [Header("Aplausos")]
     private AudioSource applauseSource;
     [SerializeField] private AudioClip applauseClip;
+    [SerializeField] private AudioClip applauseClipLow;
+    [SerializeField] private AudioClip applauseClipMedium;
+    [SerializeField] private AudioClip applauseClipHigh;
     [SerializeField] private float applauseMaxVolume = 1.0f;
     [SerializeField] private float applauseMinAudibleVolume = 0.0f;
 
@@ -362,23 +365,9 @@ public class MidiAudioManager : MonoBehaviour
             applauseSource.bypassListenerEffects = true;
             applauseSource.bypassReverbZones = true;
             applauseSource.ignoreListenerPause = true;
-            
-            AudioClip resolvedApplauseClip = ResolveApplauseClip();
-            if (resolvedApplauseClip != null)
-            {
-                applauseSource.clip = resolvedApplauseClip;
-                applauseSource.loop = true;
-                if (applauseSource.clip.loadState == AudioDataLoadState.Unloaded)
-                {
-                    applauseSource.clip.LoadAudioData();
-                }
-                Debug.Log("<color=cyan>[MIDI Audio]</color> ✅ Sistema de aplausos inicializado");
-            }
-            else
-            {
-                Debug.LogWarning("<color=yellow>[MIDI Audio]</color> ⚠️ No se encontró un clip de aplausos utilizable");
-            }
         }
+
+        RefreshApplauseClipForCurrentIntensity();
     }
     
     /// <summary>
@@ -427,8 +416,59 @@ public class MidiAudioManager : MonoBehaviour
         }
     }
 
+    public void RefreshApplauseClipForCurrentIntensity()
+    {
+        if (applauseSource == null)
+        {
+            return;
+        }
+
+        AudioClip resolvedApplauseClip = ResolveApplauseClip();
+        if (resolvedApplauseClip == null)
+        {
+            Debug.LogWarning("<color=yellow>[MIDI Audio]</color> ⚠️ No se encontró un clip de aplausos utilizable");
+            return;
+        }
+
+        bool clipChanged = applauseSource.clip != resolvedApplauseClip;
+        bool wasPlaying = applauseSource.isPlaying;
+        float cachedVolume = applauseSource.volume;
+
+        if (clipChanged && wasPlaying)
+        {
+            applauseSource.Stop();
+        }
+
+        applauseSource.clip = resolvedApplauseClip;
+        applauseSource.loop = true;
+        applauseSource.volume = cachedVolume;
+
+        if (applauseSource.clip.loadState == AudioDataLoadState.Unloaded)
+        {
+            applauseSource.clip.LoadAudioData();
+        }
+
+        if (clipChanged)
+        {
+            Debug.Log($"<color=cyan>[MIDI Audio]</color> 🎵 Clip de aplausos seleccionado: {resolvedApplauseClip.name}");
+        }
+
+        if (wasPlaying && !applauseSource.isPlaying)
+        {
+            applauseSource.Play();
+        }
+
+        Debug.Log("<color=cyan>[MIDI Audio]</color> ✅ Sistema de aplausos inicializado");
+    }
+
     private AudioClip ResolveApplauseClip()
     {
+        AudioClip intensityClip = ResolveIntensityApplauseClip();
+        if (intensityClip != null)
+        {
+            return intensityClip;
+        }
+
         if (applauseClip != null)
         {
             return applauseClip;
@@ -481,5 +521,22 @@ public class MidiAudioManager : MonoBehaviour
         }
 
         return null;
+    }
+
+    private AudioClip ResolveIntensityApplauseClip()
+    {
+        string normalizedIntensity = PianoAudienceIntensityProfile.ResolveCurrentProfile().NormalizedIntensity;
+
+        switch (normalizedIntensity)
+        {
+            case PianoAudienceIntensityProfile.Low:
+                return applauseClipLow != null ? applauseClipLow : applauseClip;
+
+            case PianoAudienceIntensityProfile.High:
+                return applauseClipHigh != null ? applauseClipHigh : applauseClip;
+
+            default:
+                return applauseClipMedium != null ? applauseClipMedium : applauseClip;
+        }
     }
 }

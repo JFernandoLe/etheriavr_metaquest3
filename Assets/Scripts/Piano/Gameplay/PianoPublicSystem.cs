@@ -1,5 +1,5 @@
-using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine;
 
 /// <summary>
 /// Sistema de público virtual que evoluciona según la precisión del jugador
@@ -7,34 +7,46 @@ using System.Collections.Generic;
 /// </summary>
 public class PianoPublicSystem : MonoBehaviour
 {
-    private struct PerformanceSample
+    private struct PerformanceWindowSample
     {
         public float time;
-        public float normalizedScore;
+        public float combinedPerformance;
     }
 
     [Header("Configuración del Público")]
-    [SerializeField] private float performanceWindowSeconds = 10f;
-    [SerializeField] private float samplesForFullConfidence = 10f;
-    [SerializeField] private float riseUnitsPerSecond = 14f;
-    [SerializeField] private float fallUnitsPerSecond = 5.5f;
-    [SerializeField] private float excitementCurvePower = 1.2f;
-    [SerializeField] private float idleDecayPerSecond = 2.2f;
-    [SerializeField] private float maxTargetScore = 88f;
-    [SerializeField] private float targetPenaltyOffset = 8f;
+    [SerializeField] private float performanceWindowSeconds = 5.25f;
+    [SerializeField] private float stableWindowSamples = 5f;
+    [SerializeField] private float periodicSampleInterval = 0.18f;
+    [SerializeField] private float reactionCurvePower = 1.08f;
+    [SerializeField] private float riseLerpSpeed = 5f;
+    [SerializeField] private float fallLerpSpeed = 8.5f;
+    [SerializeField] private float inertiaLerpSpeed = 3.4f;
+    [SerializeField] private float pulseDecayPerSecond = 26f;
+    [SerializeField] private float earlyRhythmBoost = 18f;
+    [SerializeField] private float earlyHarmonyBoost = 9f;
+    [SerializeField] private float mistakeRhythmPenalty = 14f;
+    [SerializeField] private float mistakeHarmonyPenalty = 18f;
+    [SerializeField] private float liveWindowReactionMultiplier = 1.1f;
     
     // Estado
-    private float currentPublicScore = 0f;     // 0-100
-    private float targetPublicScore = 0f;      // Score objetivo (antes de lerp)
+    private float currentPublicScore = 0f;
+    private float animationPublicScore = 0f;
+    private float targetPublicScore = 0f;
     private float totalNoteCount = 0f;
     private float correctNoteCount = 0f;
+    private float liveRhythmPulse = 0f;
+    private float liveHarmonyPulse = 0f;
+    private float currentLiveRhythm = 0f;
+    private float currentLiveHarmony = 0f;
+    private float lastWindowAverage = 0f;
+    private float nextPeriodicSampleTime = 0f;
     
     // Referencias
     private GameplayScoring gameplayScoring;
     private MidiAudioManager midiAudioManager;
-    private float gameStartTime;
     private bool isGameActive = false;
-    private readonly List<PerformanceSample> performanceWindow = new List<PerformanceSample>();
+    private PianoAudienceIntensityProfile.Profile audienceProfile;
+    private readonly List<PerformanceWindowSample> performanceWindow = new List<PerformanceWindowSample>();
     
     // Debug
     private List<string> recentEvents = new List<string>();
@@ -48,6 +60,7 @@ public class PianoPublicSystem : MonoBehaviour
     {
         gameplayScoring = FindObjectOfType<GameplayScoring>();
         midiAudioManager = FindObjectOfType<MidiAudioManager>();
+        RefreshAudienceProfile();
         EnsureAudienceController();
         
         if (gameplayScoring != null)
@@ -69,31 +82,29 @@ public class PianoPublicSystem : MonoBehaviour
     {
         if (!isGameActive) return;
 
+        liveRhythmPulse = Mathf.MoveTowards(liveRhythmPulse, 0f, pulseDecayPerSecond * Time.deltaTime);
+        liveHarmonyPulse = Mathf.MoveTowards(liveHarmonyPulse, 0f, pulseDecayPerSecond * Time.deltaTime);
+
+        float combinedPerformance = UpdateLivePerformanceValues();
+
+        if (Time.time >= nextPeriodicSampleTime)
+        {
+            AddPerformanceSample(combinedPerformance);
+            nextPeriodicSampleTime = Time.time + Mathf.Max(0.05f, periodicSampleInterval);
+        }
+
         PruneExpiredSamples();
 
-        if (performanceWindow.Count > 0)
-        {
-            float accumulatedScore = 0f;
-            foreach (PerformanceSample sample in performanceWindow)
-            {
-                accumulatedScore += sample.normalizedScore;
-            }
+        float windowAverage = CalculateWindowAverage();
+        lastWindowAverage = windowAverage;
+        float windowConfidence = Mathf.Clamp01(performanceWindow.Count / Mathf.Max(stableWindowSamples, 1f));
+        float curvedAverage = Mathf.Pow(Mathf.Clamp01(windowAverage / 100f), reactionCurvePower) * 100f;
+        targetPublicScore = Mathf.Clamp01(curvedAverage / Mathf.Max(audienceProfile.ScoreForFullReaction, 0.01f)) * 100f * windowConfidence;
 
-            float averageScore = accumulatedScore / performanceWindow.Count;
-            float curvedScore = Mathf.Pow(Mathf.Clamp01(averageScore), excitementCurvePower);
-            float confidence = Mathf.Clamp01(performanceWindow.Count / Mathf.Max(samplesForFullConfidence, 1f));
-            float mappedScore = Mathf.Clamp((curvedScore * maxTargetScore) - targetPenaltyOffset, 0f, 100f);
-            float desiredTarget = mappedScore * confidence;
-            targetPublicScore = Mathf.Lerp(targetPublicScore, desiredTarget, Time.deltaTime * Mathf.Lerp(0.7f, 1.4f, confidence));
-        }
-        else
-        {
-            targetPublicScore = Mathf.Max(0f, targetPublicScore - idleDecayPerSecond * Time.deltaTime);
-        }
-
-        float responseRate = targetPublicScore >= currentPublicScore ? riseUnitsPerSecond : fallUnitsPerSecond;
-        currentPublicScore = Mathf.MoveTowards(currentPublicScore, targetPublicScore, responseRate * Time.deltaTime);
+        float responseSpeed = targetPublicScore >= currentPublicScore ? riseLerpSpeed : fallLerpSpeed;
+        currentPublicScore = Mathf.Lerp(currentPublicScore, targetPublicScore, Time.deltaTime * responseSpeed);
         currentPublicScore = Mathf.Clamp(currentPublicScore, 0f, 100f);
+        animationPublicScore = Mathf.Lerp(animationPublicScore, currentPublicScore, Time.deltaTime * inertiaLerpSpeed);
     }
     
     /// <summary>
@@ -101,14 +112,21 @@ public class PianoPublicSystem : MonoBehaviour
     /// </summary>
     public void StartGame()
     {
+        RefreshAudienceProfile();
         isGameActive = true;
-        gameStartTime = Time.time;
         currentPublicScore = 0f;
+        animationPublicScore = 0f;
         targetPublicScore = 0f;
         totalNoteCount = 0f;
         correctNoteCount = 0f;
-        recentEvents.Clear();
+        liveRhythmPulse = 0f;
+        liveHarmonyPulse = 0f;
+        currentLiveRhythm = 0f;
+        currentLiveHarmony = 0f;
+        lastWindowAverage = 0f;
+        nextPeriodicSampleTime = Time.time;
         performanceWindow.Clear();
+        recentEvents.Clear();
 
         if (midiAudioManager != null)
         {
@@ -117,7 +135,7 @@ public class PianoPublicSystem : MonoBehaviour
             midiAudioManager.SetApplauseVolume(0f);
         }
         
-        Debug.Log("<color=green>[PianoPublic]</color> 🎮 Juego iniciado - Público en 0%");
+        Debug.Log($"<color=green>[PianoPublic]</color> 🎮 Juego iniciado - Público en 0% | Intensidad {audienceProfile.NormalizedIntensity} | Reacción total desde {audienceProfile.ScoreForFullReaction:F0}% de desempeño reciente");
     }
     
     /// <summary>
@@ -143,17 +161,26 @@ public class PianoPublicSystem : MonoBehaviour
     {
         totalNoteCount++;
         correctNoteCount += normalizedScore;
-
-        performanceWindow.Add(new PerformanceSample
-        {
-            time = Time.time,
-            normalizedScore = Mathf.Clamp01(normalizedScore)
-        });
+        CaptureCurrentPerformanceSample();
 
         float notePercent = normalizedScore * 100f;
         string eventMsg = $"🎹 Ventana +{notePercent:F0}% ({successfulUnits}/{totalUnits})";
         AddDebugEvent(eventMsg);
         Debug.Log($"<color=cyan>[PianoPublic]</color> {eventMsg}");
+    }
+
+    public void OnLiveWindowMatched(GameNoteData note, float onsetQuality, int totalUnits)
+    {
+        float weightedQuality = Mathf.Clamp01(onsetQuality * liveWindowReactionMultiplier);
+        float chordWeight = totalUnits > 1 ? Mathf.Lerp(0.8f, 1f, 1f / totalUnits) : 1f;
+
+        liveRhythmPulse = Mathf.Clamp(liveRhythmPulse + (weightedQuality * earlyRhythmBoost * chordWeight), -100f, 100f);
+        liveHarmonyPulse = Mathf.Clamp(liveHarmonyPulse + (weightedQuality * earlyHarmonyBoost * chordWeight), -100f, 100f);
+        CaptureCurrentPerformanceSample();
+
+        string eventMsg = $"⚡ Reacción temprana +{weightedQuality * 100f:F0}% por acierto en ventana";
+        AddDebugEvent(eventMsg);
+        Debug.Log($"<color=green>[PianoPublic]</color> {eventMsg}");
     }
     
     /// <summary>
@@ -161,11 +188,9 @@ public class PianoPublicSystem : MonoBehaviour
     /// </summary>
     public void OnWrongNoteDetected(int wrongMidiNote)
     {
-        performanceWindow.Add(new PerformanceSample
-        {
-            time = Time.time,
-            normalizedScore = 0f
-        });
+        liveRhythmPulse = Mathf.Clamp(liveRhythmPulse - mistakeRhythmPenalty, -100f, 100f);
+        liveHarmonyPulse = Mathf.Clamp(liveHarmonyPulse - mistakeHarmonyPenalty, -100f, 100f);
+        CaptureCurrentPerformanceSample();
 
         string eventMsg = $"⚠️ NOTA EQUIVOCADA (MIDI {wrongMidiNote})";
         AddDebugEvent(eventMsg);
@@ -187,6 +212,16 @@ public class PianoPublicSystem : MonoBehaviour
     {
         return currentPublicScore;
     }
+
+    public float GetCurrentPublicScoreForApplause()
+    {
+        return Mathf.Clamp(currentPublicScore, 0f, 100f);
+    }
+
+    public float GetCurrentAudienceAnimationScore()
+    {
+        return animationPublicScore;
+    }
     
     /// <summary>
     /// Obtener el score objetivo (antes de suavizado)
@@ -194,6 +229,11 @@ public class PianoPublicSystem : MonoBehaviour
     public float GetTargetPublicScore()
     {
         return targetPublicScore;
+    }
+
+    public float GetCurrentAudienceCap()
+    {
+        return 100f;
     }
     
     /// <summary>
@@ -204,7 +244,11 @@ public class PianoPublicSystem : MonoBehaviour
         float accuracy = totalNoteCount > 0 ? (correctNoteCount / totalNoteCount) * 100f : 0f;
         Debug.Log($"<color=yellow>[PianoPublic STATS]</color>");
         Debug.Log($"  👥 Score actual: {currentPublicScore:F1}%");
+        Debug.Log($"  🎬 Score animación: {animationPublicScore:F1}%");
         Debug.Log($"  🎯 Score objetivo: {targetPublicScore:F1}%");
+        Debug.Log($"  🪟 Promedio ventana: {lastWindowAverage:F1}%");
+        Debug.Log($"  🎼 Armonía viva: {currentLiveHarmony:F1}%");
+        Debug.Log($"  🥁 Ritmo vivo: {currentLiveRhythm:F1}%");
         Debug.Log($"  🎵 Notas totales: {totalNoteCount}");
         Debug.Log($"  ✅ Notas correctas: {correctNoteCount}");
         Debug.Log($"  📊 Precisión: {accuracy:F1}%");
@@ -219,16 +263,68 @@ public class PianoPublicSystem : MonoBehaviour
         }
     }
 
+    private float UpdateLivePerformanceValues()
+    {
+        float baseRhythm = gameplayScoring != null ? gameplayScoring.GetLiveRhythmPercentage() : 0f;
+        float baseHarmony = gameplayScoring != null ? gameplayScoring.GetLiveHarmonyPercentage() : 0f;
+
+        currentLiveRhythm = Mathf.Clamp(baseRhythm + liveRhythmPulse, 0f, 100f);
+        currentLiveHarmony = Mathf.Clamp(baseHarmony + liveHarmonyPulse, 0f, 100f);
+
+        return (currentLiveHarmony + currentLiveRhythm) * 0.5f;
+    }
+
+    private void CaptureCurrentPerformanceSample()
+    {
+        if (!isGameActive)
+        {
+            return;
+        }
+
+        AddPerformanceSample(UpdateLivePerformanceValues());
+        PruneExpiredSamples();
+    }
+
+    private void AddPerformanceSample(float combinedPerformance)
+    {
+        performanceWindow.Add(new PerformanceWindowSample
+        {
+            time = Time.time,
+            combinedPerformance = Mathf.Clamp(combinedPerformance, 0f, 100f)
+        });
+    }
+
     private void PruneExpiredSamples()
     {
-        float minTime = Time.time - performanceWindowSeconds;
+        float oldestAllowedTime = Time.time - Mathf.Max(0.5f, performanceWindowSeconds);
         for (int i = performanceWindow.Count - 1; i >= 0; i--)
         {
-            if (performanceWindow[i].time < minTime)
+            if (performanceWindow[i].time < oldestAllowedTime)
             {
                 performanceWindow.RemoveAt(i);
             }
         }
+    }
+
+    private float CalculateWindowAverage()
+    {
+        if (performanceWindow.Count == 0)
+        {
+            return 0f;
+        }
+
+        float total = 0f;
+        for (int i = 0; i < performanceWindow.Count; i++)
+        {
+            total += performanceWindow[i].combinedPerformance;
+        }
+
+        return total / performanceWindow.Count;
+    }
+
+    private void RefreshAudienceProfile()
+    {
+        audienceProfile = PianoAudienceIntensityProfile.ResolveCurrentProfile();
     }
 
     void OnDestroy()

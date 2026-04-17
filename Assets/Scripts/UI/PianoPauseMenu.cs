@@ -100,13 +100,21 @@ public class PianoPauseMenu : MonoBehaviour
 
     public void ReiniciarCancion()
     {
-        CloseMenuAndResumeIfNeeded();
+        HidePauseMenu();
+        if (pianoGameManager != null)
+        {
+            pianoGameManager.PrepareForSceneExit();
+        }
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
     public void VolverMenu()
     {
-        CloseMenuAndResumeIfNeeded();
+        HidePauseMenu();
+        if (pianoGameManager != null)
+        {
+            pianoGameManager.PrepareForSceneExit();
+        }
         SceneManager.LoadScene(homeSceneName);
     }
 

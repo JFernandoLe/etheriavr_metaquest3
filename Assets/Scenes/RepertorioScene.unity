@@ -4484,6 +4484,7 @@ GameObject:
   - component: {fileID: 629617717}
   - component: {fileID: 629617719}
   - component: {fileID: 629617718}
+  - component: {fileID: 629617720}
   m_Layer: 5
   m_Name: PanelGrafica
   m_TagString: Untagged
@@ -4555,6 +4556,40 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 629617716}
   m_CullTransparentMesh: 1
+--- !u!114 &629617720
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 629617716}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8f0a83c6f4a94afaa4a6bb28ea31f377, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EvolutionGraphsController
+  authService: {fileID: 1061121612}
+  pianoScrollView: {fileID: 0}
+  cantoScrollView: {fileID: 0}
+  pianoContent: {fileID: 0}
+  cantoContent: {fileID: 0}
+  selectorPosition: {x: 0, y: -205}
+  selectorSize: {x: 440, y: 64}
+  tooltipPosition: {x: 865, y: -220}
+  tooltipSize: {x: 430, y: 150}
+  chartCardHeight: 430
+  plotHeight: 320
+  pointSize: 20
+  lineThickness: 6
+  selectorColor: {r: 0.62, g: 0.47, b: 0.35, a: 1}
+  selectorOptionColor: {r: 0.27, g: 0.18, b: 0.12, a: 0.98}
+  tooltipColor: {r: 0.15, g: 0.1, b: 0.07, a: 0.96}
+  cardColor: {r: 0.18, g: 0.11, b: 0.08, a: 0.82}
+  plotColor: {r: 0.11, g: 0.08, b: 0.06, a: 0.9}
+  gridColor: {r: 1, g: 1, b: 1, a: 0.12}
+  axisColor: {r: 1, g: 1, b: 1, a: 0.2}
+  pianoColor: {r: 0.94, g: 0.77, b: 0.31, a: 1}
+  cantoColor: {r: 0.33, g: 0.81, b: 0.74, a: 1}
 --- !u!1 &633607917
 GameObject:
   m_ObjectHideFlags: 0

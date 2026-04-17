@@ -1,6 +1,7 @@
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 public class Registrar : MonoBehaviour
 {
@@ -70,6 +71,11 @@ public class Registrar : MonoBehaviour
 
     private string ResolveRegistrationMidiDeviceName()
     {
+        if (!MidiInitializer.ShouldEnableMidiForScene(SceneManager.GetActiveScene().name))
+        {
+            return UserSession.UnregisteredMidiDeviceName;
+        }
+
         if (midiReceiver == null)
         {
             midiReceiver = FindObjectOfType<DirectMidiReceiver>();

@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 /// <summary>
@@ -10,12 +11,14 @@ public class MIDIConnectionManager : MonoBehaviour
     
     [Header("Estado de Conexión MIDI")]
     public bool IsMidiConnected { get; private set; } = false;
+    public string CurrentDeviceName { get; private set; } = UserSession.UnregisteredMidiDeviceName;
     
     // Evento para notificar cambios de estado a otros componentes
     public delegate void MidiConnectionChanged(bool isConnected);
     public event MidiConnectionChanged OnMidiConnectionChanged;
     
     private MIDIStatusReceiver statusReceiver;
+    private AuthService authService;
     
     void Awake() 
     {
@@ -39,21 +42,44 @@ public class MIDIConnectionManager : MonoBehaviour
     void Start()
     {
         Debug.Log("<color=cyan>[MIDI Manager]</color> Buscando MIDIStatusReceiver...");
-        
-        // Crear el receptor de estado MIDI
-        statusReceiver = gameObject.AddComponent<MIDIStatusReceiver>();
-        
-        if (statusReceiver != null)
-        {
-            statusReceiver.OnStatusReceived += HandleMidiStatusUpdate;
-            Debug.Log("<color=green>[MIDI Manager]</color> ✅ MIDIStatusReceiver creado y suscrito");
-        }
-        else
-        {
-            Debug.LogError("<color=red>[MIDI Manager]</color> ❌ No se pudo crear MIDIStatusReceiver");
-        }
+        EnsureStatusReceiver();
+        RefreshStateFromReceiver();
         
         Debug.Log("<color=magenta>[MIDI Manager]</color> 🎯 ===== MIDI MANAGER LISTO =====\n");
+    }
+
+    void Update()
+    {
+        if (statusReceiver == null || statusReceiver.CurrentReceiver == null)
+        {
+            EnsureStatusReceiver();
+        }
+
+        RefreshStateFromReceiver();
+    }
+
+    public DirectMidiReceiver GetReceiver()
+    {
+        EnsureStatusReceiver();
+        return statusReceiver != null ? statusReceiver.CurrentReceiver : FindObjectOfType<DirectMidiReceiver>();
+    }
+
+    public void RequestReconnect()
+    {
+        DirectMidiReceiver receiver = GetReceiver();
+        if (receiver != null)
+        {
+            receiver.RequestReconnect();
+        }
+    }
+
+    public void DisconnectCurrentDevice()
+    {
+        DirectMidiReceiver receiver = GetReceiver();
+        if (receiver != null)
+        {
+            receiver.DisconnectCurrentDevice();
+        }
     }
     
     /// <summary>
@@ -61,10 +87,15 @@ public class MIDIConnectionManager : MonoBehaviour
     /// </summary>
     private void HandleMidiStatusUpdate(bool isConnected) 
     {
-        if (IsMidiConnected != isConnected) 
+        string resolvedDeviceName = ResolveCurrentDeviceName();
+        bool statusChanged = IsMidiConnected != isConnected;
+        bool deviceNameChanged = !string.Equals(CurrentDeviceName, resolvedDeviceName, StringComparison.Ordinal);
+
+        IsMidiConnected = isConnected;
+        CurrentDeviceName = resolvedDeviceName;
+
+        if (statusChanged) 
         {
-            IsMidiConnected = isConnected;
-            
             // Notificar a todos los suscriptores
             OnMidiConnectionChanged?.Invoke(isConnected);
             
@@ -73,6 +104,114 @@ public class MIDIConnectionManager : MonoBehaviour
             string color = isConnected ? "green" : "red";
             Debug.Log($"<color={color}>[MIDI Manager]</color> Estado MIDI: {status}");
         }
+
+        if ((statusChanged || deviceNameChanged) && isConnected)
+        {
+            UpdateRuntimeSessionForConnectedDevice(resolvedDeviceName);
+        }
+    }
+
+    private void EnsureStatusReceiver()
+    {
+        if (statusReceiver == null)
+        {
+            statusReceiver = GetComponent<MIDIStatusReceiver>();
+        }
+
+        if (statusReceiver == null)
+        {
+            statusReceiver = gameObject.AddComponent<MIDIStatusReceiver>();
+        }
+
+        if (statusReceiver != null)
+        {
+            statusReceiver.OnStatusReceived -= HandleMidiStatusUpdate;
+            statusReceiver.OnStatusReceived += HandleMidiStatusUpdate;
+        }
+    }
+
+    private void RefreshStateFromReceiver()
+    {
+        DirectMidiReceiver receiver = GetReceiver();
+        if (receiver == null)
+        {
+            return;
+        }
+
+        CurrentDeviceName = receiver.CurrentMidiDeviceName;
+        HandleMidiStatusUpdate(receiver.IsMidiConnected);
+    }
+
+    private string ResolveCurrentDeviceName()
+    {
+        DirectMidiReceiver receiver = statusReceiver != null ? statusReceiver.CurrentReceiver : null;
+        if (receiver == null)
+        {
+            receiver = FindObjectOfType<DirectMidiReceiver>();
+        }
+
+        return receiver != null ? receiver.CurrentMidiDeviceName : UserSession.UnregisteredMidiDeviceName;
+    }
+
+    private void UpdateRuntimeSessionForConnectedDevice(string deviceName)
+    {
+        if (string.IsNullOrWhiteSpace(deviceName) ||
+            string.Equals(deviceName, UserSession.UnregisteredMidiDeviceName, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        string previousDeviceName = UserSession.Instance != null
+            ? UserSession.Instance.midiDeviceName
+            : null;
+
+        if (UserSession.Instance != null)
+        {
+            UserSession.Instance.UpdateMidiDeviceName(deviceName);
+        }
+
+        if (string.Equals(previousDeviceName, deviceName, StringComparison.Ordinal) ||
+            UserSession.Instance == null ||
+            !UserSession.Instance.IsLoggedIn ||
+            UserSession.Instance.userId <= 0 ||
+            string.IsNullOrEmpty(UserSession.Instance.token))
+        {
+            return;
+        }
+
+        EnsureAuthService();
+        if (authService == null)
+        {
+            return;
+        }
+
+        UserConfigurationRequest request = new UserConfigurationRequest
+        {
+            midi_device_name = deviceName,
+            audience_intensity = string.IsNullOrWhiteSpace(UserSession.Instance.audienceIntensity)
+                ? UserSession.DefaultAudienceIntensity
+                : UserSession.Instance.audienceIntensity
+        };
+
+        StartCoroutine(authService.UpdateUserConfiguration(
+            UserSession.Instance.userId,
+            request,
+            onSuccess: (_) => Debug.Log("<color=cyan>[MIDI Manager]</color> Configuración MIDI sincronizada con API"),
+            onError: (error) => Debug.LogWarning($"[MIDI Manager] No se pudo sincronizar el dispositivo MIDI conectado: {error}")
+        ));
+    }
+
+    private void EnsureAuthService()
+    {
+        if (authService == null)
+        {
+            authService = FindObjectOfType<AuthService>(true);
+        }
+
+        if (authService == null)
+        {
+            authService = gameObject.AddComponent<AuthService>();
+        }
     }
     
     void OnDestroy()
@@ -80,6 +219,11 @@ public class MIDIConnectionManager : MonoBehaviour
         if (statusReceiver != null)
         {
             statusReceiver.OnStatusReceived -= HandleMidiStatusUpdate;
+        }
+
+        if (Instance == this)
+        {
+            Instance = null;
         }
     }
 }

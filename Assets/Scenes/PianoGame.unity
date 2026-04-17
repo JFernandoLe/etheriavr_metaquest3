@@ -15651,6 +15651,9 @@ MonoBehaviour:
   targetRealVoices: 64
   verboseMidiLogging: 0
   applauseClip: {fileID: 8300000, guid: 3512d18c193879d48b12a59d3e33ce54, type: 3}
+  applauseClipLow: {fileID: 8300000, guid: 7651990dfbb542e0a16ab664a312dbf5, type: 3}
+  applauseClipMedium: {fileID: 8300000, guid: ca46444b97804d9095b32b1f9ff6438b, type: 3}
+  applauseClipHigh: {fileID: 8300000, guid: 3512d18c193879d48b12a59d3e33ce54, type: 3}
   applauseMaxVolume: 1
   applauseMinAudibleVolume: 0
 --- !u!4 &1683256929

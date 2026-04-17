@@ -8,6 +8,8 @@ using System;
 /// </summary>
 public class MIDIStatusReceiver : MonoBehaviour
 {
+    private const string DefaultMidiDeviceName = "NO REGISTRADO";
+
     // Evento para notificar cambios de estado
     public delegate void StatusReceivedDelegate(bool isConnected);
     public event StatusReceivedDelegate OnStatusReceived;
@@ -17,6 +19,9 @@ public class MIDIStatusReceiver : MonoBehaviour
     private bool isSubscribed = false;
     private float nextSearchTime = 0f;
     private const float SearchIntervalSeconds = 0.5f;
+
+    public DirectMidiReceiver CurrentReceiver => midiReceiver;
+    public string CurrentDeviceName => midiReceiver != null ? midiReceiver.CurrentMidiDeviceName : DefaultMidiDeviceName;
 
     void Start() 
     {
@@ -47,8 +52,6 @@ public class MIDIStatusReceiver : MonoBehaviour
     /// </summary>
     private void HandleMidiStatusChange(bool isConnected)
     {
-        Debug.Log($"<color=cyan>[MIDI Status]</color> 📢 Evento recibido: isConnected={isConnected}, lastKnownStatus={lastKnownStatus}");
-        
         if (lastKnownStatus != isConnected)
         {
             lastKnownStatus = isConnected;
@@ -56,13 +59,7 @@ public class MIDIStatusReceiver : MonoBehaviour
             string status = isConnected ? "CONECTADO ✅" : "DESCONECTADO ❌";
             string color = isConnected ? "green" : "red";
             Debug.Log($"<color={color}>[MIDI Status]</color> 🔔 ESTADO CAMBIÓ: {status}");
-            
-            Debug.Log($"<color={color}>[MIDI Status]</color> 📡 Invocando OnStatusReceived({isConnected})");
             OnStatusReceived?.Invoke(isConnected);
-        }
-        else
-        {
-            Debug.Log($"<color=yellow>[MIDI Status]</color> ℹ️ Estado no cambió (sigue en {(isConnected ? "CONECTADO" : "DESCONECTADO")})");
         }
     }
 

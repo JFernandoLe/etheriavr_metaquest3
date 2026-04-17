@@ -41,6 +41,7 @@ public class GameplayScoring : MonoBehaviour
     private Dictionary<int, GameNoteScore> noteScores = new Dictionary<int, GameNoteScore>(); // index -> score
     private int nextExpectedNoteIndex = 0;
     private float totalPlayableNoteUnits = 0f;
+    private float evaluatedPlayableNoteUnits = 0f;
     private float weightedHitPlayableNoteUnits = 0f;
     private float totalSuccessfulPlayableNoteUnits = 0f;
     private int perfectPlayableNoteUnits = 0;
@@ -81,6 +82,7 @@ public class GameplayScoring : MonoBehaviour
         public float weightedUnits = 0f;
         public Dictionary<int, float> heldDurations = new Dictionary<int, float>();
         public Dictionary<int, float> onsetOffsets = new Dictionary<int, float>();
+        public HashSet<int> liveReactionAwardedNotes = new HashSet<int>();
     }
 
     public float TotalPlayableNoteUnits => totalPlayableNoteUnits;
@@ -171,6 +173,7 @@ public class GameplayScoring : MonoBehaviour
         noteScores.Clear();
         nextExpectedNoteIndex = 0;
         totalPlayableNoteUnits = 0f;
+        evaluatedPlayableNoteUnits = 0f;
         weightedHitPlayableNoteUnits = 0f;
         totalSuccessfulPlayableNoteUnits = 0f;
         perfectPlayableNoteUnits = 0;
@@ -278,7 +281,7 @@ public class GameplayScoring : MonoBehaviour
         // Actualizar volumen de aplausos según público
         if (publicSystem != null && midiAudioManager != null)
         {
-            midiAudioManager.SetApplauseVolume(publicSystem.GetCurrentPublicScore());
+            midiAudioManager.SetApplauseVolume(publicSystem.GetCurrentPublicScoreForApplause());
         }
         
         // Verificar si el juego debe terminar
@@ -330,7 +333,12 @@ public class GameplayScoring : MonoBehaviour
         float noteOnTime = GetCurrentSongTime();
         currentlyPressedNotes.Add(midiNote);
         ShowLiveInputGuide(midiNote);
-        TrackOnsetTiming(midiNote, noteOnTime);
+        bool matchedExpectedWindow = TrackOnsetTiming(midiNote, noteOnTime);
+
+        if (!matchedExpectedWindow)
+        {
+            publicSystem?.OnWrongNoteDetected(midiNote);
+        }
 
         if (!activePressStates.ContainsKey(midiNote))
         {
@@ -349,8 +357,10 @@ public class GameplayScoring : MonoBehaviour
         Debug.Log($"<color=magenta>[GameplayScoring]</color> 🎹 MIDI {midiNote} PRESIONADO @ {currentGameTime:F3}s (vel={velocity})");
     }
 
-    private void TrackOnsetTiming(int midiNote, float noteOnTime)
+    private bool TrackOnsetTiming(int midiNote, float noteOnTime)
     {
+        bool matchedExpectedWindow = false;
+
         for (int i = nextExpectedNoteIndex; i < expectedNotes.Count; i++)
         {
             GameNoteData note = expectedNotes[i];
@@ -389,9 +399,22 @@ public class GameplayScoring : MonoBehaviour
                 continue;
             }
 
-            score.onsetOffsets[midiNote] = Mathf.Abs(noteOnTime - note.time);
+            float onsetOffset = Mathf.Abs(noteOnTime - note.time);
+            score.onsetOffsets[midiNote] = onsetOffset;
+            matchedExpectedWindow = true;
+
+            if (!score.liveReactionAwardedNotes.Contains(midiNote) && publicSystem != null)
+            {
+                score.liveReactionAwardedNotes.Add(midiNote);
+
+                float onsetQuality = 1f - Mathf.Clamp01(onsetOffset / Mathf.Max(hitWindow, 0.0001f));
+                publicSystem.OnLiveWindowMatched(note, onsetQuality, midiNotes.Length);
+            }
+
             break;
         }
+
+        return matchedExpectedWindow;
     }
 
     private void AccumulateHeldDurations()
@@ -539,6 +562,7 @@ public class GameplayScoring : MonoBehaviour
         score.wasEvaluated = true;
 
         float normalizedScore = midiNotes.Length > 0 ? weightedUnits / midiNotes.Length : 0f;
+        evaluatedPlayableNoteUnits += midiNotes.Length;
         weightedHitPlayableNoteUnits += weightedUnits;
         totalSuccessfulPlayableNoteUnits += successfulUnits;
 
@@ -668,6 +692,32 @@ public class GameplayScoring : MonoBehaviour
         };
         
         return results;
+    }
+
+    public float GetLiveHarmonyPercentage()
+    {
+        float noteCoverage = evaluatedPlayableNoteUnits > 0f
+            ? (totalSuccessfulPlayableNoteUnits / evaluatedPlayableNoteUnits) * 100f
+            : 0f;
+
+        float chordCoverage = totalChordEvents > 0
+            ? (chordCoverageAccumulated / totalChordEvents) * 100f
+            : noteCoverage;
+
+        return Mathf.Clamp(0.65f * noteCoverage + 0.35f * chordCoverage, 0f, 100f);
+    }
+
+    public float GetLiveRhythmPercentage()
+    {
+        float onsetTiming = evaluatedPlayableNoteUnits > 0f
+            ? (totalOnsetQualityUnits / evaluatedPlayableNoteUnits) * 100f
+            : 0f;
+
+        float durationTiming = evaluatedPlayableNoteUnits > 0f
+            ? (totalDurationQualityUnits / evaluatedPlayableNoteUnits) * 100f
+            : 0f;
+
+        return Mathf.Clamp(0.75f * onsetTiming + 0.25f * durationTiming, 0f, 100f);
     }
     
     /// <summary>

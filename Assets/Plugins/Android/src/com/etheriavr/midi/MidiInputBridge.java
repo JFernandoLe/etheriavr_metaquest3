@@ -8,6 +8,7 @@ import android.media.midi.MidiManager;
 import android.media.midi.MidiDevice;
 import android.media.midi.MidiOutputPort;
 import android.media.midi.MidiDeviceInfo;
+import android.media.midi.MidiDeviceStatus;
 import android.media.midi.MidiReceiver;
 import android.util.Log;
 import java.io.IOException;
@@ -27,6 +28,10 @@ public class MidiInputBridge {
     private MidiDevice midiDevice;
     private MidiOutputPort outputPort;
     private Handler mainHandler;
+    private MidiManager.DeviceCallback deviceCallback;
+    private boolean deviceCallbackRegistered = false;
+    private boolean isOpeningDevice = false;
+    private int currentDeviceId = -1;
     
     // Ring buffer for MIDI events (3 bytes each)
     private static byte[] eventBuffer = new byte[BUFFER_SIZE * 3];
@@ -67,7 +72,10 @@ public class MidiInputBridge {
             midiManager = (MidiManager) context.getSystemService(Context.MIDI_SERVICE);
             if (midiManager != null) {
                 Log.d(TAG, "✅ MIDI Manager initialized");
-                scanDevices();
+                registerDeviceCallback();
+                if (!isConnected && !isOpeningDevice) {
+                    scanDevices();
+                }
             } else {
                 Log.w(TAG, "⚠️ MIDI Manager not available");
             }
@@ -80,14 +88,22 @@ public class MidiInputBridge {
      * Scan for MIDI devices and open first one found
      */
     private void scanDevices() {
+        if (midiManager == null) {
+            setDisconnectedState();
+            return;
+        }
+
+        if (isConnected || isOpeningDevice) {
+            return;
+        }
+
         try {
             MidiDeviceInfo[] devices = midiManager.getDevices();
             Log.d(TAG, "Found " + devices.length + " MIDI device(s)");
             
             if (devices.length == 0) {
                 Log.w(TAG, "No MIDI devices found");
-                currentDeviceName = "NO REGISTRADO";
-                isConnected = false;
+                setDisconnectedState();
                 return;
             }
             
@@ -103,10 +119,10 @@ public class MidiInputBridge {
                 }
             }
 
-            currentDeviceName = "NO REGISTRADO";
-            isConnected = false;
+            setDisconnectedState();
         } catch (Exception e) {
             Log.e(TAG, "Error scanning: " + e.getMessage());
+            setDisconnectedState();
         }
     }
     
@@ -114,12 +130,23 @@ public class MidiInputBridge {
      * Open device asynchronously
      */
     private void openDevice(MidiDeviceInfo deviceInfo) {
+        if (deviceInfo == null || midiManager == null) {
+            setDisconnectedState();
+            return;
+        }
+
+        if (isOpeningDevice) {
+            return;
+        }
+
+        isOpeningDevice = true;
         final String deviceName = buildDeviceName(deviceInfo);
+        final int deviceId = deviceInfo.getId();
         Log.d(TAG, "Opening device: " + deviceName);
         midiManager.openDevice(deviceInfo, new MidiManager.OnDeviceOpenedListener() {
             @Override
             public void onDeviceOpened(MidiDevice device) {
-                handleDeviceOpened(device, deviceName);
+                handleDeviceOpened(device, deviceName, deviceId);
             }
         }, mainHandler);
     }
@@ -127,22 +154,26 @@ public class MidiInputBridge {
     /**
      * Handle device opened callback - called on main thread
      */
-    private void handleDeviceOpened(MidiDevice device, String deviceName) {
+    private void handleDeviceOpened(MidiDevice device, String deviceName, int deviceId) {
+        isOpeningDevice = false;
+
         if (device == null) {
             Log.w(TAG, "Device open failed");
-            currentDeviceName = "NO REGISTRADO";
-            isConnected = false;
+            setDisconnectedState();
             return;
         }
         
         Log.d(TAG, "Device opened successfully");
+        closeCurrentConnection();
         midiDevice = device;
+        currentDeviceId = deviceId;
         
         try {
             // Get first output port (for receiving FROM device)
             outputPort = device.openOutputPort(0);
             if (outputPort == null) {
                 Log.e(TAG, "Failed to open output port");
+                setDisconnectedState();
                 return;
             }
             
@@ -150,6 +181,7 @@ public class MidiInputBridge {
             SimpleMidiReceiver receiver = new SimpleMidiReceiver();
             outputPort.connect(receiver);
             
+            clearEventBuffer();
             isConnected = true;
             currentDeviceName = deviceName != null && !deviceName.trim().isEmpty()
                 ? deviceName
@@ -157,8 +189,104 @@ public class MidiInputBridge {
             Log.d(TAG, "✅ MIDI Connected and listening");
         } catch (Exception e) {
             Log.e(TAG, "Error opening port: " + e.getMessage());
-            currentDeviceName = "NO REGISTRADO";
-            isConnected = false;
+            setDisconnectedState();
+        }
+    }
+
+    private void registerDeviceCallback() {
+        if (midiManager == null || deviceCallbackRegistered) {
+            return;
+        }
+
+        deviceCallback = new MidiManager.DeviceCallback() {
+            @Override
+            public void onDeviceAdded(MidiDeviceInfo device) {
+                Log.d(TAG, "Device added: " + buildDeviceName(device));
+                if (!isConnected && !isOpeningDevice) {
+                    scanDevices();
+                }
+            }
+
+            @Override
+            public void onDeviceRemoved(MidiDeviceInfo device) {
+                Log.d(TAG, "Device removed: " + buildDeviceName(device));
+                if (device != null && device.getId() == currentDeviceId) {
+                    disconnectCurrentDevice();
+                    mainHandler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            scanDevices();
+                        }
+                    });
+                }
+            }
+
+            @Override
+            public void onDeviceStatusChanged(MidiDeviceStatus status) {
+                if (status == null || status.getDeviceInfo() == null) {
+                    return;
+                }
+
+                MidiDeviceInfo deviceInfo = status.getDeviceInfo();
+                if (deviceInfo.getId() == currentDeviceId && !isConnected && !isOpeningDevice) {
+                    scanDevices();
+                }
+            }
+        };
+
+        midiManager.registerDeviceCallback(deviceCallback, mainHandler);
+        deviceCallbackRegistered = true;
+    }
+
+    public void rescanDevices() {
+        if (!isConnected) {
+            scanDevices();
+            return;
+        }
+
+        disconnectCurrentDevice();
+        scanDevices();
+    }
+
+    public void disconnectCurrentDevice() {
+        isOpeningDevice = false;
+        closeCurrentConnection();
+        setDisconnectedState();
+    }
+
+    private void closeCurrentConnection() {
+        try {
+            if (outputPort != null) {
+                outputPort.close();
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Error closing output port: " + e.getMessage());
+        }
+
+        try {
+            if (midiDevice != null) {
+                midiDevice.close();
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Error closing MIDI device: " + e.getMessage());
+        }
+
+        outputPort = null;
+        midiDevice = null;
+    }
+
+    private void setDisconnectedState() {
+        currentDeviceId = -1;
+        isConnected = false;
+        currentDeviceName = "NO REGISTRADO";
+        clearEventBuffer();
+    }
+
+    private static void clearEventBuffer() {
+        synchronized (bufferLock) {
+            writeIndex = 0;
+            readIndex = 0;
+            eventCount = 0;
         }
     }
 
@@ -277,14 +405,13 @@ public class MidiInputBridge {
      */
     public void close() {
         try {
-            if (outputPort != null) {
-                outputPort.close();
+            if (midiManager != null && deviceCallbackRegistered && deviceCallback != null) {
+                midiManager.unregisterDeviceCallback(deviceCallback);
             }
-            if (midiDevice != null) {
-                midiDevice.close();
-            }
-            isConnected = false;
-            currentDeviceName = "NO REGISTRADO";
+
+            deviceCallbackRegistered = false;
+            deviceCallback = null;
+            disconnectCurrentDevice();
             Log.d(TAG, "Closed");
         } catch (Exception e) {
             Log.e(TAG, "Error closing: " + e.getMessage());
