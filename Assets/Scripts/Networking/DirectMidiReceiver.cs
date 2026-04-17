@@ -291,9 +291,11 @@ public class DirectMidiReceiver : MonoBehaviour
 
         if (!validationActive)
         {
-            manualDisconnectRequested = true;
+            // En escenas sin validacion MIDI solo suspendemos el monitoreo.
+            // No forzamos desconexion para no generar eventos ni molestar modos como canto.
+            manualDisconnectRequested = false;
             nextReconnectAttemptTime = 0f;
-            DisconnectCurrentDevice();
+            ClearQueuedMessages();
             return;
         }
 

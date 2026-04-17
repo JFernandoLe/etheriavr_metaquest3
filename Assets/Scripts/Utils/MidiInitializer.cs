@@ -15,6 +15,7 @@ public class MidiInitializer : MonoBehaviour
     private const string StatusWidgetName = "MIDI Status Widget";
     private const string LoginSceneName = "LoginScene";
     private const string RegisterSceneName = "RegisterScene";
+    private const string SingGameSceneName = "SingGame";
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     public static void Initialize()
@@ -44,7 +45,8 @@ public class MidiInitializer : MonoBehaviour
     public static bool ShouldEnableMidiForScene(string sceneName)
     {
         return !string.Equals(sceneName, LoginSceneName, System.StringComparison.Ordinal) &&
-               !string.Equals(sceneName, RegisterSceneName, System.StringComparison.Ordinal);
+               !string.Equals(sceneName, RegisterSceneName, System.StringComparison.Ordinal) &&
+               !string.Equals(sceneName, SingGameSceneName, System.StringComparison.Ordinal);
     }
 
     private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
