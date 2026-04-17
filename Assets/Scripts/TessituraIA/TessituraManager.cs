@@ -11,38 +11,35 @@ public class AIResponse
 
 public class TessituraManager : MonoBehaviour
 {
+    [Header("Referencias")]
     public SUDPReceiver receiver;
+    public AuthService authServiceManual; // Arrastra el AuthManager aquí en el Inspector
 
+    [Header("UI TextmeshPro")]
     public TextMeshPro currentNoteText;
     public TextMeshPro rangeText;
     public TextMeshPro resultText;
 
     private int minMidi = 999;
     private int maxMidi = 0;
-
     private float totalMidi = 0f;
     private int count = 0;
-
     private int stableFrames = 0;
     private int totalFrames = 0;
-
     private int lastMidi = -1;
-
     private bool isMeasuring = true;
 
     void Update()
     {
-        if (!isMeasuring) return;
-        if (receiver == null) return;
+        if (!isMeasuring || receiver == null) return;
 
         int midi = receiver.GetCurrentMidi();
 
-        //  FILTRO BÁSICO
+        // Filtro de rango vocal humano estándar
         if (midi < 40 || midi > 85) return;
 
         totalFrames++;
 
-        //  ESTABILIDAD CORRECTA (persistente)
         if (midi == lastMidi)
             stableFrames++;
         else
@@ -50,55 +47,50 @@ public class TessituraManager : MonoBehaviour
 
         lastMidi = midi;
 
-        //  SOLO NOTAS ESTABLES
+        // Solo procesar si la nota es estable
         if (stableFrames < 3) return;
 
-        //  PROMEDIO ACTUAL (dinámico)
         float currentAvg = (count > 0) ? totalMidi / count : midi;
+        if (midi > currentAvg + 10) return; // Ignorar picos absurdos
 
-        //  IGNORAR PICOS EXTREMOS
-        if (midi > currentAvg + 10) return;
-
-        // rango
         if (midi < minMidi) minMidi = midi;
         if (midi > maxMidi) maxMidi = midi;
 
-        // promedio
         totalMidi += midi;
         count++;
 
-        // UI
-        if (currentNoteText != null)
-            currentNoteText.text = MidiToNote(midi);
-
-        if (rangeText != null)
-            rangeText.text = $"{MidiToNote(minMidi)} - {MidiToNote(maxMidi)}";
+        if (currentNoteText != null) currentNoteText.text = MidiToNote(midi);
+        if (rangeText != null) rangeText.text = $"{MidiToNote(minMidi)} - {MidiToNote(maxMidi)}";
     }
 
     public void FinishMeasurement()
     {
-        Debug.Log("TERMINÉ MEDICIÓN");
-
+        Debug.Log("<color=yellow>TERMINÉ MEDICIÓN</color>");
         isMeasuring = false;
 
         float avg = totalMidi / Mathf.Max(count, 1);
-
-        //  AJUSTE INTELIGENTE
         float adjustedMax = Mathf.Min(maxMidi, avg + 8);
         float range = adjustedMax - minMidi;
-
         float stability = (float)stableFrames / Mathf.Max(totalFrames, 1);
-
-        Debug.Log($"{minMidi}-{maxMidi} | AVG:{avg} | STAB:{stability}");
 
         StartCoroutine(SendToAI(minMidi, adjustedMax, avg, range, stability));
     }
 
     IEnumerator SendToAI(float min, float max, float avg, float range, float stability)
     {
+        float timeout = 5f;
+        float timer = 0;
+
+        // 1. Espera robusta al buscador de servidor
+        while (string.IsNullOrEmpty(AIServerFinder.ServerURL) && timer < timeout)
+        {
+            timer += Time.deltaTime;
+            yield return null;
+        }
+
         if (string.IsNullOrEmpty(AIServerFinder.ServerURL))
         {
-            Debug.LogError(" Servidor aún no encontrado");
+            Debug.LogError("<color=red>Error:</color> Servidor IA no encontrado en la red local.");
             yield break;
         }
 
@@ -113,15 +105,9 @@ public class TessituraManager : MonoBehaviour
             stability = stability
         };
 
-        string json = JsonUtility.ToJson(data);
-
-        Debug.Log(" Enviando a: " + url);
-        Debug.Log(" JSON: " + json);
-
+        string jsonPayload = JsonUtility.ToJson(data);
         UnityWebRequest www = new UnityWebRequest(url, "POST");
-
-        byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(json);
-
+        byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonPayload);
         www.uploadHandler = new UploadHandlerRaw(bodyRaw);
         www.downloadHandler = new DownloadHandlerBuffer();
         www.SetRequestHeader("Content-Type", "application/json");
@@ -130,18 +116,68 @@ public class TessituraManager : MonoBehaviour
 
         if (www.result == UnityWebRequest.Result.Success)
         {
-            string response = www.downloadHandler.text;
+            string jsonResponse = www.downloadHandler.text;
+            Debug.Log("<color=green>IA RESPONSE:</color> " + jsonResponse);
 
-            Debug.Log(" IA RESPONSE: " + response);
+            AIResponse ai = JsonUtility.FromJson<AIResponse>(jsonResponse);
 
-            AIResponse ai = JsonUtility.FromJson<AIResponse>(response);
+            if (ai != null && !string.IsNullOrEmpty(ai.voice))
+            {
+                if (resultText != null) resultText.text = ai.voice;
 
-            if (ai != null && resultText != null)
-                resultText.text = ai.voice;
+                if (UserSession.Instance != null)
+                {
+                    // Limpiamos la respuesta de la IA (quitamos espacios y pasamos a Mayúsculas)
+                    string vozIA = ai.voice.Trim();
+                    string valorParaDB = "";
+
+                    // Mapeo exacto según tu lista de la IA
+                    switch (vozIA)
+                    {
+                        case "Bajo":
+                            valorParaDB = "BASS";
+                            break;
+                        case "Baritono":
+                            valorParaDB = "BARITONE";
+                            break;
+                        case "Tenor":
+                            valorParaDB = "TENOR";
+                            break;
+                        case "Contralto":
+                            valorParaDB = "CONTRALTO";
+                            break;
+                        case "Mezzosoprano":
+                            valorParaDB = "MEZZO_SOPRANO";
+                            break;
+                        case "Soprano":
+                            valorParaDB = "SOPRANO";
+                            break;
+                        default:
+                            valorParaDB = vozIA.ToUpper(); // Fallback por si acaso
+                            break;
+                    }
+
+                    // Actualizamos la sesión local inmediatamente
+                    UserSession.Instance.tessitura = valorParaDB;
+                    Debug.Log($"<color=cyan>[Mapeo]</color> IA: {vozIA} -> DB: {valorParaDB}");
+
+                    // Lanzamos el guardado al AuthService
+                    if (authServiceManual != null || FindObjectOfType<AuthService>() != null)
+                    {
+                        AuthService auth = authServiceManual != null ? authServiceManual : FindObjectOfType<AuthService>();
+                        StartCoroutine(auth.UpdateTessitura(
+                            UserSession.Instance.userId,
+                            valorParaDB,
+                            (res) => Debug.Log("<color=green>[EXITO]</color> Guardado en MySQL"),
+                            (err) => Debug.LogError("Error al guardar: " + err)
+                        ));
+                    }
+                }
+            }
         }
         else
         {
-            Debug.LogError(" Error IA: " + www.error);
+            Debug.LogError("Error de conexión con IA: " + www.error);
         }
     }
 
@@ -150,7 +186,6 @@ public class TessituraManager : MonoBehaviour
         string[] notes = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
         int note = midi % 12;
         int octave = (midi / 12) - 1;
-
         return notes[note] + octave;
     }
 }
