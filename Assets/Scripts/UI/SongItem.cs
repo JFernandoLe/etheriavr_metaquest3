@@ -10,6 +10,7 @@ public class SongItem : MonoBehaviour
     public TMP_Text txtTituloArtista;
     public TMP_Text txtTonalidadTempo;
     public TMP_Text txtDetalles;
+    public TMP_Text txtAdvertencia;
 
     [Header("Botón de Acción")]
     [SerializeField] private Button btnJugar;
@@ -42,7 +43,7 @@ public class SongItem : MonoBehaviour
             
             txtDetalles.text = $"Modo: {data.mode}";
         }
-
+        VerificarCompatibilidadVocal(data.musical_key, data.mode);
         // Configuración del botón específico
         if (btnJugar != null)
         {
@@ -93,6 +94,56 @@ public class SongItem : MonoBehaviour
             var colors = btnJugar.colors;
             colors.disabledColor = new Color(0.5f, 0.5f, 0.5f, 0.5f); // Gris semi-transparente
             btnJugar.colors = colors;
+        }
+    }
+
+    private void VerificarCompatibilidadVocal(string tonalidad, string modo)
+    {
+        if (txtAdvertencia == null) return;
+
+        txtAdvertencia.text = "";
+        txtAdvertencia.gameObject.SetActive(false);
+
+        if (modo != "CANTO" || UserSession.Instance == null || string.IsNullOrEmpty(UserSession.Instance.tessitura))
+            return;
+
+        string t = UserSession.Instance.tessitura.ToUpper();
+        tonalidad = tonalidad.ToUpper();
+
+        // Definimos grupos lógicos de tonalidades
+        // Agudas: G, G#, A, A#, B (Suelen requerir notas de cabeza o falsete)
+        bool esAguda = tonalidad.Contains("G") || tonalidad.Contains("A") || tonalidad.Contains("B");
+
+        // Graves: C, C#, D, D#, E (Suelen quedar en el registro bajo/pecho)
+        bool esGrave = tonalidad.Contains("C") || tonalidad.Contains("D") || tonalidad.Contains("E");
+
+        string mensaje = "";
+
+        // --- LÓGICA PARA VOCES MASCULINAS ---
+        if (t == "BASS" && esAguda)
+            mensaje = "<color=orange>Advertencia: Muy alta para tu registro de Bajo.</color>";
+
+        else if (t == "BARITONE" && (tonalidad.Contains("A") || tonalidad.Contains("B")))
+            mensaje = "<color=orange>Advertencia: Esta cancion suele ser alta para un Baritono.</color>";
+
+        else if (t == "TENOR" && esGrave)
+            mensaje = "<color=yellow>Advertencia: Puede quedarte algo grave para tu voz de Tenor.</color>";
+
+        // --- LÓGICA PARA VOCES FEMENINAS ---
+        else if (t == "CONTRALTO" && esAguda)
+            mensaje = "<color=orange>Advertencia: Tonalidad alta para una voz Contralto.</color>";
+
+        else if (t == "MEZZO_SOPRANO" && tonalidad.Contains("B"))
+            mensaje = "<color=orange>Advertencia: El tono Si (B) puede ser muy exigente para Mezzos.</color>";
+
+        else if (t == "SOPRANO" && esGrave)
+            mensaje = "<color=yellow>Advertencia: Tonalidad baja para tu registro de Soprano.</color>";
+
+        // Mostrar si hay mensaje
+        if (!string.IsNullOrEmpty(mensaje))
+        {
+            txtAdvertencia.text = mensaje;
+            txtAdvertencia.gameObject.SetActive(true);
         }
     }
 }
