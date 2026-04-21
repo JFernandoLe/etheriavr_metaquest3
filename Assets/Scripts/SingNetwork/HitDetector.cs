@@ -43,7 +43,7 @@ public class HitDetector : MonoBehaviour
                 int diff = Mathf.Abs(playerMidi - sn.midi);
 
                 Renderer rend = noteObj.GetComponent<Renderer>();
-
+                //Debug.Log("Mostrando resultado");
                 if (diff == 0)
                 {
                     currentPerfect = true;

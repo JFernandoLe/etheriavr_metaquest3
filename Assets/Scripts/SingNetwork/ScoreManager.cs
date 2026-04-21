@@ -21,7 +21,6 @@ public class ScoreManager : MonoBehaviour
 
     void Awake()
     {
-        Debug.Log("ScoreManager activo: " + gameObject.name);
         Instance = this;
     }
 

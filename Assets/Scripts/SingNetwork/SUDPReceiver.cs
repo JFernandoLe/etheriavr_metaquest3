@@ -1,9 +1,10 @@
-using UnityEngine;
+using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using System.Globalization;
+using TMPro;
+using UnityEngine;
 
 public class SUDPReceiver : MonoBehaviour
 {
@@ -22,6 +23,8 @@ public class SUDPReceiver : MonoBehaviour
     // Suavizado
     private float smoothedCents = 0f;
     private float smoothingFactor = 0.1f;
+
+    public TextMeshPro centsText;
 
     void Start()
     {
@@ -86,6 +89,7 @@ public class SUDPReceiver : MonoBehaviour
                 currentTuningState = tuningState;
 
                 Debug.Log($"Nota: {note} | {frequency} Hz | Cents: {cents:F2} | Estado: {tuningState}");
+                
             }
             catch
             {
@@ -99,11 +103,22 @@ public class SUDPReceiver : MonoBehaviour
         float absCents = Mathf.Abs(cents);
 
         if (absCents <= 5f)
+        {
+            ShowCents($"{cents}", Color.red);
             return "PERFECTO";
+        }
         else if (absCents <= 15f)
+        {
+            ShowCents($"{cents}", Color.yellow);
             return "CASI";
+        }
         else
+        {
+            ShowCents($"{cents}", Color.red);
             return "DESAFINADO";
+        }
+            
+
     }
 
     // Métodos públicos para el visualizador
@@ -127,5 +142,14 @@ public class SUDPReceiver : MonoBehaviour
 
         if (client != null)
             client.Close();
+    }
+
+    void ShowCents(string message, Color color)
+    {
+        if (centsText == null)
+            return;
+
+        centsText.text = message;
+        centsText.color = color;
     }
 }
