@@ -94,6 +94,13 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets
         bool m_UIScrollingEnabled = true;
 
         [Space]
+        [Header("Custom Interaction Mode")]
+
+        [SerializeField]
+        [Tooltip("If false, locomotion and teleport are fully disabled while UI interaction stays available.")]
+        bool m_EnableLocomotionAndTeleport = true;
+
+        [Space]
         [Header("Mediation Events")]
 
         [SerializeField]
@@ -130,6 +137,30 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets
             }
         }
 
+        public bool enableLocomotionAndTeleport
+        {
+            get => m_EnableLocomotionAndTeleport;
+            set
+            {
+                if (m_EnableLocomotionAndTeleport == value)
+                    return;
+
+                m_EnableLocomotionAndTeleport = value;
+                m_LocomotionUsers.Clear();
+                m_PostponedDeactivateTeleport = false;
+                m_PostponedNearRegionLocomotion = false;
+
+                if (!m_EnableLocomotionAndTeleport && m_TeleportInteractor != null)
+                    m_TeleportInteractor.gameObject.SetActive(false);
+
+                if (m_StartCalled)
+                {
+                    UpdateLocomotionActions();
+                    UpdateUIActions();
+                }
+            }
+        }
+
         bool m_StartCalled;
         bool m_PostponedDeactivateTeleport;
         bool m_PostponedNearRegionLocomotion;
@@ -155,40 +186,43 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets
                 m_RayInteractor.uiHoverExited.AddListener(OnUIHoverExited);
             }
 
-            var teleportModeAction = GetInputAction(m_TeleportMode);
-            if (teleportModeAction != null)
+            if (m_EnableLocomotionAndTeleport)
             {
-                teleportModeAction.performed += OnStartTeleport;
-                teleportModeAction.performed += OnStartLocomotion;
-                teleportModeAction.canceled += OnCancelTeleport;
-                teleportModeAction.canceled += OnStopLocomotion;
-            }
+                var teleportModeAction = GetInputAction(m_TeleportMode);
+                if (teleportModeAction != null)
+                {
+                    teleportModeAction.performed += OnStartTeleport;
+                    teleportModeAction.performed += OnStartLocomotion;
+                    teleportModeAction.canceled += OnCancelTeleport;
+                    teleportModeAction.canceled += OnStopLocomotion;
+                }
 
-            var teleportModeCancelAction = GetInputAction(m_TeleportModeCancel);
-            if (teleportModeCancelAction != null)
-            {
-                teleportModeCancelAction.performed += OnCancelTeleport;
-            }
+                var teleportModeCancelAction = GetInputAction(m_TeleportModeCancel);
+                if (teleportModeCancelAction != null)
+                {
+                    teleportModeCancelAction.performed += OnCancelTeleport;
+                }
 
-            var moveAction = GetInputAction(m_Move);
-            if (moveAction != null)
-            {
-                moveAction.started += OnStartLocomotion;
-                moveAction.canceled += OnStopLocomotion;
-            }
+                var moveAction = GetInputAction(m_Move);
+                if (moveAction != null)
+                {
+                    moveAction.started += OnStartLocomotion;
+                    moveAction.canceled += OnStopLocomotion;
+                }
 
-            var turnAction = GetInputAction(m_Turn);
-            if (turnAction != null)
-            {
-                turnAction.started += OnStartLocomotion;
-                turnAction.canceled += OnStopLocomotion;
-            }
+                var turnAction = GetInputAction(m_Turn);
+                if (turnAction != null)
+                {
+                    turnAction.started += OnStartLocomotion;
+                    turnAction.canceled += OnStopLocomotion;
+                }
 
-            var snapTurnAction = GetInputAction(m_SnapTurn);
-            if (snapTurnAction != null)
-            {
-                snapTurnAction.started += OnStartLocomotion;
-                snapTurnAction.canceled += OnStopLocomotion;
+                var snapTurnAction = GetInputAction(m_SnapTurn);
+                if (snapTurnAction != null)
+                {
+                    snapTurnAction.started += OnStartLocomotion;
+                    snapTurnAction.canceled += OnStopLocomotion;
+                }
             }
         }
 
@@ -249,6 +283,9 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets
 
         void OnStartTeleport(InputAction.CallbackContext context)
         {
+            if (!m_EnableLocomotionAndTeleport)
+                return;
+
             m_PostponedDeactivateTeleport = false;
 
             if (m_TeleportInteractor != null)
@@ -265,6 +302,9 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets
 
         void OnCancelTeleport(InputAction.CallbackContext context)
         {
+            if (!m_EnableLocomotionAndTeleport)
+                return;
+
             // Do not deactivate the teleport interactor in this callback.
             // We delay turning off the teleport interactor in this callback so that
             // the teleport interactor has a chance to complete the teleport if needed.
@@ -282,11 +322,17 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets
 
         void OnStartLocomotion(InputAction.CallbackContext context)
         {
+            if (!m_EnableLocomotionAndTeleport)
+                return;
+
             m_LocomotionUsers.Add(context.action);
         }
 
         void OnStopLocomotion(InputAction.CallbackContext context)
         {
+            if (!m_EnableLocomotionAndTeleport)
+                return;
+
             m_LocomotionUsers.Remove(context.action);
 
             if (m_LocomotionUsers.Count == 0 && m_HoveringScrollableUI)
@@ -298,6 +344,12 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets
 
         void OnNearFarSelectionRegionChanged(NearFarInteractor.Region selectionRegion)
         {
+            if (!m_EnableLocomotionAndTeleport)
+            {
+                DisableAllLocomotionActions();
+                return;
+            }
+
             m_PostponedNearRegionLocomotion = false;
 
             if (selectionRegion == NearFarInteractor.Region.None)
@@ -344,6 +396,9 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets
 
         void OnRaySelectEntered(SelectEnterEventArgs args)
         {
+            if (!m_EnableLocomotionAndTeleport)
+                return;
+
             if (m_RayInteractor.manipulateAttachTransform)
             {
                 // Disable locomotion and turn actions
@@ -353,6 +408,9 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets
 
         void OnRaySelectExited(SelectExitEventArgs args)
         {
+            if (!m_EnableLocomotionAndTeleport)
+                return;
+
             if (m_RayInteractor.manipulateAttachTransform)
             {
                 // Re-enable the locomotion and turn actions
@@ -421,6 +479,16 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets
 
         protected void Update()
         {
+            if (!m_EnableLocomotionAndTeleport)
+            {
+                if (m_TeleportInteractor != null && m_TeleportInteractor.gameObject.activeSelf)
+                    m_TeleportInteractor.gameObject.SetActive(false);
+
+                m_PostponedDeactivateTeleport = false;
+                m_PostponedNearRegionLocomotion = false;
+                return;
+            }
+
             // Since this behavior has the default execution order, it runs after the XRInteractionManager,
             // so selection events have been finished by now this frame. This means that the teleport interactor
             // has had a chance to process its select interaction event and teleport if needed.
@@ -457,6 +525,16 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets
 
         void UpdateLocomotionActions()
         {
+            if (!m_EnableLocomotionAndTeleport)
+            {
+                DisableAllLocomotionActions();
+
+                if (m_TeleportInteractor != null)
+                    m_TeleportInteractor.gameObject.SetActive(false);
+
+                return;
+            }
+
             // Disable/enable Teleport and Turn when Move is enabled/disabled.
             SetEnabled(m_Move, m_SmoothMotionEnabled);
             SetEnabled(m_TeleportMode, !m_SmoothMotionEnabled);

@@ -52,8 +52,6 @@ public class HitLineRenderer : MonoBehaviour
         
         // Quitar collider (no lo necesitamos para visual)
         Destroy(lineObject.GetComponent<Collider>());
-        
-        Debug.Log("[HitLine] Línea de hit creada");
     }
 
     void Update()

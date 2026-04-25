@@ -24,7 +24,6 @@ public class PlayerSpawnPoint : MonoBehaviour
     {
         if (!repositionPlayerOnStart)
         {
-            Debug.Log("[PlayerSpawn] Reubicación automática desactivada. Se conserva la posición actual del jugador.");
             return;
         }
 
@@ -49,8 +48,6 @@ public class PlayerSpawnPoint : MonoBehaviour
             
             // Aplicar rotación (solo en eje Y)
             xrOrigin.transform.rotation = Quaternion.Euler(0, targetRotationY, 0);
-            
-            Debug.Log($"[PlayerSpawn] Jugador posicionado en {targetPosition} con rotación Y={targetRotationY}°");
         }
         else
         {

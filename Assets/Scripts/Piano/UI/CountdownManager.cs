@@ -54,7 +54,6 @@ public class CountdownManager : MonoBehaviour
             Debug.LogWarning("[Countdown] Countdown ya está activo, ignorando llamada múltiple");
             return;
         }
-        Debug.Log("[Countdown] Iniciando countdown...");
         StartCoroutine(CountdownCoroutine());
     }
 
@@ -63,7 +62,6 @@ public class CountdownManager : MonoBehaviour
         isCountdownActive = true;
         
         // Canvas ya está activo, solo mostramos el texto
-        Debug.Log("[Countdown] Iniciando countdown 3-2-1-GO...");
 
         // 3
         ShowNumber("3");
@@ -95,8 +93,6 @@ public class CountdownManager : MonoBehaviour
         
         // Notificar que terminó
         OnCountdownComplete?.Invoke();
-        
-        Debug.Log("[Countdown] ¡Countdown completado! Juego iniciado.");
     }
 
     private void ShowNumber(string text)
@@ -105,7 +101,6 @@ public class CountdownManager : MonoBehaviour
         {
             countdownText.text = text;
             countdownText.fontSize = (text == "GO!") ? 120 : 150;
-            Debug.Log($"[Countdown] {text}");
         }
     }
 

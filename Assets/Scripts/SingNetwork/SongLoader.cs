@@ -24,9 +24,9 @@ public class SongLoader : MonoBehaviour
             Debug.Log("PATH DEL BACKEND: " + path);
 
             songName = Path.GetFileNameWithoutExtension(path);
-
-            Debug.Log("SONG NAME FINAL: " + songName);
         }
+
+        SelectedSongManager.Instance?.LogSongSelectionCheckpoint("Escena SingGame iniciada");
 
         LoadSong(songName);
     }
@@ -91,11 +91,11 @@ public class SongLoader : MonoBehaviour
 
         if (loadedSong == null)
         {
-            Debug.LogError("JSON inválido o vacío");
+            Debug.LogError("JSON invalido o vacio");
             yield break;
         }
 
-        Debug.Log("JSON cargado correctamente");
+        SelectedSongManager.Instance?.LogSongSelectionCheckpoint("Canto JSON listo");
 
 
         string audioPath = basePath + "/" + fileName + ".wav";
@@ -124,7 +124,7 @@ public class SongLoader : MonoBehaviour
             audioSource.clip = clip;
         }
 
-        Debug.Log(" AUDIO cargado correctamente");
+        SelectedSongManager.Instance?.CompleteSongSelectionMeasurement("Canto listo para iniciar gameplay");
 
         StartSong();
     }

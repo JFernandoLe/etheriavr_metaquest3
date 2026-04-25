@@ -19,17 +19,19 @@ public class HistoryManager : MonoBehaviour
     {
         if (UserSession.Instance == null) return;
 
+        Debug.Log($"[SessionAudit] Solicitando historial visible | user={UserSession.Instance.userId}");
+
         StartCoroutine(authService.GetUserHistory(UserSession.Instance.userId,
             onSuccess: (json) => {
-
-                Debug.Log("<color=cyan>[Historial] JSON recibido:</color> " + json);
-
                 PracticeSessionListWrapper wrapper = JsonUtility.FromJson<PracticeSessionListWrapper>(json);
 
                 if (wrapper.sessions == null || wrapper.sessions.Count == 0)
-                    Debug.LogWarning("El JSON se leyó pero la lista de sesiones está vacía.");
+                    Debug.LogWarning("El JSON se leyï¿½ pero la lista de sesiones estï¿½ vacï¿½a.");
                 else
+                {
+                    Debug.Log($"[SessionAudit] Historial listo para UI | sesiones={wrapper.sessions.Count}");
                     GenerarLista(wrapper.sessions);
+                }
             },
             onError: (err) => Debug.LogError("Error al obtener historial: " + err)
         ));
@@ -48,11 +50,10 @@ public class HistoryManager : MonoBehaviour
             {
                 // LE PASAMOS LOS DATOS Y "THIS" (EL MANAGER)
                 scriptFila.Configurar(s, this);
-                Debug.Log($"<color=blue>Manager asignado a la fila de: {s.song_title}</color>");
             }
             else
             {
-                Debug.LogError("¡CUIDADO! El Prefab no tiene el script SessionItem pegado.");
+                Debug.LogError("ï¿½CUIDADO! El Prefab no tiene el script SessionItem pegado.");
             }
         }
     }
@@ -64,7 +65,7 @@ public class HistoryManager : MonoBehaviour
             // 1. Llenamos los datos
             panelDetalles.MostrarDatos(datos);
 
-            // 2. Apagamos el panel donde está este script (PanelHistorial)
+            // 2. Apagamos el panel donde estï¿½ este script (PanelHistorial)
             // Usamos la referencia directa al objeto que contiene el historial
             this.transform.parent.gameObject.SetActive(false);
 

@@ -103,7 +103,6 @@ public class GameplayScoring : MonoBehaviour
         if (midiAudioManager == null)
         {
             midiAudioManager = FindObjectOfType<MidiAudioManager>();
-            Debug.Log($"<color=blue>[GameplayScoring]</color> 🔍 Buscando MidiAudioManager: {(midiAudioManager != null ? "✅ ENCONTRADO" : "❌ NO ENCONTRADO")}");
         }
 
         AssignStaffReferences();
@@ -114,13 +113,12 @@ public class GameplayScoring : MonoBehaviour
             publicSystem = FindObjectOfType<PianoPublicSystem>();
             if (publicSystem == null)
             {
-                Debug.LogWarning("<color=yellow>[GameplayScoring]</color> ⚠️ PianoPublicSystem no encontrado, creando...");
+                Debug.LogWarning("[GameplayScoring] PianoPublicSystem no encontrado, creando...");
                 GameObject publicObj = new GameObject("PianoPublicSystem");
                 publicSystem = publicObj.AddComponent<PianoPublicSystem>();
             }
             else
             {
-                Debug.Log("<color=green>[GameplayScoring]</color> ✅ PianoPublicSystem auto-detectado");
             }
         }
         
@@ -130,14 +128,12 @@ public class GameplayScoring : MonoBehaviour
             // ✅ Suscribirse a eventos de nota MIDI
             midiAudioManager.OnMidiNoteOn += ProcessMidiNoteOn;
             midiAudioManager.OnMidiNoteOff += ProcessMidiNoteOff;
-            Debug.Log("[GameplayScoring] ✅ Suscrito a eventos MIDI (OnMidiNoteOn/Off)");
         }
         else
         {
             Debug.LogWarning("[GameplayScoring] ⚠️ MidiAudioManager no encontrado - Scoring NO detectará notas");
         }
         
-        Debug.Log("[GameplayScoring] ✅ Sistema de scoring inicializado");
     }
 
     private void AssignStaffReferences()
@@ -206,22 +202,6 @@ public class GameplayScoring : MonoBehaviour
                 totalPlayableNoteUnits += midiNotes.Length;
             }
             
-            // 🔍 DEBUG: Mostrar todas las notas esperadas
-            Debug.Log($"<color=yellow>[GameplayScoring DEBUG]</color> 📋 {expectedNotes.Count} notas cargadas:");
-            for (int i = 0; i < Mathf.Min(10, expectedNotes.Count); i++)
-            {
-                GameNoteData note = expectedNotes[i];
-                string midiStr = note.midi_notes != null && note.midi_notes.Length > 0 
-                    ? $"MIDI {string.Join(",", note.midi_notes)}" 
-                    : "NO MIDI";
-                Debug.Log($"  [{i}] {midiStr} @ time={note.time:F2}s, duration={note.duration:F2}s, clef={note.clef}");
-            }
-            if (expectedNotes.Count > 10)
-            {
-                Debug.Log($"  ... y {expectedNotes.Count - 10} notas más");
-            }
-            
-            Debug.Log($"[GameplayScoring] 📋 {expectedNotes.Count} notas cargadas para scoring");
         }
         else
         {
@@ -246,10 +226,7 @@ public class GameplayScoring : MonoBehaviour
         if (publicSystem != null)
         {
             publicSystem.StartGame();
-            Debug.Log("[GameplayScoring] 👥 Sistema público iniciado");
         }
-        
-        Debug.Log("[GameplayScoring] 🎮 Scoring iniciado");
     }
     
     /// <summary>
@@ -258,7 +235,6 @@ public class GameplayScoring : MonoBehaviour
     public void PauseScoring()
     {
         isGameActive = false;
-        Debug.Log("[GameplayScoring] ⏸️ Scoring pausado");
     }
     
     /// <summary>
@@ -267,7 +243,6 @@ public class GameplayScoring : MonoBehaviour
     public void ResumeScoring()
     {
         isGameActive = true;
-        Debug.Log("[GameplayScoring] ▶️ Scoring reanudado");
     }
     
     void Update()
@@ -353,8 +328,6 @@ public class GameplayScoring : MonoBehaviour
             activePressStates[midiNote].pressStartTime = noteOnTime;
             activePressStates[midiNote].lastProcessedTime = noteOnTime;
         }
-        
-        Debug.Log($"<color=magenta>[GameplayScoring]</color> 🎹 MIDI {midiNote} PRESIONADO @ {currentGameTime:F3}s (vel={velocity})");
     }
 
     private bool TrackOnsetTiming(int midiNote, float noteOnTime)
@@ -578,13 +551,11 @@ public class GameplayScoring : MonoBehaviour
         {
             perfectPlayableNoteUnits += perfectUnits;
             TriggerHitFeedback(note, score.wasPerfect);
-            Debug.Log($"[GameplayScoring] ✅ HIT ponderado {weightedUnits:F2}/{midiNotes.Length} | MIDI {string.Join(",", midiNotes)} | t={note.time:F3}s");
             OnNoteHit?.Invoke(note, score.wasPerfect);
             return;
         }
 
         ApplyVisualFeedbackToNoteStaffs(note, staff => staff.SetHitLineError());
-        Debug.Log($"[GameplayScoring] ❌ MISS | MIDI {string.Join(",", midiNotes)} | t={note.time:F3}s");
         OnNoteMissed?.Invoke(note);
     }
 
@@ -604,7 +575,6 @@ public class GameplayScoring : MonoBehaviour
     private void TriggerHitFeedback(GameNoteData note, bool isPerfect)
     {
         ApplyVisualFeedbackToNoteStaffs(note, staff => staffHitFeedbackTime[staff] = Time.time);
-        Debug.Log($"[GameplayScoring] 💚 Feedback visual activado para MIDI {string.Join(",", GetMidiNotes(note))}");
     }
     
     /// <summary>
@@ -735,11 +705,7 @@ public class GameplayScoring : MonoBehaviour
         }
         
         GameplayResults results = CalculateFinalScore();
-        
-        Debug.Log($"[GameplayScoring] 🏁 JUEGO TERMINADO");
-        Debug.Log($"[GameplayScoring] 📊 Resultado: {results.notes_hit}/{results.total_notes} aciertos ({results.accuracy_percentage:F1}%)");
-        Debug.Log($"[GameplayScoring] 🟢 Perfectos: {results.perfect_notes} | ❌ Perdidas: {results.notes_missed}");
-        
+
         OnGameFinished?.Invoke(results);
     }
     
@@ -758,7 +724,6 @@ public class GameplayScoring : MonoBehaviour
 
         currentlyPressedNotes.Remove(midiNote);
         HideLiveInputGuide(midiNote);
-        Debug.Log($"<color=orange>[GameplayScoring DEBUG]</color> 🔲 MIDI {midiNote} soltado @ {currentGameTime:F3}s");
     }
 
     void OnDestroy()

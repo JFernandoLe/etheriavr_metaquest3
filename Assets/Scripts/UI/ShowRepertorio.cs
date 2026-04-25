@@ -27,9 +27,12 @@ public class ShowRepertorio : MonoBehaviour
         foreach (Transform child in songBoxContainer) Destroy(child.gameObject);
         songItems.Clear();
 
+        SelectedSongManager.Instance?.BeginRepertoryRequestMeasurement();
+
         StartCoroutine(authService.GetSongs(
             onSuccess: (json) => {
                 SongListWrapper wrapper = JsonUtility.FromJson<SongListWrapper>(json);
+                int songCount = wrapper != null && wrapper.songs != null ? wrapper.songs.Count : 0;
                 
                 foreach (var song in wrapper.songs)
                 {
@@ -45,8 +48,13 @@ public class ShowRepertorio : MonoBehaviour
                         UpdateSongItemButton(item);
                     }
                 }
+
+                SelectedSongManager.Instance?.LogRepertoryRequestCompleted(songCount);
             },
-            onError: (err) => Debug.LogError("Error al cargar canciones: " + err)
+            onError: (err) => {
+                SelectedSongManager.Instance?.LogRepertoryRequestFailed(err);
+                Debug.LogError("Error al cargar canciones: " + err);
+            }
         ));
     }
     

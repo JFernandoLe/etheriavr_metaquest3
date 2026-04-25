@@ -55,7 +55,7 @@ public class EndGameManager : MonoBehaviour
         shown = true;
         gameEnded = true;
 
-        // 1. Cálculos de puntaje
+        // 1. Cï¿½lculos de puntaje
         float pitch = scoreManager.accuracyPercent;
         float rhythm = scoreManager.rhythmPercent;
         float global = (pitch + rhythm) / 2f;
@@ -78,7 +78,7 @@ public class EndGameManager : MonoBehaviour
 
     private void LlenarDatosInferiores()
     {
-        // Obtener nombre de la canción
+        // Obtener nombre de la canciï¿½n
         if (SelectedSongManager.Instance != null && SelectedSongManager.Instance.selectedSong != null)
         {
             if (cancionDetalleTxt != null)
@@ -93,7 +93,7 @@ public class EndGameManager : MonoBehaviour
         if (fechaDetalleTxt != null) fechaDetalleTxt.text = "Fecha: " + ahora.ToString("yyyy-MM-dd");
         if (horaDetalleTxt != null) horaDetalleTxt.text = "Hora: " + ahora.ToString("HH:mm");
 
-        // Duración (calculada del AudioSource)
+        // Duraciï¿½n (calculada del AudioSource)
         if (duracionDetalleTxt != null && songLoader.audioSource.clip != null)
         {
             float totalSeconds = songLoader.audioSource.clip.length;
@@ -119,11 +119,13 @@ public class EndGameManager : MonoBehaviour
             harmony_score = 0
         };
 
+        Debug.Log($"[SessionAudit] Finalizando sesion canto | song={SelectedSongManager.Instance.selectedSong.title} | songId={SelectedSongManager.Instance.selectedSong.id} | mode={request.practice_mode}");
+
         if (authService != null)
         {
             StartCoroutine(authService.SavePracticeSession(request,
-                onSuccess: (res) => Debug.Log("<color=green>[Backend] Sesión guardada.</color>"),
-                onError: (err) => Debug.LogError("[Backend] Error: " + err)
+                onSuccess: (res) => Debug.Log($"[SessionAudit] Sesion canto registrada | song={SelectedSongManager.Instance.selectedSong.title} | songId={SelectedSongManager.Instance.selectedSong.id}"),
+                onError: (err) => Debug.LogError("[SessionAudit] Error registrando sesion canto | detalle=" + err)
             ));
         }
     }

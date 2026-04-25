@@ -51,7 +51,6 @@ public partial class StaffRenderer : MonoBehaviour
         
         // NO ROTAR - El pentagrama está en orientación normal
         // Las notas irán de DERECHA a IZQUIERDA usando spawn/hit points correctos
-        Debug.Log($"[StaffRenderer] Pentagrama creado - Notas irán de DERECHA → IZQUIERDA");
     }
     
     /// <summary>
@@ -59,17 +58,12 @@ public partial class StaffRenderer : MonoBehaviour
     /// </summary>
     private void CleanOldStaffLines()
     {
-        Debug.Log($"[StaffRenderer] 🧹 LIMPIANDO {transform.childCount} objetos hijos...");
-        
         // ELIMINAR TODOS LOS HIJOS sin excepciones
         while (transform.childCount > 0)
         {
             Transform child = transform.GetChild(0);
-            Debug.Log($"[StaffRenderer] 🗑️ Destruyendo: {child.name}");
             DestroyImmediate(child.gameObject);
         }
-        
-        Debug.Log($"[StaffRenderer] ✅ Limpieza completa. Hijos restantes: {transform.childCount}");
     }
 
     /// <summary>
@@ -94,15 +88,9 @@ public partial class StaffRenderer : MonoBehaviour
         {
             Debug.LogError("[StaffRenderer] 💀 NINGÚN SHADER DISPONIBLE! Las líneas serán ROSAS");
         }
-        else
-        {
-            Debug.Log($"[StaffRenderer] ✅ Shader encontrado: {shader.name}");
-        }
         
         Material unlitMaterial = new Material(shader != null ? shader : Shader.Find("UI/Default"));
         unlitMaterial.color = lineColor;
-        
-        Debug.Log($"[StaffRenderer] 🎵 Creando pentagrama {staffType} | Material: {unlitMaterial.shader.name} | Color: {lineColor}");
         
         for (int i = 0; i < 5; i++)
         {
@@ -140,7 +128,6 @@ public partial class StaffRenderer : MonoBehaviour
                 }
                 else
                 {
-                    Debug.Log($"[StaffRenderer] ✅ Línea {i}: shader={renderer.material.shader.name}, color={renderer.material.color}");
                 }
                 
                 // Desactivar sombras para VR
@@ -154,8 +141,6 @@ public partial class StaffRenderer : MonoBehaviour
             
             staffLines[i] = line;
         }
-        
-        Debug.Log($"[StaffRenderer] 🎹 {staffType} COMPLETO: {staffLines.Length} líneas | {staffWidth}m ancho | {lineThickness}m grosor");
     }
 
     /// <summary>
@@ -248,8 +233,6 @@ public partial class StaffRenderer : MonoBehaviour
         // Quitar collider
         Collider collider = hitLine.GetComponent<Collider>();
         if (collider != null) Destroy(collider);
-        
-        Debug.Log($"[StaffRenderer] 💛 Línea de hit amarilla creada (altura inicial: {lineHeight:F3}m)");
     }
     
     /// <summary>
@@ -278,8 +261,6 @@ public partial class StaffRenderer : MonoBehaviour
         Vector3 pos = hitLine.transform.localPosition;
         pos.y = centerY;
         hitLine.transform.localPosition = pos;
-        
-        Debug.Log($"[StaffRenderer] 📐 HitLine actualizada: altura={totalHeight:F3}m, center={centerY:F3}m (ledger: +{maxLedgerLinesAbove}/-{maxLedgerLinesBelow})");
     }
     
     /// <summary>
