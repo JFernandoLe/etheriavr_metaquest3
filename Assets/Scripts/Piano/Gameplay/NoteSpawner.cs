@@ -39,32 +39,17 @@ public class NoteSpawner : MonoBehaviour
         allNotes.Clear();
         nextNoteIndex = 0;
         
-        // DEBUG EXHAUSTIVO
-        Debug.Log($"\n=== [NoteSpawner] INICIANDO CARGA DE CANCIÓN ===");
-        Debug.Log($"[NoteSpawner] useContinuousMode = {useContinuousMode} (DEBE SER FALSE)");
-        Debug.Log($"[NoteSpawner] songData es null? {songData == null}");
-        
-        if (songData != null)
-        {
-            Debug.Log($"[NoteSpawner] songData.all_notes = {(songData.all_notes == null ? "NULL" : songData.all_notes.Count + " elementos")}");
-            Debug.Log($"[NoteSpawner] songData.melody = {(songData.melody == null ? "NULL" : songData.melody.Count + " elementos")}");
-            Debug.Log($"[NoteSpawner] songData.song_name = {songData.song_name}");
-        }
-        
         // MODO CONTINUO: Generar notas automáticamente por 1 minuto
         if (useContinuousMode)
         {
             Debug.LogError("[NoteSpawner] ⚠️ MODO CONTINUO ACTIVO - ESTO NO DEBERÍA SUCEDER!");
             GenerateContinuousNotes();
-            Debug.Log($"[NoteSpawner] ⚠️ MODO CONTINUO: {allNotes.Count} notas generadas (DESHABILITADO - usar JSON)");
             return;
         }
         
         // FORMATO NUEVO: all_notes (contiene GameNoteData con midi_notes[])
         if (songData.all_notes != null && songData.all_notes.Count > 0)
         {
-            Debug.Log($"[NoteSpawner] 🟢 USANDO FORMATO NUEVO: {songData.all_notes.Count} notas en all_notes[]");
-            
             // Convertir GameNoteData a PianoNoteData
             foreach (var gameNote in songData.all_notes)
             {
@@ -88,14 +73,11 @@ public class NoteSpawner : MonoBehaviour
                 }
             }
             
-            Debug.Log($"[NoteSpawner] ✅ Convertidas {allNotes.Count} notas individuales desde all_notes");
         }
         // FORMATO ANTIGUO: melody + chords
         else if (songData.melody != null && songData.melody.Count > 0)
         {
-            Debug.LogWarning($"[NoteSpawner] 🟡 USANDO FORMATO ANTIGUO: melody con {songData.melody.Count} notas");
             allNotes.AddRange(songData.melody);
-            Debug.Log($"[NoteSpawner] Notas agregadas desde melody: {allNotes.Count}");
         }
         else
         {
@@ -109,21 +91,6 @@ public class NoteSpawner : MonoBehaviour
         allNotes.Sort((a, b) => a.time.CompareTo(b.time));
 
         RecalculateScrollSpeed();
-        
-        Debug.Log($"\n[NoteSpawner] ✅✅✅ CANCIÓN CARGADA CORRECTAMENTE ✅✅✅");
-        Debug.Log($"[NoteSpawner] TOTAL: {allNotes.Count} notas");
-        if (allNotes.Count > 0)
-        {
-            Debug.Log($"[NoteSpawner] ━━━━ PRIMERA NOTA ━━━━");
-            Debug.Log($"[NoteSpawner]   MIDI: {allNotes[0].midi}");
-            Debug.Log($"[NoteSpawner]   time en JSON: {allNotes[0].time:F3}s (audio-synced)");
-            Debug.Log($"[NoteSpawner] ━━━━ ÚLTIMA NOTA ━━━━");
-            Debug.Log($"[NoteSpawner]   MIDI: {allNotes[allNotes.Count-1].midi}");
-            Debug.Log($"[NoteSpawner]   time: {allNotes[allNotes.Count-1].time:F3}s");
-        }
-        Debug.Log($"[NoteSpawner] ⏱️  Duración juego: {songData.GetGameDuration()}s | Audio: {(songData.backgroundAudioClip != null ? songData.backgroundAudioClip.length : 0):F1}s");
-        Debug.Log($"[NoteSpawner] Scroll lead time: {noteTravelTime:F2}s | Scroll speed: {currentScrollSpeed:F2}m/s");
-        Debug.Log($"=== [NoteSpawner] FIN CARGA ===\n");
     }
 
     private void NormalizeHandsByMidiSplit()
@@ -147,8 +114,6 @@ public class NoteSpawner : MonoBehaviour
         float bassDistance = bassStaff != null ? Vector3.Distance(bassStaff.GetSpawnPoint(), bassStaff.GetHitPoint()) : 0f;
         float referenceDistance = Mathf.Max(trebleDistance, bassDistance, 0.01f);
         currentScrollSpeed = referenceDistance / safeTravelTime;
-
-        Debug.Log($"[NoteSpawner] 🎼 Scroll recalculado | Distancia ref={referenceDistance:F2}m | Lead={safeTravelTime:F2}s | Speed={currentScrollSpeed:F3}m/s");
     }
     
     /// <summary>
@@ -247,7 +212,6 @@ public class NoteSpawner : MonoBehaviour
             nextNoteIndex = 0;
         }
         
-        Debug.Log(resetProgress ? "[NoteSpawner] Spawn iniciado" : "[NoteSpawner] Spawn reanudado");
     }
 
     /// <summary>
@@ -256,7 +220,6 @@ public class NoteSpawner : MonoBehaviour
     public void StopSpawning()
     {
         isSpawning = false;
-        Debug.Log("[NoteSpawner] Spawn detenido");
     }
 
     void Update()
@@ -306,7 +269,6 @@ public class NoteSpawner : MonoBehaviour
         // Verificar si terminamos de spawear todas las notas
         if (nextNoteIndex >= allNotes.Count && isSpawning)
         {
-            Debug.Log($"[NoteSpawner] ✅ Todas las {allNotes.Count} notas spawneadas. Esperando finalización...");
             StopSpawning();
         }
     }
@@ -335,8 +297,6 @@ public class NoteSpawner : MonoBehaviour
                 previewNotes.Add(previewNote);
             }
         }
-
-        Debug.Log($"[NoteSpawner] Vista previa mostrada con {previewNotes.Count} notas fijas antes del countdown");
     }
 
     /// <summary>
@@ -424,8 +384,6 @@ public class NoteSpawner : MonoBehaviour
         {
             Destroy(note.gameObject);
         }
-        
-        Debug.Log("[NoteSpawner] Todas las notas limpiadas");
     }
 
     public void ClearPreviewNotes()

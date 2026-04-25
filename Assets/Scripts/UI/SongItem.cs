@@ -62,15 +62,13 @@ public class SongItem : MonoBehaviour
         if (SelectedSongManager.Instance != null)
         {
             SelectedSongManager.Instance.selectedSong = _myFullData;
-            Debug.Log(_myFullData.mode);
             if (string.Equals(_myFullData.mode, "CANTO", StringComparison.OrdinalIgnoreCase))
             {
-                Debug.Log($"<color=cyan>[Escena]</color> Cambiando a SingGame con: {_myFullData.title}");
-                Debug.Log("Seleccionaste: " + _myFullData.file_path);
+                SelectedSongManager.Instance.BeginSongSelectionMeasurement(_myFullData, "SingGame");
                 SceneManager.LoadScene("SingGame");
             }else if (string.Equals(_myFullData.mode, "PIANO", StringComparison.OrdinalIgnoreCase))
             {
-                Debug.Log($"<color=cyan>[Escena]</color> Cambiando a PianoGame con: {_myFullData.title}");
+                SelectedSongManager.Instance.BeginSongSelectionMeasurement(_myFullData, "PianoGame");
                 SceneManager.LoadScene("PianoGame");
             }
         }

@@ -137,7 +137,6 @@ public class ControladorAudienciaPiano : MonoBehaviour
 
         if (forceLog || listaAnimadores.Count == 0)
         {
-            Debug.Log($"[ControladorAudienciaPiano] Animadores de publico detectados: {listaAnimadores.Count}");
         }
     }
 }

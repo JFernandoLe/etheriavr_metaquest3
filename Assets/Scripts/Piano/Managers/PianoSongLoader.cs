@@ -51,38 +51,32 @@ public class PianoSongLoader : MonoBehaviour
         // Construir ruta completa del JSON
         string jsonPath = Path.Combine(Application.streamingAssetsPath, SONGS_FOLDER, fileNameOnly);
         
-        Debug.Log($"<color=cyan>[PianoLoader]</color> 📂 Intentando cargar: {jsonPath}");
-        
         // 2. Leer el archivo JSON
         string jsonContent = null;
         
         #if UNITY_ANDROID && !UNITY_EDITOR
         // En Android, StreamingAssets requiere UnityWebRequest con protocolo jar://
-        Debug.Log($"<color=cyan>[PianoLoader]</color> 🔍 Plataforma: Android");
         using (UnityWebRequest www = UnityWebRequest.Get(jsonPath))
         {
             yield return www.SendWebRequest();
             
             if (www.result != UnityWebRequest.Result.Success)
             {
-                Debug.LogError($"<color=red>[PianoLoader]</color> ❌ Error con ruta: {jsonPath}");
-                Debug.LogError($"<color=red>[PianoLoader]</color> ❌ Error exacto: {www.error}");
+                Debug.LogError($"[PianoLoader] Error con ruta: {jsonPath}");
+                Debug.LogError($"[PianoLoader] Error exacto: {www.error}");
                 onError?.Invoke($"Error leyendo JSON: {www.error}");
                 yield break;
             }
             
             jsonContent = www.downloadHandler.text;
-            Debug.Log($"<color=green>[PianoLoader]</color> ✅ JSON cargado desde Android");
         }
         #else
         // En PC/Editor, usar File.ReadAllText
-        Debug.Log($"<color=cyan>[PianoLoader]</color> 🔍 Plataforma: PC/Editor");
-        
         if (!File.Exists(jsonPath))
         {
-            Debug.LogError($"<color=red>[PianoLoader]</color> ❌ Archivo NO existe: {jsonPath}");
-            Debug.LogError($"<color=red>[PianoLoader]</color> ❌ StreamingAssets path: {Application.streamingAssetsPath}");
-            Debug.LogError($"<color=red>[PianoLoader]</color> ❌ Nombre archivo: {fileNameOnly}");
+            Debug.LogError($"[PianoLoader] Archivo no existe: {jsonPath}");
+            Debug.LogError($"[PianoLoader] StreamingAssets path: {Application.streamingAssetsPath}");
+            Debug.LogError($"[PianoLoader] Nombre archivo: {fileNameOnly}");
             onError?.Invoke($"Archivo no encontrado: {jsonPath}");
             yield break;
         }
@@ -90,7 +84,6 @@ public class PianoSongLoader : MonoBehaviour
         try
         {
             jsonContent = File.ReadAllText(jsonPath);
-            Debug.Log($"<color=green>[PianoLoader]</color> ✅ JSON cargado desde PC/Editor");
         }
         catch (System.Exception e)
         {
@@ -111,8 +104,6 @@ public class PianoSongLoader : MonoBehaviour
                 onError?.Invoke("El JSON no se pudo parsear correctamente");
                 yield break;
             }
-            
-            Debug.Log($"<color=green>[PianoLoader]</color> ✅ JSON parseado exitosamente");
         }
         catch (System.Exception e)
         {
@@ -136,22 +127,8 @@ public class PianoSongLoader : MonoBehaviour
         songData.all_notes = new List<GameNoteData>(wrapper.all_notes ?? new GameNoteData[0]);
         songData.melody = new List<PianoNoteData>(wrapper.melody ?? new PianoNoteData[0]);
         songData.chords = new List<PianoChordData>(wrapper.chords ?? new PianoChordData[0]);
-        
-        Debug.Log($"<color=green>[PianoLoader]</color> ✅ Datos convertidos:");
-        Debug.Log($"<color=green>[PianoLoader]</color>    - all_notes: {songData.all_notes.Count} elementos");
-        Debug.Log($"<color=green>[PianoLoader]</color>    - melody: {songData.melody.Count} elementos");
-        Debug.Log($"<color=green>[PianoLoader]</color>    - chords: {songData.chords.Count} elementos");
-        
-        if (songData.all_notes.Count > 0)
-        {
-            Debug.Log($"<color=green>[PianoLoader]</color> 🟢 USANDO FORMATO NUEVO (all_notes)");
-            Debug.Log($"<color=green>[PianoLoader]</color>    Primera nota: MIDI {songData.all_notes[0].GetMidiNote()} a {songData.all_notes[0].time:F2}s");
-        }
-        else if (songData.melody.Count > 0)
-        {
-            Debug.Log($"<color=yellow>[PianoLoader]</color> 🟡 USANDO FORMATO ANTIGUO (melody)");
-        }
-        else
+
+        if (songData.all_notes.Count <= 0 && songData.melody.Count <= 0)
         {
             Debug.LogError($"[PianoLoader] 🔴 ¡¡¡NINGÚN FORMATO DISPONIBLE!!! all_notes = {songData.all_notes.Count} y melody = {songData.melody.Count}");
         }
@@ -162,12 +139,10 @@ public class PianoSongLoader : MonoBehaviour
         if (!string.IsNullOrEmpty(songData.audio_file))
         {
             audioFileToLoad = songData.audio_file;
-            Debug.Log($"<color=cyan>[PianoLoader]</color> 📁 Usando audio_file (formato nuevo): {audioFileToLoad}");
         }
         else if (!string.IsNullOrEmpty(songData.background_music))
         {
             audioFileToLoad = songData.background_music;
-            Debug.Log($"<color=cyan>[PianoLoader]</color> 📁 Usando background_music (formato antiguo): {audioFileToLoad}");
         }
         
         if (!string.IsNullOrEmpty(audioFileToLoad))
@@ -177,28 +152,25 @@ public class PianoSongLoader : MonoBehaviour
             string audioFileName = Path.GetFileName(audioFileToLoad);
             string audioPath = Path.Combine(Application.streamingAssetsPath, MUSIC_FOLDER, audioFileName);
             
-            Debug.Log($"<color=cyan>[PianoLoader]</color> 🔊 Cargando audio: {audioPath}");
-            
             using (UnityWebRequest audioRequest = UnityWebRequestMultimedia.GetAudioClip(audioPath, AudioType.MPEG))
             {
                 yield return audioRequest.SendWebRequest();
                 
                 if (audioRequest.result != UnityWebRequest.Result.Success)
                 {
-                    Debug.LogWarning($"<color=yellow>[PianoLoader]</color> ❌ Error cargando audio: {audioRequest.error}");
-                    Debug.LogWarning($"<color=yellow>[PianoLoader]</color> Ruta intentada: {audioPath}");
+                    Debug.LogWarning($"[PianoLoader] Error cargando audio: {audioRequest.error}");
+                    Debug.LogWarning($"[PianoLoader] Ruta intentada: {audioPath}");
                     // No es error crítico, continuar sin audio
                 }
                 else
                 {
                     songData.backgroundAudioClip = DownloadHandlerAudioClip.GetContent(audioRequest);
-                    Debug.Log($"<color=green>[PianoLoader]</color> ✅ Audio cargado: {songData.backgroundAudioClip.length:F1}s");
                 }
             }
         }
         else
         {
-            Debug.LogWarning("<color=yellow>[PianoLoader]</color> ⚠️ No se encontró ruta de audio (audio_file ni background_music)");
+            Debug.LogWarning("[PianoLoader] No se encontró ruta de audio (audio_file ni background_music)");
         }
         
         // 5. Éxito - retornar datos

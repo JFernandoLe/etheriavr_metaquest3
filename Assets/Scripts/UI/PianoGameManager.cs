@@ -85,8 +85,6 @@ public class PianoGameManager : MonoBehaviour
         // Suscribirse al evento del PianoCalibrator
         // El juego NO iniciará hasta que el usuario confirme la posición del piano (presione X)
         PianoCalibrator.OnPianoConfigured += OnPianoConfigured_StartGame;
-        Debug.Log("<color=yellow>[PianoGame]</color> ⏸️  Esperando confirmación del calibrador de piano (presiona X para continuar)...");
-        
         // Auto-detectar cámara VR si no está asignada
         if (vrCamera == null)
         {
@@ -140,7 +138,6 @@ public class PianoGameManager : MonoBehaviour
             else
             {
                 resultsPanel.HideImmediate();
-                Debug.Log("<color=green>[PianoGame]</color> ✅ EndGameUI conectado para resultados");
             }
         }
         
@@ -150,7 +147,7 @@ public class PianoGameManager : MonoBehaviour
             directMidiReceiver = FindObjectOfType<DirectMidiReceiver>();
             if (directMidiReceiver == null)
             {
-                Debug.LogWarning("<color=yellow>[PianoGame]</color> Creando DirectMidiReceiver...");
+                Debug.LogWarning("[PianoGame] Creando DirectMidiReceiver...");
                 directMidiReceiver = gameObject.AddComponent<DirectMidiReceiver>();
             }
         }
@@ -160,7 +157,7 @@ public class PianoGameManager : MonoBehaviour
             midiAudioManager = FindObjectOfType<MidiAudioManager>();
             if (midiAudioManager == null)
             {
-                Debug.LogWarning("<color=yellow>[PianoGame]</color> Creando MidiAudioManager...");
+                Debug.LogWarning("[PianoGame] Creando MidiAudioManager...");
                 midiAudioManager = gameObject.AddComponent<MidiAudioManager>();
             }
         }
@@ -169,18 +166,15 @@ public class PianoGameManager : MonoBehaviour
         if (midiAudioManager.directMidiReceiver == null)
         {
             midiAudioManager.directMidiReceiver = directMidiReceiver;
-            Debug.Log("<color=green>[PianoGame]</color> ✅ Componentes MIDI conectados");
         }
         
         // Inicializar sistema de aplausos
         midiAudioManager.InitializeApplauseSystem();
-        Debug.Log("<color=cyan>[PianoGame]</color> 🎵 Sistema de aplausos inicializado");
         
         // Conectar GameplayScoring a eventos
         if (gameplayScoring != null)
         {
             gameplayScoring.OnGameFinished += OnGameFinished;
-            Debug.Log("<color=green>[PianoGame]</color> ✅ Scoring conectado");
         }
         
         // AUTO-DETECTAR NOTESOAWNER si no está asignado
@@ -189,11 +183,10 @@ public class PianoGameManager : MonoBehaviour
             noteSpawner = FindObjectOfType<NoteSpawner>();
             if (noteSpawner == null)
             {
-                Debug.LogWarning("<color=yellow>[PianoGame]</color> ⚠️ No se encontró NoteSpawner en la escena");
+                Debug.LogWarning("[PianoGame] No se encontró NoteSpawner en la escena");
             }
             else
             {
-                Debug.Log("<color=green>[PianoGame]</color> ✅ NoteSpawner auto-detectado");
             }
         }
         
@@ -203,11 +196,10 @@ public class PianoGameManager : MonoBehaviour
             countdownManager = FindObjectOfType<CountdownManager>();
             if (countdownManager == null)
             {
-                Debug.LogWarning("<color=yellow>[PianoGame]</color> ⚠️ No se encontró CountdownManager en la escena");
+                Debug.LogWarning("[PianoGame] No se encontró CountdownManager en la escena");
             }
             else
             {
-                Debug.Log("<color=green>[PianoGame]</color> ✅ CountdownManager auto-detectado");
             }
         }
         
@@ -220,7 +212,6 @@ public class PianoGameManager : MonoBehaviour
                 // Asumir que el primero es treble y el segundo es bass
                 trebleStaff = staffs[0];
                 bassStaff = staffs[1];
-                Debug.Log($"<color=green>[PianoGame]</color> ✅ Pentagramas auto-detectados");
             }
         }
         
@@ -341,16 +332,12 @@ public class PianoGameManager : MonoBehaviour
     {
         if (SelectedSongManager.Instance == null || SelectedSongManager.Instance.selectedSong == null)
         {
-            Debug.LogError("<color=red>[PianoGame]</color> No se encontró ninguna canción seleccionada en SelectedSongManager.");
+            Debug.LogError("[PianoGame] No se encontró ninguna canción seleccionada en SelectedSongManager.");
             return;
         }
         
         var selectedSong = SelectedSongManager.Instance.selectedSong;
         selectedSongMetadata = selectedSong;
-        
-        Debug.Log($"<color=green>[PianoGame]</color> 📂 Cargando desde BD: {selectedSong.title}");
-        Debug.Log($"<color=cyan>[PianoGame]</color> 🎵 {selectedSong.artist_name} | {selectedSong.musical_genre} | {selectedSong.tempo} BPM");
-        Debug.Log($"<color=yellow>[PianoGame]</color> 📄 Archivo JSON: {selectedSong.file_path}");
         
         // Cargar el archivo JSON especificado en file_path
         // El file_path es algo como "songs/rocketman.json"
@@ -368,19 +355,7 @@ public class PianoGameManager : MonoBehaviour
     {
         ApplySelectedSongMetadata(songData);
         currentSongData = songData;
-        
-        Debug.Log($"<color=green>[PianoGame]</color> ✅ Canción cargada: {songData.song_title}");
-        Debug.Log($"<color=green>[PianoGame]</color> 🎵 Formato: {(songData.all_notes != null ? "NUEVO (all_notes)" : "ANTIGUO (melody/chords)")}");
-        
-        if (songData.all_notes != null)
-        {
-            Debug.Log($"<color=green>[PianoGame]</color> 📝 Notas: {songData.all_notes.Count} | Duración juego: {songData.GetGameDuration():F2}s");
-        }
-        else if (songData.melody != null)
-        {
-            Debug.Log($"<color=green>[PianoGame]</color> 📝 Melodía: {songData.TotalMelodyNotes} notas | Acordes: {songData.TotalChords}");
-            Debug.Log($"<color=green>[PianoGame]</color> Mano derecha: {songData.GetRightHandMelody().Count} notas | Mano izquierda: {songData.GetLeftHandMelody().Count} notas");
-        }
+        SelectedSongManager.Instance?.LogSongSelectionCheckpoint("Piano JSON listo");
         
         // Configurar el audio de fondo - usar nuevo formato primero (audio_file)
         if (songData.backgroundAudioClip != null)
@@ -389,11 +364,10 @@ public class PianoGameManager : MonoBehaviour
             
             // Aplicar volumen del audio de fondo desde JSON
             backgroundMusicSource.volume = songData.audio_file_volume;
-            Debug.Log($"<color=green>[PianoGame]</color> 🎵 Audio listo: {songData.backgroundAudioClip.length:F1}s | Volumen: {songData.audio_file_volume:F3}");
         }
         else
         {
-            Debug.LogWarning("<color=yellow>[PianoGame]</color> ⚠️ No se cargó audio de fondo");
+            Debug.LogWarning("[PianoGame] No se cargó audio de fondo");
         }
         
         // Aplicar volumen del piano/MIDI desde JSON
@@ -407,11 +381,11 @@ public class PianoGameManager : MonoBehaviour
         if (gameplayScoring != null && songData.all_notes != null)
         {
             gameplayScoring.InitializeForSong(songData);
-            Debug.Log($"<color=green>[PianoGame]</color> 🎮 Scoring inicializado con {songData.all_notes.Count} notas esperadas");
         }
         
         // Inicializar el pentagrama y las notas visuales
         PrepareGameplay();
+        SelectedSongManager.Instance?.CompleteSongSelectionMeasurement("Piano listo para iniciar gameplay");
     }
     
     /// <summary>
@@ -419,7 +393,7 @@ public class PianoGameManager : MonoBehaviour
     /// </summary>
     private void OnSongLoadError(string error)
     {
-        Debug.LogError($"<color=red>[PianoGame]</color> ❌ Error cargando canción: {error}");
+        Debug.LogError($"[PianoGame] Error cargando canción: {error}");
         // TODO: Mostrar mensaje al usuario y volver al menú
     }
 
@@ -446,8 +420,6 @@ public class PianoGameManager : MonoBehaviour
     /// </summary>
     private void PrepareGameplay()
     {
-        Debug.Log("<color=cyan>[PianoGame]</color> Preparando gameplay...");
-        
         // FASE 3: Configurar sistema visual
         LoadSongIntoSpawner();
         ShowCountdownPreview();
@@ -457,18 +429,7 @@ public class PianoGameManager : MonoBehaviour
         
         gameplayReady = true;
         
-        // Log de configuración de follow canvas
-        if (enableFollowCanvas)
-        {
-            Debug.Log($"<color=yellow>[PianoGame]</color> Follow Canvas: ACTIVADO (distancia={staffDistance}m)");
-        }
-        else
-        {
-            Debug.Log("<color=green>[PianoGame]</color> Follow Canvas: DESACTIVADO - Usando posiciones manuales de jerarquía");
-        }
-        
         // ⏸️  NO iniciar countdown aquí - esperar a que PianoCalibrator confirme
-        Debug.Log("<color=yellow>[PianoGame]</color> ⏸️  Juego preparado pero EN PAUSA - Esperando confirmación del calibrador...");
     }
     
     // PositionStaffsInVR() ELIMINADA - ahora usa UpdateStaffPositions() en Update()
@@ -481,7 +442,6 @@ public class PianoGameManager : MonoBehaviour
         if (noteSpawner != null && currentSongData != null)
         {
             noteSpawner.LoadSong(currentSongData);
-            Debug.Log("[PianoGame] Canción cargada en NoteSpawner");
         }
         else
         {
@@ -508,7 +468,6 @@ public class PianoGameManager : MonoBehaviour
             countdownManager.OnCountdownComplete -= OnCountdownFinished;
             // Suscribirse al evento de finalización del countdown
             countdownManager.OnCountdownComplete += OnCountdownFinished;
-            Debug.Log("[PianoGame] Countdown configurado");
         }
         else
         {
@@ -525,7 +484,6 @@ public class PianoGameManager : MonoBehaviour
         // Desuscribirse para evitar múltiples llamadas
         PianoCalibrator.OnPianoConfigured -= OnPianoConfigured_StartGame;
         
-        Debug.Log("<color=green>[PianoGame]</color> 🎹 ¡Piano configurado! Iniciando countdown...");
         StartCountdownSequence();
     }
     
@@ -542,7 +500,6 @@ public class PianoGameManager : MonoBehaviour
 
         if (countdownPending)
         {
-            Debug.Log("[PianoGame] Countdown ya solicitado, esperando finalización...");
             return;
         }
 
@@ -567,7 +524,6 @@ public class PianoGameManager : MonoBehaviour
     {
         countdownPending = false;
         countdownCompleted = true;
-        Debug.Log("<color=green>[PianoGame]</color> 🎵 ¡Countdown terminado! Iniciando juego...");
         StartGameplayNow();
     }
     
@@ -596,7 +552,7 @@ public class PianoGameManager : MonoBehaviour
         
         if (currentSongData == null)
         {
-            Debug.LogError("<color=red>[PianoGame]</color> No hay datos de canción cargados");
+            Debug.LogError("[PianoGame] No hay datos de canción cargados");
             return;
         }
 
@@ -605,7 +561,7 @@ public class PianoGameManager : MonoBehaviour
             waitingForMidiConnectionToStart = true;
             pausedByMidiDisconnect = false;
 
-            Debug.LogWarning("<color=yellow>[PianoGame]</color> ⏸️ MIDI no disponible. Esperando reconexión antes de iniciar el gameplay.");
+            Debug.LogWarning("[PianoGame] MIDI no disponible. Esperando reconexión antes de iniciar el gameplay.");
             MidiStatusWidgetController.Instance?.PromptGameplayReconnect(
                 "Conecta el controlador MIDI para iniciar la práctica.",
                 "Iniciar juego",
@@ -630,7 +586,6 @@ public class PianoGameManager : MonoBehaviour
             {
                 midiAudioManager.directMidiReceiver = directMidiReceiver;
             }
-            Debug.Log("<color=green>[PianoGame]</color> 🎹 PIANO ESCUCHANDO EN VIVO (conectado directo, <50ms latencia)");
         }
         
         InitializeAndStartGameplay();
@@ -641,7 +596,6 @@ public class PianoGameManager : MonoBehaviour
     /// </summary>
     private void InitializeAndStartGameplay()
     {
-        Debug.Log("<color=green>[PianoGame]</color> 🚀 ¡INICIO AHORA - SINCRONIZANDO AUDIO + SPAWN!");
         isPlaying = true;
         
         // 🎵 Comenzar audio -  ANTES de todo
@@ -649,10 +603,6 @@ public class PianoGameManager : MonoBehaviour
         {
             backgroundMusicSource.time = 0f; // Asegurar que comience en 0
             backgroundMusicSource.Play();
-            
-            Debug.Log($"<color=green>[PianoGame]</color> 🎵 AUDIO INICIADO");
-            Debug.Log($"[PianoGame] Canción: {backgroundMusicSource.clip.name} ({backgroundMusicSource.clip.length:F2}s)");
-            Debug.Log($"[PianoGame] Audio.time = {backgroundMusicSource.time:F3}s (debe ser ~0)");
         }
         else
         {
@@ -663,20 +613,13 @@ public class PianoGameManager : MonoBehaviour
         if (gameplayScoring != null)
         {
             gameplayScoring.StartScoring();
-            Debug.Log("<color=green>[PianoGame]</color> 📊 SCORING INICIADO");
         }
         
         // 🎶 Comenzar spawn de notas - EXACTAMENTE AL MISMO TIEMPO  
         if (noteSpawner != null)
         {
             noteSpawner.StartSpawning();
-            Debug.Log("<color=green>[PianoGame]</color> 🎶 SPAWN ACTIVADO");
         }
-        
-        Debug.Log("<color=green>[PianoGame]</color> ✅ ¡JUEGO COMPLETAMENTE SINCRONIZADO!");
-        Debug.Log($"[PianoGame] Verificación de sincronización:");
-        Debug.Log($"  Audio position: {backgroundMusicSource.time:F3}s");
-        Debug.Log($"  Sistema listo para reproducción perfecta");
     }
     
     /// <summary>
@@ -710,8 +653,6 @@ public class PianoGameManager : MonoBehaviour
         }
 
         SilenceAudienceApplause();
-        
-        Debug.Log("<color=yellow>[PianoGame]</color> ⏸️ Juego pausado");
         
         // TODO: Mostrar UI de pausa
     }
@@ -762,8 +703,6 @@ public class PianoGameManager : MonoBehaviour
 
         ResumeAudienceApplause();
         
-        Debug.Log("<color=green>[PianoGame]</color> ▶️ Juego reanudado");
-        
         // TODO: Ocultar UI de pausa
     }
     
@@ -785,9 +724,6 @@ public class PianoGameManager : MonoBehaviour
             results.mode_name = selectedSongMetadata.mode;
         }
         
-        Debug.Log("<color=cyan>[PianoGame]</color> 🏁 JUEGO TERMINADO");
-        Debug.Log($"<color=cyan>[PianoGame]</color> 🎯 Resultado: {results.notes_hit}/{results.total_notes} ({results.accuracy_percentage:F1}%)");
-        
         // Detener la música
         if (backgroundMusicSource.isPlaying)
         {
@@ -806,11 +742,10 @@ public class PianoGameManager : MonoBehaviour
         if (resultsPanel != null)
         {
             resultsPanel.ShowResults(results);
-            Debug.Log("<color=green>[PianoGame]</color> 🏆 Modal de resultados mostrado");
         }
         else
         {
-            Debug.LogWarning("<color=yellow>[PianoGame]</color> ⚠️ No hay ResultsPanel para mostrar resultados");
+            Debug.LogWarning("[PianoGame] No hay ResultsPanel para mostrar resultados");
         }
     }
 
@@ -856,15 +791,18 @@ public class PianoGameManager : MonoBehaviour
             tuning_score = null
         };
 
+        Debug.Log($"[SessionAudit] Finalizando sesion piano | song={selectedSongMetadata.title} | songId={selectedSongMetadata.id} | mode={practiceRequest.practice_mode}");
+
         StartCoroutine(authService.SavePracticeSession(
             practiceRequest,
             onSuccess: (_) =>
             {
-                Debug.Log("[PianoGame] ✅ Sesión de práctica guardada en API");
+                Debug.Log($"[SessionAudit] Sesion piano registrada | song={selectedSongMetadata.title} | songId={selectedSongMetadata.id}");
                 LoadRepertorioScene();
             },
             onError: (error) =>
             {
+                Debug.LogError($"[SessionAudit] Error registrando sesion piano | songId={selectedSongMetadata.id} | detalle={error}");
                 Debug.LogWarning($"[PianoGame] No se pudo guardar la sesión de práctica: {error}");
                 LoadRepertorioScene();
             }
@@ -1149,8 +1087,6 @@ public class PianoGameManager : MonoBehaviour
         if (directMidiReceiver == null) directMidiReceiver = bestConfiguredManager.directMidiReceiver;
         if (gameplayScoring == null) gameplayScoring = bestConfiguredManager.gameplayScoring;
         if (resultsPanel == null) resultsPanel = bestConfiguredManager.resultsPanel;
-
-        Debug.Log($"<color=cyan>[PianoGame]</color> Referencias heredadas desde '{bestConfiguredManager.gameObject.name}' para estabilizar la escena.");
     }
 
     private GameObject FindSceneObjectByName(string objectName)

@@ -90,8 +90,6 @@ public class ChordDetectorUI : MonoBehaviour
         // Reiniciar timer y activar display
         displayTimer = displayDuration;
         isDisplaying = true;
-        
-        Debug.Log($"[ChordDetector] Acorde detectado: {chordName} ({notes})");
     }
 
     /// <summary>

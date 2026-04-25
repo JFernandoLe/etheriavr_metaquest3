@@ -67,15 +67,12 @@ public class PianoPublicSystem : MonoBehaviour
         {
             gameplayScoring.OnNoteEvaluated += OnNoteEvaluatedCallback;
             gameplayScoring.OnGameFinished += OnGameFinishedCallback;
-            Debug.Log("<color=green>[PianoPublic]</color> ✅ Suscrito a eventos de GameplayScoring");
         }
         
         currentPublicScore = 0f;
         targetPublicScore = 0f;
         totalNoteCount = 0f;
         correctNoteCount = 0f;
-        
-        Debug.Log("<color=yellow>[PianoPublic]</color> 👥 Sistema de público inicializado");
     }
     
     void Update()
@@ -134,8 +131,6 @@ public class PianoPublicSystem : MonoBehaviour
             midiAudioManager.StartApplauseLoop();
             midiAudioManager.SetApplauseVolume(0f);
         }
-        
-        Debug.Log($"<color=green>[PianoPublic]</color> 🎮 Juego iniciado - Público en 0% | Intensidad {audienceProfile.NormalizedIntensity} | Reacción total desde {audienceProfile.ScoreForFullReaction:F0}% de desempeño reciente");
     }
     
     /// <summary>
@@ -149,9 +144,6 @@ public class PianoPublicSystem : MonoBehaviour
         {
             midiAudioManager.StopApplauseLoop();
         }
-        
-        float accuracy = totalNoteCount > 0 ? (correctNoteCount / totalNoteCount) * 100f : 0f;
-        Debug.Log($"<color=yellow>[PianoPublic]</color> 🎬 Juego terminado - Público final: {currentPublicScore:F1}% | Precisión: {accuracy:F1}%");
     }
     
     /// <summary>
@@ -166,7 +158,6 @@ public class PianoPublicSystem : MonoBehaviour
         float notePercent = normalizedScore * 100f;
         string eventMsg = $"🎹 Ventana +{notePercent:F0}% ({successfulUnits}/{totalUnits})";
         AddDebugEvent(eventMsg);
-        Debug.Log($"<color=cyan>[PianoPublic]</color> {eventMsg}");
     }
 
     public void OnLiveWindowMatched(GameNoteData note, float onsetQuality, int totalUnits)
@@ -180,7 +171,6 @@ public class PianoPublicSystem : MonoBehaviour
 
         string eventMsg = $"⚡ Reacción temprana +{weightedQuality * 100f:F0}% por acierto en ventana";
         AddDebugEvent(eventMsg);
-        Debug.Log($"<color=green>[PianoPublic]</color> {eventMsg}");
     }
     
     /// <summary>
@@ -194,7 +184,6 @@ public class PianoPublicSystem : MonoBehaviour
 
         string eventMsg = $"⚠️ NOTA EQUIVOCADA (MIDI {wrongMidiNote})";
         AddDebugEvent(eventMsg);
-        Debug.Log($"<color=orange>[PianoPublic]</color> {eventMsg}");
     }
     
     /// <summary>
@@ -241,17 +230,6 @@ public class PianoPublicSystem : MonoBehaviour
     /// </summary>
     public void LogStatistics()
     {
-        float accuracy = totalNoteCount > 0 ? (correctNoteCount / totalNoteCount) * 100f : 0f;
-        Debug.Log($"<color=yellow>[PianoPublic STATS]</color>");
-        Debug.Log($"  👥 Score actual: {currentPublicScore:F1}%");
-        Debug.Log($"  🎬 Score animación: {animationPublicScore:F1}%");
-        Debug.Log($"  🎯 Score objetivo: {targetPublicScore:F1}%");
-        Debug.Log($"  🪟 Promedio ventana: {lastWindowAverage:F1}%");
-        Debug.Log($"  🎼 Armonía viva: {currentLiveHarmony:F1}%");
-        Debug.Log($"  🥁 Ritmo vivo: {currentLiveRhythm:F1}%");
-        Debug.Log($"  🎵 Notas totales: {totalNoteCount}");
-        Debug.Log($"  ✅ Notas correctas: {correctNoteCount}");
-        Debug.Log($"  📊 Precisión: {accuracy:F1}%");
     }
     
     private void AddDebugEvent(string eventMsg)
