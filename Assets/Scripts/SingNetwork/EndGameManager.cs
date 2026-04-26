@@ -119,13 +119,11 @@ public class EndGameManager : MonoBehaviour
             harmony_score = 0
         };
 
-        Debug.Log($"[SessionAudit] Finalizando sesion canto | song={SelectedSongManager.Instance.selectedSong.title} | songId={SelectedSongManager.Instance.selectedSong.id} | mode={request.practice_mode}");
-
         if (authService != null)
         {
             StartCoroutine(authService.SavePracticeSession(request,
-                onSuccess: (res) => Debug.Log($"[SessionAudit] Sesion canto registrada | song={SelectedSongManager.Instance.selectedSong.title} | songId={SelectedSongManager.Instance.selectedSong.id}"),
-                onError: (err) => Debug.LogError("[SessionAudit] Error registrando sesion canto | detalle=" + err)
+                onSuccess: (res) => { },
+                onError: (err) => Debug.LogError("[EndGame] Error registrando sesión de canto: " + err)
             ));
         }
     }

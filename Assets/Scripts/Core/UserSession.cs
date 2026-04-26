@@ -40,7 +40,7 @@ public class UserSession : MonoBehaviour
         ApplyConfiguration(data.configuration ?? data.user_configuration);
         IsLoggedIn = true;
 
-        Debug.Log($"<color=green>[UserSession] Sesión iniciada para: {username}</color>");
+        Debug.Log("<color=green>[UserSession] Sesión iniciada.</color>");
     }
 
     public void ApplyConfiguration(UserConfigurationData configuration)

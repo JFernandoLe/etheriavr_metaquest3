@@ -791,18 +791,14 @@ public class PianoGameManager : MonoBehaviour
             tuning_score = null
         };
 
-        Debug.Log($"[SessionAudit] Finalizando sesion piano | song={selectedSongMetadata.title} | songId={selectedSongMetadata.id} | mode={practiceRequest.practice_mode}");
-
         StartCoroutine(authService.SavePracticeSession(
             practiceRequest,
             onSuccess: (_) =>
             {
-                Debug.Log($"[SessionAudit] Sesion piano registrada | song={selectedSongMetadata.title} | songId={selectedSongMetadata.id}");
                 LoadRepertorioScene();
             },
             onError: (error) =>
             {
-                Debug.LogError($"[SessionAudit] Error registrando sesion piano | songId={selectedSongMetadata.id} | detalle={error}");
                 Debug.LogWarning($"[PianoGame] No se pudo guardar la sesión de práctica: {error}");
                 LoadRepertorioScene();
             }

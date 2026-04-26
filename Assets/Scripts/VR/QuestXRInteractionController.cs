@@ -8,11 +8,14 @@ using UnityEngine.XR.Interaction.Toolkit.Inputs;
 using UnityEngine.XR.Interaction.Toolkit.Interactors;
 using UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets;
 using UnityEngine.XR.Interaction.Toolkit.UI;
+using UnityEngine.SceneManagement;
+using UnityEngine.XR;
 
 [DefaultExecutionOrder(-1000)]
 public class QuestXRInteractionController : MonoBehaviour
 {
     private const string DiagnosticTag = "XRHandsDebug";
+    private const string PianoGameSceneName = "PianoGame";
     private const string AndroidHandTrackingPermission = "android.permission.HAND_TRACKING";
     private const string OculusHandTrackingPermission = "com.oculus.permission.HAND_TRACKING";
     private const string HorizonOsHandTrackingPermission = "horizonos.permission.HAND_TRACKING";
@@ -43,6 +46,9 @@ public class QuestXRInteractionController : MonoBehaviour
     [SerializeField] private bool enableControllerRayDiagnostics = true;
     [SerializeField] private int controllerRayDiagnosticIntervalFrames = 120;
     [SerializeField] private bool enableHandTrackingSupport = true;
+    [SerializeField] private bool disableHandTrackingInPianoGameScene = true;
+    [SerializeField] private bool forceControllerOnlyModeInPianoGameScene = true;
+    [SerializeField] private bool showHandPointerDots = false;
     [SerializeField] private GameObject handsRigTemplate;
     [SerializeField] private GameObject handsPermissionsManagerPrefab;
     [SerializeField] private string cameraOffsetName = "Camera Offset";
@@ -58,6 +64,7 @@ public class QuestXRInteractionController : MonoBehaviour
     private HandSubsystemManager cachedHandSubsystemManager;
     private XRInputModalityManager cachedInputModalityManager;
     private static readonly List<XRHandSubsystem> CachedHandSubsystems = new List<XRHandSubsystem>();
+    private static readonly List<InputDevice> CachedXRInputDevices = new List<InputDevice>();
     private string metaQuestLeftHandVisualPath;
     private string metaQuestRightHandVisualPath;
     private string androidXRLeftHandVisualPath;
@@ -156,9 +163,10 @@ public class QuestXRInteractionController : MonoBehaviour
 
     private void EnsureHandTrackingSupport()
     {
-        if (!enableHandTrackingSupport)
+        if (!IsHandTrackingEnabledForActiveScene())
         {
-            LogHands("Hand tracking support disabled on QuestXRInteractionController");
+            DisableHandTrackingSceneObjects();
+            LogHands($"Hand tracking support disabled on QuestXRInteractionController scene={SceneManager.GetActiveScene().name}");
             return;
         }
 
@@ -194,8 +202,64 @@ public class QuestXRInteractionController : MonoBehaviour
 
         AssignHandsToModalityManager(existingLeftHand, existingRightHand);
         AssignHandVisualizerMeshes(existingHandVisualizer, existingLeftHand, existingRightHand);
-        EnsureHandPointerDots(existingLeftHand, existingRightHand);
+        SyncHandPointerDots(existingLeftHand, existingRightHand);
         RefreshTrackedInteractionState(forceLog: true);
+    }
+
+    private bool IsHandTrackingEnabledForActiveScene()
+    {
+        return enableHandTrackingSupport && !IsPianoGameHandTrackingOverrideEnabled();
+    }
+
+    private bool IsControllerOnlyModeEnabledForActiveScene()
+    {
+        return forceControllerOnlyModeInPianoGameScene && IsActiveScene(PianoGameSceneName);
+    }
+
+    private bool IsPianoGameHandTrackingOverrideEnabled()
+    {
+        return disableHandTrackingInPianoGameScene && IsActiveScene(PianoGameSceneName);
+    }
+
+    private static bool IsActiveScene(string sceneName)
+    {
+        return string.Equals(SceneManager.GetActiveScene().name, sceneName, System.StringComparison.Ordinal);
+    }
+
+    private void DisableHandTrackingSceneObjects()
+    {
+        HandSubsystemManager handSubsystemManager = EnsureHandSubsystemManager();
+        if (handSubsystemManager != null)
+        {
+            handSubsystemManager.DisableHandTracking();
+            LogHands($"Stopped hand tracking subsystem for scene={SceneManager.GetActiveScene().name} {DescribeHandSubsystems()}");
+        }
+
+        Transform cameraOffset = transform.Find(cameraOffsetName);
+        if (cameraOffset == null)
+            return;
+
+        GameObject leftHand = FindChildObject(cameraOffset, leftHandName);
+        GameObject rightHand = FindChildObject(cameraOffset, rightHandName);
+        GameObject handVisualizer = FindChildObject(cameraOffset, handVisualizerName);
+
+        RemoveHandPointerDot(leftHand);
+        RemoveHandPointerDot(rightHand);
+
+        SetActiveIfNeeded(leftHand, false);
+        SetActiveIfNeeded(rightHand, false);
+        SetActiveIfNeeded(handVisualizer, false);
+
+        XRInputModalityManager inputModalityManager = cachedInputModalityManager != null
+            ? cachedInputModalityManager
+            : GetComponent<XRInputModalityManager>();
+
+        if (inputModalityManager == null)
+            return;
+
+        cachedInputModalityManager = inputModalityManager;
+        inputModalityManager.leftHand = null;
+        inputModalityManager.rightHand = null;
     }
 
     private void HandleApplicationResume(string reason)
@@ -827,10 +891,31 @@ public class QuestXRInteractionController : MonoBehaviour
         clone.SetActive(shouldStartActive);
     }
 
-    private void EnsureHandPointerDots(GameObject leftHand, GameObject rightHand)
+    private void SyncHandPointerDots(GameObject leftHand, GameObject rightHand)
     {
+        if (!showHandPointerDots)
+        {
+            RemoveHandPointerDot(leftHand);
+            RemoveHandPointerDot(rightHand);
+            return;
+        }
+
         EnsureHandPointerDot(leftHand, "left");
         EnsureHandPointerDot(rightHand, "right");
+    }
+
+    private void RemoveHandPointerDot(GameObject handRoot)
+    {
+        if (handRoot == null)
+            return;
+
+        Transform aimPose = FindChildTransform(handRoot.transform, AimPoseName);
+        if (aimPose == null)
+            return;
+
+        Transform existingDot = aimPose.Find(HandPointerDotName);
+        if (existingDot != null)
+            Destroy(existingDot.gameObject);
     }
 
     private void EnsureHandPointerDot(GameObject handRoot, string handednessLabel)
@@ -1038,10 +1123,28 @@ public class QuestXRInteractionController : MonoBehaviour
         if (inputModalityManager == null)
             return;
 
-        bool leftShouldShowHand = leftHandStatus.isTracked && (IsHandInputMode(leftMode) || !leftControllerStatus.isTracked);
-        bool rightShouldShowHand = rightHandStatus.isTracked && (IsHandInputMode(rightMode) || !rightControllerStatus.isTracked);
-        bool leftShouldShowController = leftControllerStatus.isTracked && !leftShouldShowHand;
-        bool rightShouldShowController = rightControllerStatus.isTracked && !rightShouldShowHand;
+        bool leftShouldShowHand;
+        bool rightShouldShowHand;
+        bool leftShouldShowController;
+        bool rightShouldShowController;
+
+        if (IsControllerOnlyModeEnabledForActiveScene())
+        {
+            bool leftHasPhysicalController = IsExactPhysicalControllerTracked(InputDeviceCharacteristics.HeldInHand | InputDeviceCharacteristics.TrackedDevice | InputDeviceCharacteristics.Controller | InputDeviceCharacteristics.Left);
+            bool rightHasPhysicalController = IsExactPhysicalControllerTracked(InputDeviceCharacteristics.HeldInHand | InputDeviceCharacteristics.TrackedDevice | InputDeviceCharacteristics.Controller | InputDeviceCharacteristics.Right);
+
+            leftShouldShowHand = false;
+            rightShouldShowHand = false;
+            leftShouldShowController = leftHasPhysicalController;
+            rightShouldShowController = rightHasPhysicalController;
+        }
+        else
+        {
+            leftShouldShowHand = leftHandStatus.isTracked && (IsHandInputMode(leftMode) || !leftControllerStatus.isTracked);
+            rightShouldShowHand = rightHandStatus.isTracked && (IsHandInputMode(rightMode) || !rightControllerStatus.isTracked);
+            leftShouldShowController = leftControllerStatus.isTracked && !leftShouldShowHand;
+            rightShouldShowController = rightControllerStatus.isTracked && !rightShouldShowHand;
+        }
 
         SetActiveIfNeeded(inputModalityManager.leftHand, leftShouldShowHand);
         SetActiveIfNeeded(inputModalityManager.rightHand, rightShouldShowHand);
@@ -1058,6 +1161,39 @@ public class QuestXRInteractionController : MonoBehaviour
     {
         if (target != null && target.activeSelf != active)
             target.SetActive(active);
+    }
+
+    private static bool IsExactPhysicalControllerTracked(InputDeviceCharacteristics desiredCharacteristics)
+    {
+        if (!TryGetDeviceWithExactCharacteristics(desiredCharacteristics, out InputDevice inputDevice))
+            return false;
+
+        if (inputDevice.TryGetFeatureValue(CommonUsages.isTracked, out bool isTracked) && !isTracked)
+            return false;
+
+        if (inputDevice.TryGetFeatureValue(CommonUsages.trackingState, out InputTrackingState trackingState))
+        {
+            const InputTrackingState requiredFlags = InputTrackingState.Position | InputTrackingState.Rotation;
+            if ((trackingState & requiredFlags) == 0)
+                return false;
+        }
+
+        return true;
+    }
+
+    private static bool TryGetDeviceWithExactCharacteristics(InputDeviceCharacteristics desiredCharacteristics, out InputDevice inputDevice)
+    {
+        CachedXRInputDevices.Clear();
+        InputDevices.GetDevices(CachedXRInputDevices);
+        for (int index = 0; index < CachedXRInputDevices.Count; index++)
+        {
+            inputDevice = CachedXRInputDevices[index];
+            if (inputDevice.characteristics == desiredCharacteristics)
+                return true;
+        }
+
+        inputDevice = default;
+        return false;
     }
 
     private static bool TrySetBoolField(object target, string fieldName, bool value)

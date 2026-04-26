@@ -79,7 +79,7 @@ public class NetworkConfig : ScriptableObject
                     var result = receiveTask.Result;
                     string returnData = Encoding.UTF8.GetString(result.Buffer);
 
-                    // Esperamos algo como: ETHERIA_SERVER_HERE:192.168.x.x:8000
+                    // Esperamos algo como: ETHERIA_SERVER_HERE:<ip>:<puerto>
                     if (returnData.StartsWith("ETHERIA_SERVER_HERE"))
                     {
                         string[] parts = returnData.Split(':');
@@ -87,7 +87,7 @@ public class NetworkConfig : ScriptableObject
                         {
                             this.ipAddress = parts[1];
                             this.port = parts[2];
-                            Debug.Log($"<color=green>[NetworkConfig]</color> ✅ ¡Servidor autodetectado!: {BaseUrl}");
+                            Debug.Log("<color=green>[NetworkConfig]</color> ✅ Servidor autodetectado.");
                         }
                     }
                 }
@@ -113,7 +113,7 @@ public class NetworkConfig : ScriptableObject
                 if (env.ContainsKey("SERVER_IP")) ipAddress = env["SERVER_IP"];
                 if (env.ContainsKey("SERVER_PORT")) port = env["SERVER_PORT"];
                 if (env.ContainsKey("USE_HTTPS")) useHttps = bool.Parse(env["USE_HTTPS"]);
-                Debug.Log($"<color=white>[NetworkConfig]</color> 📄 Valores de respaldo cargados del .env.");
+                Debug.Log("<color=white>[NetworkConfig]</color> 📄 Valores de respaldo cargados.");
             }
         }
         catch (Exception e)
