@@ -7,6 +7,7 @@
     <!-- MIDI & USB Permissions -->
     <uses-feature android:name="android.software.midi" android:required="false" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.HAND_TRACKING" />
 
     <!-- ✅ Habilita el teclado overlay de Quest -->
     <uses-feature
