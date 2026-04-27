@@ -42,6 +42,7 @@ public class MusicNote : MonoBehaviour
     // Referencias para detección de hit
     private StaffRenderer staffRenderer; // Parent - el pentagrama
     private MidiAudioManager midiAudioManager;
+    private GameplayScoring gameplayScoring;
     private float originalLineLength = 0f; // Longitud original de la línea (mapea de duration)
     private Material durationLineMaterial; // Material de la línea
     private float fallbackStartTime = 0f;
@@ -93,6 +94,7 @@ public class MusicNote : MonoBehaviour
         
         staffRenderer = transform.parent?.GetComponent<StaffRenderer>();
         midiAudioManager = FindObjectOfType<MidiAudioManager>();
+        gameplayScoring = FindObjectOfType<GameplayScoring>();
         
         targetDirection = (hitPosition - startPosition).normalized;
         
@@ -293,6 +295,8 @@ public class MusicNote : MonoBehaviour
             startOffset = startOffset,
             endOffset = startOffset
         };
+
+        gameplayScoring?.ReportVisualFeedbackLatency(midiNote, segmentObject.name);
 
         UpdateBurnSegmentVisual(segment);
         return segment;

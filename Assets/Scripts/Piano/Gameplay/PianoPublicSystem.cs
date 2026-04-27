@@ -7,10 +7,29 @@ using UnityEngine;
 /// </summary>
 public class PianoPublicSystem : MonoBehaviour
 {
+    private const string AudienceSyncTag = "[AudienceSync]";
+
     private struct PerformanceWindowSample
     {
         public float time;
         public float combinedPerformance;
+    }
+
+    private struct AudienceComputationSnapshot
+    {
+        public float baseRhythm;
+        public float baseHarmony;
+        public float liveRhythm;
+        public float liveHarmony;
+        public float combinedPerformance;
+        public int windowSamples;
+        public float windowAverage;
+        public float windowConfidence;
+        public float curvedAverage;
+        public float targetScore;
+        public float currentScore;
+        public float animationScore;
+        public float responseSpeed;
     }
 
     [Header("Configuración del Público")]
@@ -51,6 +70,7 @@ public class PianoPublicSystem : MonoBehaviour
     // Debug
     private List<string> recentEvents = new List<string>();
     private const int MAX_DEBUG_EVENTS = 10;
+    [SerializeField] private bool enableAudienceSyncLogs = true;
     
     void Awake()
     {
@@ -92,14 +112,10 @@ public class PianoPublicSystem : MonoBehaviour
 
         PruneExpiredSamples();
 
-        float windowAverage = CalculateWindowAverage();
-        lastWindowAverage = windowAverage;
-        float windowConfidence = Mathf.Clamp01(performanceWindow.Count / Mathf.Max(stableWindowSamples, 1f));
-        float curvedAverage = Mathf.Pow(Mathf.Clamp01(windowAverage / 100f), reactionCurvePower) * 100f;
-        targetPublicScore = Mathf.Clamp01(curvedAverage / Mathf.Max(audienceProfile.ScoreForFullReaction, 0.01f)) * 100f * windowConfidence;
-
-        float responseSpeed = targetPublicScore >= currentPublicScore ? riseLerpSpeed : fallLerpSpeed;
-        currentPublicScore = Mathf.Lerp(currentPublicScore, targetPublicScore, Time.deltaTime * responseSpeed);
+        AudienceComputationSnapshot snapshot = BuildAudienceComputationSnapshot();
+        lastWindowAverage = snapshot.windowAverage;
+        targetPublicScore = snapshot.targetScore;
+        currentPublicScore = Mathf.Lerp(currentPublicScore, targetPublicScore, Time.deltaTime * snapshot.responseSpeed);
         currentPublicScore = Mathf.Clamp(currentPublicScore, 0f, 100f);
         animationPublicScore = Mathf.Lerp(animationPublicScore, currentPublicScore, Time.deltaTime * inertiaLerpSpeed);
     }
@@ -153,7 +169,16 @@ public class PianoPublicSystem : MonoBehaviour
     {
         totalNoteCount++;
         correctNoteCount += normalizedScore;
+        float previousTargetPublic = targetPublicScore;
         CaptureCurrentPerformanceSample();
+
+        AudienceComputationSnapshot snapshot = BuildAudienceComputationSnapshot();
+        LogAudienceSync(
+            "NoteEvaluated",
+            note,
+            normalizedScore > 0f,
+            previousTargetPublic,
+            snapshot);
 
         float notePercent = normalizedScore * 100f;
         string eventMsg = $"🎹 Ventana +{notePercent:F0}% ({successfulUnits}/{totalUnits})";
@@ -162,12 +187,21 @@ public class PianoPublicSystem : MonoBehaviour
 
     public void OnLiveWindowMatched(GameNoteData note, float onsetQuality, int totalUnits)
     {
+        float previousTargetPublic = targetPublicScore;
         float weightedQuality = Mathf.Clamp01(onsetQuality * liveWindowReactionMultiplier);
         float chordWeight = totalUnits > 1 ? Mathf.Lerp(0.8f, 1f, 1f / totalUnits) : 1f;
 
         liveRhythmPulse = Mathf.Clamp(liveRhythmPulse + (weightedQuality * earlyRhythmBoost * chordWeight), -100f, 100f);
         liveHarmonyPulse = Mathf.Clamp(liveHarmonyPulse + (weightedQuality * earlyHarmonyBoost * chordWeight), -100f, 100f);
         CaptureCurrentPerformanceSample();
+
+        AudienceComputationSnapshot snapshot = BuildAudienceComputationSnapshot();
+        LogAudienceSync(
+            "LiveWindowMatched",
+            note,
+            true,
+            previousTargetPublic,
+            snapshot);
 
         string eventMsg = $"⚡ Reacción temprana +{weightedQuality * 100f:F0}% por acierto en ventana";
         AddDebugEvent(eventMsg);
@@ -178,9 +212,18 @@ public class PianoPublicSystem : MonoBehaviour
     /// </summary>
     public void OnWrongNoteDetected(int wrongMidiNote)
     {
+        float previousTargetPublic = targetPublicScore;
         liveRhythmPulse = Mathf.Clamp(liveRhythmPulse - mistakeRhythmPenalty, -100f, 100f);
         liveHarmonyPulse = Mathf.Clamp(liveHarmonyPulse - mistakeHarmonyPenalty, -100f, 100f);
         CaptureCurrentPerformanceSample();
+
+        AudienceComputationSnapshot snapshot = BuildAudienceComputationSnapshot();
+        LogAudienceSync(
+            "WrongNote",
+            wrongMidiNote,
+            false,
+            previousTargetPublic,
+            snapshot);
 
         string eventMsg = $"⚠️ NOTA EQUIVOCADA (MIDI {wrongMidiNote})";
         AddDebugEvent(eventMsg);
@@ -250,6 +293,65 @@ public class PianoPublicSystem : MonoBehaviour
         currentLiveHarmony = Mathf.Clamp(baseHarmony + liveHarmonyPulse, 0f, 100f);
 
         return (currentLiveHarmony + currentLiveRhythm) * 0.5f;
+    }
+
+    private AudienceComputationSnapshot BuildAudienceComputationSnapshot()
+    {
+        AudienceComputationSnapshot snapshot = new AudienceComputationSnapshot();
+        snapshot.baseRhythm = gameplayScoring != null ? gameplayScoring.GetLiveRhythmPercentage() : 0f;
+        snapshot.baseHarmony = gameplayScoring != null ? gameplayScoring.GetLiveHarmonyPercentage() : 0f;
+        snapshot.liveRhythm = Mathf.Clamp(snapshot.baseRhythm + liveRhythmPulse, 0f, 100f);
+        snapshot.liveHarmony = Mathf.Clamp(snapshot.baseHarmony + liveHarmonyPulse, 0f, 100f);
+        snapshot.combinedPerformance = (snapshot.liveHarmony + snapshot.liveRhythm) * 0.5f;
+        snapshot.windowSamples = performanceWindow.Count;
+        snapshot.windowAverage = CalculateWindowAverage();
+        snapshot.windowConfidence = Mathf.Clamp01(performanceWindow.Count / Mathf.Max(stableWindowSamples, 1f));
+        snapshot.curvedAverage = Mathf.Pow(Mathf.Clamp01(snapshot.windowAverage / 100f), reactionCurvePower) * 100f;
+        snapshot.targetScore = Mathf.Clamp01(snapshot.curvedAverage / Mathf.Max(audienceProfile.ScoreForFullReaction, 0.01f)) * 100f * snapshot.windowConfidence;
+        snapshot.responseSpeed = snapshot.targetScore >= currentPublicScore ? riseLerpSpeed : fallLerpSpeed;
+        snapshot.currentScore = currentPublicScore;
+        snapshot.animationScore = animationPublicScore;
+        return snapshot;
+    }
+
+    private void LogAudienceSync(string eventType, GameNoteData note, bool wasOnTime, float previousPublic, AudienceComputationSnapshot snapshot)
+    {
+        if (!enableAudienceSyncLogs)
+        {
+            return;
+        }
+
+        string midiInfo = note != null ? $"midi=[{FormatMidiNotes(note)}]" : "midi=[n/a]";
+
+        Debug.Log(
+            $"{AudienceSyncTag} event={eventType} {midiInfo} onTime={wasOnTime} " +
+            $"public={previousPublic:F1}%->{snapshot.targetScore:F1}%");
+    }
+
+    private void LogAudienceSync(string eventType, int wrongMidiNote, bool wasOnTime, float previousPublic, AudienceComputationSnapshot snapshot)
+    {
+        if (!enableAudienceSyncLogs)
+        {
+            return;
+        }
+
+        Debug.Log(
+            $"{AudienceSyncTag} event={eventType} midi={wrongMidiNote} onTime={wasOnTime} " +
+            $"public={previousPublic:F1}%->{snapshot.targetScore:F1}%");
+    }
+
+    private string FormatMidiNotes(GameNoteData note)
+    {
+        if (note == null)
+        {
+            return "n/a";
+        }
+
+        int[] midiNotes = note.midi_notes != null && note.midi_notes.Length > 0
+            ? note.midi_notes
+            : new[] { note.GetMidiNote() };
+
+        return string.Join(",", midiNotes);
     }
 
     private void CaptureCurrentPerformanceSample()

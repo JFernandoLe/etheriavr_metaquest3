@@ -6,6 +6,8 @@ public class ConfigSceneUIController : MonoBehaviour
 {
     private const string ConfigSceneName = "ConfigScene";
     private const string HomeSceneName = "HomeScene";
+    private static readonly Color SelectedToggleColor = new Color(0.12f, 0.47f, 0.95f, 1f);
+    private static readonly Color UnselectedToggleColor = new Color(0.78f, 0.78f, 0.78f, 1f);
 
     private static bool isRegistered;
 
@@ -106,6 +108,9 @@ public class ConfigSceneUIController : MonoBehaviour
             ? UserSession.Instance.audienceIntensity
             : UserSession.DefaultAudienceIntensity);
 
+        BindToggleVisuals(lowToggle);
+        BindToggleVisuals(mediumToggle);
+        BindToggleVisuals(highToggle);
         ApplyPersistedSelection();
 
         if (saveButton != null)
@@ -126,6 +131,61 @@ public class ConfigSceneUIController : MonoBehaviour
         lowToggle.SetIsOnWithoutNotify(persistedSelection == "Bajo");
         mediumToggle.SetIsOnWithoutNotify(persistedSelection == "Medio");
         highToggle.SetIsOnWithoutNotify(persistedSelection == "Alto");
+
+        RefreshToggleVisuals();
+    }
+
+    private void BindToggleVisuals(Toggle toggle)
+    {
+        if (toggle == null)
+        {
+            return;
+        }
+
+        toggle.onValueChanged.RemoveListener(HandleToggleValueChanged);
+        toggle.onValueChanged.AddListener(HandleToggleValueChanged);
+        ApplyToggleVisualState(toggle, toggle.isOn);
+    }
+
+    private void HandleToggleValueChanged(bool _)
+    {
+        RefreshToggleVisuals();
+    }
+
+    private void RefreshToggleVisuals()
+    {
+        ApplyToggleVisualState(lowToggle, lowToggle != null && lowToggle.isOn);
+        ApplyToggleVisualState(mediumToggle, mediumToggle != null && mediumToggle.isOn);
+        ApplyToggleVisualState(highToggle, highToggle != null && highToggle.isOn);
+    }
+
+    private void ApplyToggleVisualState(Toggle toggle, bool isSelected)
+    {
+        if (toggle == null)
+        {
+            return;
+        }
+
+        Color targetColor = isSelected ? SelectedToggleColor : UnselectedToggleColor;
+
+        if (toggle.graphic != null)
+        {
+            toggle.graphic.color = targetColor;
+        }
+
+        if (toggle.targetGraphic != null)
+        {
+            ColorBlock colors = toggle.colors;
+            colors.normalColor = Color.white;
+            colors.selectedColor = Color.white;
+            colors.highlightedColor = new Color(0.9f, 0.95f, 1f, 1f);
+            colors.pressedColor = new Color(0.82f, 0.9f, 1f, 1f);
+            toggle.colors = colors;
+
+            toggle.targetGraphic.color = isSelected
+                ? new Color(0.87f, 0.94f, 1f, 1f)
+                : Color.white;
+        }
     }
 
     private void SaveSelection()
