@@ -60,8 +60,6 @@ public class Login : MonoBehaviour
                     Debug.LogWarning("<color=orange>[Login] No se encontró UserSession.Instance en la escena.</color>");
                 }
 
-                Debug.Log($"<color=cyan>Token JWT guardado: {res.access_token}</color>");
-
                 string connectedMidiDeviceName = ResolveConnectedMidiDeviceName();
                 if (!string.IsNullOrWhiteSpace(connectedMidiDeviceName) && UserSession.Instance != null)
                 {

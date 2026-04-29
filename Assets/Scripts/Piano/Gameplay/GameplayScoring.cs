@@ -10,6 +10,13 @@ using System;
 public class GameplayScoring : MonoBehaviour
 {
     private static readonly Color LiveGuideColor = new Color(0.45f, 0.26f, 0.12f, 1f);
+    private const string FeedbackLatencyTag = "[FeedbackLatency]";
+
+    private class PendingFeedbackLatencyEvent
+    {
+        public DateTimeOffset receivedAt;
+        public bool isCorrect;
+    }
 
     private class ActivePressState
     {
@@ -22,6 +29,9 @@ public class GameplayScoring : MonoBehaviour
     [SerializeField] private float minimumHoldForHit = 0.10f; // 10% mínimo de duración
     [SerializeField] private float perfectHoldThreshold = 0.80f;
     [SerializeField] private float simultaneousChordGrace = 0.045f;
+
+    [Header("Debug")]
+    [SerializeField] private bool enableHarmonyAnalysisDebugLogs = true;
     
     [Header("Referencias")]
     private PianoGameManager gameManager;
@@ -52,6 +62,7 @@ public class GameplayScoring : MonoBehaviour
     private readonly HashSet<int> currentlyPressedNotes = new HashSet<int>();
     private readonly Dictionary<int, ActivePressState> activePressStates = new Dictionary<int, ActivePressState>();
     private readonly Dictionary<int, StaffRenderer> activeLiveGuides = new Dictionary<int, StaffRenderer>();
+    private readonly Dictionary<int, Queue<PendingFeedbackLatencyEvent>> pendingFeedbackLatencyByMidiNote = new Dictionary<int, Queue<PendingFeedbackLatencyEvent>>();
     
     // Feedback visual
     private Dictionary<StaffRenderer, float> staffHitFeedbackTime = new Dictionary<StaffRenderer, float>();
@@ -179,6 +190,7 @@ public class GameplayScoring : MonoBehaviour
         totalChordEvents = 0;
         currentlyPressedNotes.Clear();
         activePressStates.Clear();
+        pendingFeedbackLatencyByMidiNote.Clear();
         ClearLiveInputGuides();
         
         // Cargar notas esperadas desde all_notes
@@ -220,6 +232,7 @@ public class GameplayScoring : MonoBehaviour
         nextExpectedNoteIndex = 0;
         currentlyPressedNotes.Clear();
         activePressStates.Clear();
+        pendingFeedbackLatencyByMidiNote.Clear();
         ClearLiveInputGuides();
         
         // Iniciar sistema público
@@ -292,6 +305,48 @@ public class GameplayScoring : MonoBehaviour
 
         return Time.time - gameStartTime;
     }
+
+    private void LogHarmonyAnalysis(string message)
+    {
+        if (!enableHarmonyAnalysisDebugLogs)
+        {
+            return;
+        }
+
+        Debug.Log($"[HarmonyAnalysis] {message}");
+    }
+
+    private string DescribeExpectedNote(GameNoteData note)
+    {
+        int[] midiNotes = GetMidiNotes(note);
+        string chordLabel = midiNotes.Length > 1 ? "Acorde" : "Nota";
+        return $"{chordLabel} esperado t={note.time:F3}s dur={note.duration:F3}s notas=[{FormatMidiNotes(midiNotes)}]";
+    }
+
+    private string FormatMidiNotes(IEnumerable<int> midiNotes)
+    {
+        if (midiNotes == null)
+        {
+            return "-";
+        }
+
+        return string.Join(", ", midiNotes.Select(note => $"{FormatMidiNoteName(note)}({note})"));
+    }
+
+    private string FormatMidiNoteName(int midiNote)
+    {
+        string[] noteNames = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+        int normalized = ((midiNote % 12) + 12) % 12;
+        int octave = Mathf.FloorToInt(midiNote / 12f) - 1;
+        return $"{noteNames[normalized]}{octave}";
+    }
+
+    private string FormatCurrentlyPressedNotes()
+    {
+        return currentlyPressedNotes.Count > 0
+            ? FormatMidiNotes(currentlyPressedNotes.OrderBy(note => note))
+            : "-";
+    }
     
     /// <summary>
     /// Procesa cuando se toca una nota MIDI
@@ -306,9 +361,15 @@ public class GameplayScoring : MonoBehaviour
         }
 
         float noteOnTime = GetCurrentSongTime();
+        DateTimeOffset noteOnReceivedAt = DateTimeOffset.UtcNow;
         currentlyPressedNotes.Add(midiNote);
         ShowLiveInputGuide(midiNote);
         bool matchedExpectedWindow = TrackOnsetTiming(midiNote, noteOnTime);
+        RegisterFeedbackLatencyNoteOn(midiNote, noteOnReceivedAt, matchedExpectedWindow);
+
+        LogHarmonyAnalysis(
+            $"NoteOn t={noteOnTime:F3}s entrada={FormatMidiNoteName(midiNote)}({midiNote}) vel={velocity} " +
+            $"presionadas=[{FormatCurrentlyPressedNotes()}] coincidenciaVentana={(matchedExpectedWindow ? "SI" : "NO")}");
 
         if (!matchedExpectedWindow)
         {
@@ -328,6 +389,44 @@ public class GameplayScoring : MonoBehaviour
             activePressStates[midiNote].pressStartTime = noteOnTime;
             activePressStates[midiNote].lastProcessedTime = noteOnTime;
         }
+    }
+
+    private void RegisterFeedbackLatencyNoteOn(int midiNote, DateTimeOffset noteOnReceivedAt, bool isCorrect)
+    {
+        if (!pendingFeedbackLatencyByMidiNote.TryGetValue(midiNote, out Queue<PendingFeedbackLatencyEvent> pendingEvents))
+        {
+            pendingEvents = new Queue<PendingFeedbackLatencyEvent>();
+            pendingFeedbackLatencyByMidiNote[midiNote] = pendingEvents;
+        }
+
+        pendingEvents.Enqueue(new PendingFeedbackLatencyEvent
+        {
+            receivedAt = noteOnReceivedAt,
+            isCorrect = isCorrect
+        });
+
+        while (pendingEvents.Count > 12)
+        {
+            pendingEvents.Dequeue();
+        }
+    }
+
+    public void ReportVisualFeedbackLatency(int midiNote, string visualObjectName)
+    {
+        DateTimeOffset visualTriggeredAt = DateTimeOffset.UtcNow;
+
+        if (!pendingFeedbackLatencyByMidiNote.TryGetValue(midiNote, out Queue<PendingFeedbackLatencyEvent> pendingEvents) || pendingEvents.Count == 0)
+        {
+            Debug.Log($"{FeedbackLatencyTag} midi={midiNote} isCorrect=False deltaMs=unavailable visualObject={visualObjectName}");
+            return;
+        }
+
+        PendingFeedbackLatencyEvent pendingEvent = pendingEvents.Dequeue();
+        double latencyMs = (visualTriggeredAt - pendingEvent.receivedAt).TotalMilliseconds;
+
+        Debug.Log(
+            $"{FeedbackLatencyTag} midi={midiNote} isCorrect={pendingEvent.isCorrect} deltaMs={latencyMs:F3} " +
+            $"receiveTimestamp={pendingEvent.receivedAt:O} visualTimestamp={visualTriggeredAt:O} visualObject={visualObjectName}");
     }
 
     private bool TrackOnsetTiming(int midiNote, float noteOnTime)
@@ -376,6 +475,11 @@ public class GameplayScoring : MonoBehaviour
             score.onsetOffsets[midiNote] = onsetOffset;
             matchedExpectedWindow = true;
 
+            LogHarmonyAnalysis(
+                $"ComparacionEnVivo idx={i} {DescribeExpectedNote(note)} | " +
+                $"entrada={FormatMidiNoteName(midiNote)}({midiNote}) offset={onsetOffset:F3}s " +
+                $"hitWindow={hitWindow:F3}s graciaAcorde={simultaneousChordGrace:F3}s resultado=MATCH");
+
             if (!score.liveReactionAwardedNotes.Contains(midiNote) && publicSystem != null)
             {
                 score.liveReactionAwardedNotes.Add(midiNote);
@@ -385,6 +489,13 @@ public class GameplayScoring : MonoBehaviour
             }
 
             break;
+        }
+
+        if (!matchedExpectedWindow)
+        {
+            LogHarmonyAnalysis(
+                $"ComparacionEnVivo entrada={FormatMidiNoteName(midiNote)}({midiNote}) t={noteOnTime:F3}s resultado=MISS " +
+                $"siguienteIdx={nextExpectedNoteIndex}");
         }
 
         return matchedExpectedWindow;
@@ -544,6 +655,22 @@ public class GameplayScoring : MonoBehaviour
             chordCoverageAccumulated += normalizedScore;
             totalChordEvents++;
         }
+
+        string perNoteBreakdown = string.Join(
+            " | ",
+            midiNotes.Select(midiNote =>
+            {
+                float heldDuration = score.heldDurations.TryGetValue(midiNote, out float heldValue) ? heldValue : 0f;
+                float onsetOffset = score.onsetOffsets.TryGetValue(midiNote, out float offsetValue) ? offsetValue : -1f;
+                string onsetLabel = onsetOffset >= 0f ? $"{onsetOffset:F3}s" : "sin-match";
+                return $"{FormatMidiNoteName(midiNote)}({midiNote}) hold={heldDuration:F3}s onset={onsetLabel}";
+            }));
+
+        LogHarmonyAnalysis(
+            $"EvaluacionFinal idx={noteIndex} {DescribeExpectedNote(note)} | " +
+            $"detalle=[{perNoteBreakdown}] exitosas={successfulUnits}/{midiNotes.Length} perfectas={perfectUnits}/{midiNotes.Length} " +
+            $"scoreNormalizado={normalizedScore:F3} coberturaAcordes={(totalChordEvents > 0 ? (chordCoverageAccumulated / totalChordEvents) * 100f : 0f):F1}% " +
+            $"armoniaLive={GetLiveHarmonyPercentage():F1}% resultado={(weightedUnits > 0f ? (score.wasPerfect ? "PERFECT" : "HIT") : "MISS")}");
 
         OnNoteEvaluated?.Invoke(note, normalizedScore, successfulUnits, midiNotes.Length);
 

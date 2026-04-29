@@ -1088,8 +1088,8 @@ MonoBehaviour:
   disableBuiltInUiFallback: 1
   locomotionRootName: Locomotion
   enableHandTrackingSupport: 1
-  handsRigTemplate: {fileID: 100100000, guid: d6878e1999eb4b44a9f5a263af86c185, type: 3}
-  handsPermissionsManagerPrefab: {fileID: 100100000, guid: 9b4a657c7df58fb4fa21624fe730efa2, type: 3}
+  handsRigTemplate: {fileID: 2218496723442559054, guid: d6878e1999eb4b44a9f5a263af86c185, type: 3}
+  handsPermissionsManagerPrefab: {fileID: 2687717463706941668, guid: 9b4a657c7df58fb4fa21624fe730efa2, type: 3}
   cameraOffsetName: Camera Offset
   leftHandName: Left Hand
   rightHandName: Right Hand

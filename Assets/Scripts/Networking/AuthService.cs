@@ -69,11 +69,6 @@ public class AuthService : MonoBehaviour
 
     public IEnumerator SavePracticeSession(PracticeSessionRequest data, Action<string> onSuccess, Action<string> onError)
     {
-        if (data != null)
-        {
-            Debug.Log($"[SessionAudit] Registrando sesion | user={data.user_id} | song={data.song_id} | mode={data.practice_mode} | datetime={data.practice_datetime}");
-        }
-
         yield return SendJsonRequest(PracticeSessionsUrl, "POST", SerializePracticeSessionRequest(data), true, onSuccess, onError);
     }
     // Método para obtener el historial de sesiones del usuario
@@ -81,8 +76,6 @@ public class AuthService : MonoBehaviour
     {
         // Construimos la URL: BaseUrl + /api/practice-sessions/user/{id}
         string url = NetworkConfig.Instance.BaseUrl + $"/api/practice-sessions/user/{userId}";
-
-        Debug.Log($"[SessionAudit] Consultando historial | user={userId}");
 
         using (UnityWebRequest request = UnityWebRequest.Get(url))
         {
@@ -101,14 +94,12 @@ public class AuthService : MonoBehaviour
                     json = "{\"sessions\":" + json + "}";
                 }
 
-                Debug.Log($"[SessionAudit] Historial recuperado correctamente | user={userId}");
                 onSuccess?.Invoke(json);
             }
             else
             {
                 string errorResponse = request.downloadHandler.text;
                 if (string.IsNullOrEmpty(errorResponse)) errorResponse = request.error;
-                Debug.LogError($"[SessionAudit] Error consultando historial | user={userId} | detalle={errorResponse}");
                 onError?.Invoke(errorResponse);
             }
         }

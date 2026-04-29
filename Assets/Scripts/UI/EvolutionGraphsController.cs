@@ -51,7 +51,7 @@ public class EvolutionGraphsController : MonoBehaviour
     [SerializeField] private Vector2 selectorPosition = new Vector2(0f, -205f);
     [SerializeField] private Vector2 selectorSize = new Vector2(440f, 64f);
     [SerializeField] private Vector2 tooltipPosition = new Vector2(865f, -220f);
-    [SerializeField] private Vector2 tooltipSize = new Vector2(540f, 220f);
+    [SerializeField] private Vector2 tooltipSize = new Vector2(620f, 270f);
     [SerializeField] private Vector2 tooltipOffset = new Vector2(38f, 0f);
     [SerializeField] private float tooltipMargin = 28f;
     [SerializeField] private float tooltipTitleFontSize = 30f;
@@ -59,6 +59,9 @@ public class EvolutionGraphsController : MonoBehaviour
     [SerializeField] private float chartCardHeight = 430f;
     [SerializeField] private float plotHeight = 320f;
     [SerializeField] private float pointSize = 20f;
+    [SerializeField] private float pointHitSizeMultiplier = 1.9f;
+    [SerializeField] private float pointVisualSizeMultiplier = 1.35f;
+    [SerializeField] private float tooltipHideDelay = 0.18f;
     [SerializeField] private float lineThickness = 6f;
 
     [Header("Colores")]
@@ -89,6 +92,7 @@ public class EvolutionGraphsController : MonoBehaviour
     private MonthBucket selectedMonth;
     private string lastLoadError;
     private Coroutine loadRoutine;
+    private Coroutine tooltipHideRoutine;
     private CultureInfo spanishCulture;
 
     private void OnEnable()
@@ -176,10 +180,14 @@ public class EvolutionGraphsController : MonoBehaviour
             pointSprite = BuildCircleSprite();
         }
 
-        tooltipSize = new Vector2(Mathf.Max(tooltipSize.x, 540f), Mathf.Max(tooltipSize.y, 220f));
+        tooltipSize = new Vector2(Mathf.Max(tooltipSize.x, 620f), Mathf.Max(tooltipSize.y, 270f));
         tooltipTitleFontSize = Mathf.Max(tooltipTitleFontSize, 30f);
         tooltipBodyFontSize = Mathf.Max(tooltipBodyFontSize, 27f);
         tooltipMargin = Mathf.Max(tooltipMargin, 18f);
+        pointSize = Mathf.Max(pointSize, 24f);
+        pointHitSizeMultiplier = Mathf.Max(pointHitSizeMultiplier, 1.5f);
+        pointVisualSizeMultiplier = Mathf.Max(pointVisualSizeMultiplier, 1.15f);
+        tooltipHideDelay = Mathf.Max(tooltipHideDelay, 0.08f);
     }
 
     private IEnumerator LoadAndRenderHistory()
@@ -564,16 +572,29 @@ public class EvolutionGraphsController : MonoBehaviour
 
     private void CreateGraphPoint(RectTransform plot, SessionViewModel session, Vector2 pointPosition, Color accentColor, string componentALabel)
     {
-        RectTransform pointRect = CreateRectTransform("Point", plot, new Vector2(pointSize, pointSize));
+        float hitSize = pointSize * pointHitSizeMultiplier;
+        float visualSize = pointSize * pointVisualSizeMultiplier;
+
+        RectTransform pointRect = CreateRectTransform("Point", plot, new Vector2(hitSize, hitSize));
         pointRect.anchorMin = new Vector2(0f, 0f);
         pointRect.anchorMax = new Vector2(0f, 0f);
         pointRect.pivot = new Vector2(0.5f, 0.5f);
         pointRect.anchoredPosition = pointPosition;
 
-        Image pointImage = pointRect.gameObject.AddComponent<Image>();
+        RectTransform pointVisualRect = CreateRectTransform("PointVisual", pointRect, new Vector2(visualSize, visualSize));
+        pointVisualRect.anchorMin = new Vector2(0.5f, 0.5f);
+        pointVisualRect.anchorMax = new Vector2(0.5f, 0.5f);
+        pointVisualRect.pivot = new Vector2(0.5f, 0.5f);
+        pointVisualRect.anchoredPosition = Vector2.zero;
+
+        Image pointImage = pointVisualRect.gameObject.AddComponent<Image>();
         pointImage.sprite = pointSprite;
         pointImage.color = accentColor;
-        pointImage.raycastTarget = true;
+        pointImage.raycastTarget = false;
+
+        Image hitAreaImage = pointRect.gameObject.AddComponent<Image>();
+        hitAreaImage.color = new Color(1f, 1f, 1f, 0.001f);
+        hitAreaImage.raycastTarget = true;
 
         EvolutionGraphPoint point = pointRect.gameObject.AddComponent<EvolutionGraphPoint>();
         point.Configure(
@@ -691,6 +712,12 @@ public class EvolutionGraphsController : MonoBehaviour
     private void BuildTooltipUi()
     {
         tooltipRoot = CreatePanelRect("PointTooltip", rootRect, tooltipColor, tooltipSize);
+        Image tooltipImage = tooltipRoot.GetComponent<Image>();
+        if (tooltipImage != null)
+        {
+            tooltipImage.raycastTarget = false;
+        }
+
         tooltipRoot.anchorMin = new Vector2(0.5f, 0.5f);
         tooltipRoot.anchorMax = new Vector2(0.5f, 0.5f);
         tooltipRoot.pivot = new Vector2(0.5f, 0.5f);
@@ -702,15 +729,15 @@ public class EvolutionGraphsController : MonoBehaviour
         tooltipTitleText.rectTransform.anchorMax = new Vector2(1f, 1f);
         tooltipTitleText.rectTransform.pivot = new Vector2(0f, 1f);
         tooltipTitleText.rectTransform.anchoredPosition = new Vector2(18f, -16f);
-        tooltipTitleText.rectTransform.sizeDelta = new Vector2(-36f, 56f);
+        tooltipTitleText.rectTransform.sizeDelta = new Vector2(-36f, 72f);
 
         tooltipBodyText = CreateText("TooltipBody", tooltipRoot, tooltipBodyFontSize, new Color(1f, 1f, 1f, 0.88f), TextAlignmentOptions.TopLeft, "Pasa el puntero sobre un punto para ver la sesión.");
         tooltipBodyText.enableWordWrapping = true;
         tooltipBodyText.rectTransform.anchorMin = new Vector2(0f, 0f);
         tooltipBodyText.rectTransform.anchorMax = new Vector2(1f, 1f);
         tooltipBodyText.rectTransform.pivot = new Vector2(0f, 1f);
-        tooltipBodyText.rectTransform.anchoredPosition = new Vector2(18f, -76f);
-        tooltipBodyText.rectTransform.sizeDelta = new Vector2(-36f, -92f);
+        tooltipBodyText.rectTransform.anchoredPosition = new Vector2(18f, -92f);
+        tooltipBodyText.rectTransform.sizeDelta = new Vector2(-36f, -112f);
 
         tooltipRoot.gameObject.SetActive(false);
     }
@@ -802,14 +829,44 @@ public class EvolutionGraphsController : MonoBehaviour
             return;
         }
 
+        CancelScheduledTooltipHide();
+
         tooltipTitleText.text = title;
         tooltipBodyText.text = body;
         PositionTooltipNearPoint(pointRect);
         tooltipRoot.gameObject.SetActive(true);
     }
 
+    public void ScheduleHideTooltip()
+    {
+        CancelScheduledTooltipHide();
+        tooltipHideRoutine = StartCoroutine(HideTooltipAfterDelay());
+    }
+
     public void HideTooltip()
     {
+        CancelScheduledTooltipHide();
+
+        if (tooltipRoot != null)
+        {
+            tooltipRoot.gameObject.SetActive(false);
+        }
+    }
+
+    private void CancelScheduledTooltipHide()
+    {
+        if (tooltipHideRoutine != null)
+        {
+            StopCoroutine(tooltipHideRoutine);
+            tooltipHideRoutine = null;
+        }
+    }
+
+    private IEnumerator HideTooltipAfterDelay()
+    {
+        yield return new WaitForSecondsRealtime(tooltipHideDelay);
+        tooltipHideRoutine = null;
+
         if (tooltipRoot != null)
         {
             tooltipRoot.gameObject.SetActive(false);
@@ -963,6 +1020,7 @@ public class EvolutionGraphsController : MonoBehaviour
         textComponent.alignment = alignment;
         textComponent.text = text;
         textComponent.enableWordWrapping = false;
+        textComponent.raycastTarget = false;
         return textComponent;
     }
 
@@ -1043,7 +1101,7 @@ public class EvolutionGraphPoint : MonoBehaviour, IPointerEnterHandler, IPointer
 
     public void OnPointerExit(PointerEventData eventData)
     {
-        controller?.HideTooltip();
+        controller?.ScheduleHideTooltip();
     }
 
     public void OnPointerClick(PointerEventData eventData)

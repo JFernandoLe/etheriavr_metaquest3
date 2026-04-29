@@ -357,6 +357,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ControladorAudienciaPiano
   puntajePiano: 0
   sistemaPublico: {fileID: 0}
+  velocidadSeguimientoPuntaje: 3.1
+  rangoOffsetCalidad: {x: -10, y: 10}
+  rangoSuavizadoAnimacion: {x: 0.7, y: 1.9}
+  intervaloRecacheo: 2
   jugador: {fileID: 1028999485}
   velocidadRotacion: 2
 --- !u!1001 &62422920
@@ -2275,7 +2279,7 @@ RectTransform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 324125614}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -0.0955}
+  m_LocalPosition: {x: 0, y: 0, z: -0.0023}
   m_LocalScale: {x: 0.01, y: 0.01, z: 0.01}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2283,7 +2287,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -0.729}
+  m_AnchoredPosition: {x: -0.012, y: -0.04}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &324125616
@@ -11671,6 +11675,7 @@ MonoBehaviour:
   forwardOffset: 0.0005
   minScale: 0.008
   maxScale: 0.015
+  minVisibleDistance: 0.05
   reticleColor: {r: 1, g: 1, b: 1, a: 1}
 --- !u!23 &1260625687
 MeshRenderer:
@@ -17156,6 +17161,7 @@ MonoBehaviour:
   forwardOffset: 0.0005
   minScale: 0.008
   maxScale: 0.015
+  minVisibleDistance: 0.05
   reticleColor: {r: 1, g: 1, b: 1, a: 1}
 --- !u!23 &1831483007
 MeshRenderer:

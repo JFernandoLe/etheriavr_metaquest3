@@ -22,15 +22,13 @@ public class AIServerFinder : MonoBehaviour
             yield break;
         string baseIP = GetNetworkBase();
 
-        Debug.Log("Escaneando red: " + baseIP + ".X");
-
         for (int i = 20; i < 60; i++) //  optimizado
         {
             string url = "http://" + baseIP + "." + i + ":5000/predict";
 
             UnityWebRequest www = new UnityWebRequest(url, "POST");
 
-            www.timeout = 1; //  CRÍTICO
+            www.timeout = 1; //  CRï¿½TICO
 
             byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(
                 "{\"min\":45,\"max\":65,\"avg\":55,\"range\":20,\"stability\":0.8}"
@@ -45,12 +43,12 @@ public class AIServerFinder : MonoBehaviour
             if (www.result == UnityWebRequest.Result.Success)
             {
                 ServerURL = "http://" + baseIP + "." + i + ":5000";
-                Debug.Log(" SERVIDOR ENCONTRADO: " + ServerURL);
+                Debug.Log("Servidor IA encontrado.");
                 yield break;
             }
         }
 
-        Debug.LogError(" No se encontró servidor");
+        Debug.LogError("No se encontrï¿½ servidor IA.");
     }
 
     string GetNetworkBase()
@@ -63,14 +61,12 @@ public class AIServerFinder : MonoBehaviour
 
                 if (ipStr.StartsWith("127")) continue;
 
-                Debug.Log(" IP detectada: " + ipStr);
-
                 string[] parts = ipStr.Split('.');
                 return parts[0] + "." + parts[1] + "." + parts[2];
             }
         }
 
-        Debug.LogWarning(" No se detectó IP, usando default");
+        Debug.LogWarning("No se detectï¿½ IP local, usando red predeterminada.");
         return "192.168.100";
     }
 }

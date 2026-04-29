@@ -19,8 +19,6 @@ public class HistoryManager : MonoBehaviour
     {
         if (UserSession.Instance == null) return;
 
-        Debug.Log($"[SessionAudit] Solicitando historial visible | user={UserSession.Instance.userId}");
-
         StartCoroutine(authService.GetUserHistory(UserSession.Instance.userId,
             onSuccess: (json) => {
                 PracticeSessionListWrapper wrapper = JsonUtility.FromJson<PracticeSessionListWrapper>(json);
@@ -29,7 +27,6 @@ public class HistoryManager : MonoBehaviour
                     Debug.LogWarning("El JSON se ley� pero la lista de sesiones est� vac�a.");
                 else
                 {
-                    Debug.Log($"[SessionAudit] Historial listo para UI | sesiones={wrapper.sessions.Count}");
                     GenerarLista(wrapper.sessions);
                 }
             },
@@ -53,7 +50,7 @@ public class HistoryManager : MonoBehaviour
             }
             else
             {
-                Debug.LogError("�CUIDADO! El Prefab no tiene el script SessionItem pegado.");
+                Debug.LogError("El prefab no tiene el script SessionItem asignado.");
             }
         }
     }
