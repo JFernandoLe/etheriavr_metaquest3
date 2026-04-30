@@ -165,7 +165,7 @@ public class ControladorAudiencia : MonoBehaviour
         switch (nivel)
         {
             case "Bajo":
-                dificultad = 40f;
+                dificultad = 100f;
                 break;
 
             case "Medio":
@@ -173,7 +173,7 @@ public class ControladorAudiencia : MonoBehaviour
                 break;
 
             case "Alto":
-                dificultad = 100f;
+                dificultad = 40f;
                 break;
 
             default:
