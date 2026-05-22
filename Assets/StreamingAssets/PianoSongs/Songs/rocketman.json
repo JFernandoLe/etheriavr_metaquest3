@@ -1,7 +1,7 @@
 {
   "audio_file": "PianoSongs/BackgroundMusic/rocketman.mp3",
-  "piano_volume": 0.8,
-  "audio_file_volume": 0.7,
+  "piano_volume": 1.0,
+  "audio_file_volume": 0.9,
   "all_notes": [
     {
       "time": 2.595,

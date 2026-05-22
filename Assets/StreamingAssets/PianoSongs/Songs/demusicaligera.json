@@ -1,7 +1,7 @@
 {
   "audio_file": "PianoSongs/BackgroundMusic/demusicaligera.mp3",
-  "piano_volume": 0.8,
-  "audio_file_volume": 0.7,
+  "piano_volume": 1.0,
+  "audio_file_volume": 0.6,
   "all_notes": [
     {
       "time": 0.95,
