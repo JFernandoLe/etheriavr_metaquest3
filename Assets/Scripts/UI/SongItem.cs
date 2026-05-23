@@ -38,10 +38,12 @@ public class SongItem : MonoBehaviour
         // 3. Detalles: Género, Duración y Modo
         if (txtDetalles != null)
         {
-            // La fórmula es: $minutos = \frac{segundos}{60}$
-            float duracionMinutos = (data.duration / 60f)%60; 
-            
-            txtDetalles.text = $"Modo: {data.mode}";
+            TimeSpan duration = TimeSpan.FromSeconds(Mathf.Max(0f, data.duration));
+            string formattedDuration = duration.TotalHours >= 1d
+                ? duration.ToString(@"h\:mm\:ss")
+                : duration.ToString(@"m\:ss");
+
+            txtDetalles.text = $"Duracion: {formattedDuration} | Modo: {data.mode}";
         }
         VerificarCompatibilidadVocal(data.musical_key, data.mode);
         // Configuración del botón específico

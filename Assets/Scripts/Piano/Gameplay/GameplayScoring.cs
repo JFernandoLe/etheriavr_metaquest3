@@ -25,10 +25,14 @@ public class GameplayScoring : MonoBehaviour
     }
 
     [Header("Configuración de Timing")]
-    [SerializeField] private float hitWindow = 0.15f; // Gracia para evaluar una nota después de terminar
+    [SerializeField] private float hitWindow = 0.18f; // Gracia para evaluar una nota después de terminar
     [SerializeField] private float minimumHoldForHit = 0.10f; // 10% mínimo de duración
     [SerializeField] private float perfectHoldThreshold = 0.80f;
     [SerializeField] private float simultaneousChordGrace = 0.045f;
+    [SerializeField] private float rhythmScoringWindow = 0.24f;
+    [SerializeField] private float perfectTimingWindow = 0.04f;
+    [Range(0f, 1f)]
+    [SerializeField] private float onsetWeightInRhythm = 0.65f;
 
     [Header("Debug")]
     [SerializeField] private bool enableHarmonyAnalysisDebugLogs = true;
@@ -108,7 +112,11 @@ public class GameplayScoring : MonoBehaviour
     
     void Start()
     {
+        hitWindow = Mathf.Max(hitWindow, 0.18f);
         simultaneousChordGrace = Mathf.Max(simultaneousChordGrace, 0.12f);
+        rhythmScoringWindow = Mathf.Max(rhythmScoringWindow, hitWindow);
+        perfectTimingWindow = Mathf.Clamp(perfectTimingWindow, 0.01f, rhythmScoringWindow);
+        onsetWeightInRhythm = Mathf.Clamp01(onsetWeightInRhythm);
 
         // Auto-detectar componentes
         if (midiAudioManager == null)
@@ -484,7 +492,7 @@ public class GameplayScoring : MonoBehaviour
             {
                 score.liveReactionAwardedNotes.Add(midiNote);
 
-                float onsetQuality = 1f - Mathf.Clamp01(onsetOffset / Mathf.Max(hitWindow, 0.0001f));
+                float onsetQuality = EvaluateTimingQuality(onsetOffset);
                 publicSystem.OnLiveWindowMatched(note, onsetQuality, midiNotes.Length);
             }
 
@@ -623,7 +631,7 @@ public class GameplayScoring : MonoBehaviour
             float onsetOffset = score.onsetOffsets.TryGetValue(midiNote, out float storedOffset)
                 ? storedOffset
                 : hitWindow;
-            float onsetQuality = 1f - Mathf.Clamp01(onsetOffset / Mathf.Max(hitWindow, 0.0001f));
+            float onsetQuality = EvaluateTimingQuality(onsetOffset);
             onsetQualityUnits += onsetQuality;
             totalOnsetQualityUnits += onsetQuality;
 
@@ -766,7 +774,8 @@ public class GameplayScoring : MonoBehaviour
             ? (totalDurationQualityUnits / totalPlayableNoteUnits) * 100f
             : 0f;
 
-        float rhythm = Mathf.Clamp(0.75f * onsetTiming + 0.25f * durationTiming, 0f, 100f);
+        float durationWeightInRhythm = 1f - onsetWeightInRhythm;
+        float rhythm = Mathf.Clamp((onsetWeightInRhythm * onsetTiming) + (durationWeightInRhythm * durationTiming), 0f, 100f);
         float global = Mathf.Clamp(0.6f * harmony + 0.4f * rhythm, 0f, 100f);
         
         GameplayResults results = new GameplayResults
@@ -814,7 +823,22 @@ public class GameplayScoring : MonoBehaviour
             ? (totalDurationQualityUnits / evaluatedPlayableNoteUnits) * 100f
             : 0f;
 
-        return Mathf.Clamp(0.75f * onsetTiming + 0.25f * durationTiming, 0f, 100f);
+        float durationWeightInRhythm = 1f - onsetWeightInRhythm;
+        return Mathf.Clamp((onsetWeightInRhythm * onsetTiming) + (durationWeightInRhythm * durationTiming), 0f, 100f);
+    }
+
+    private float EvaluateTimingQuality(float onsetOffset)
+    {
+        float scoringWindow = Mathf.Max(rhythmScoringWindow, hitWindow, 0.0001f);
+        float clampedPerfectWindow = Mathf.Clamp(perfectTimingWindow, 0f, scoringWindow);
+
+        if (onsetOffset <= clampedPerfectWindow)
+        {
+            return 1f;
+        }
+
+        float normalizedOffset = Mathf.InverseLerp(clampedPerfectWindow, scoringWindow, onsetOffset);
+        return 1f - (normalizedOffset * normalizedOffset);
     }
     
     /// <summary>

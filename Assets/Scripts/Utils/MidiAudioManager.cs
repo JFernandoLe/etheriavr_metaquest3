@@ -246,10 +246,6 @@ public class MidiAudioManager : MonoBehaviour
             if (!isPedalDown) 
             {
                 ReleaseSustain();
-                if (currentlyPressedNotes.Count > 0)
-                {
-                    currentlyPressedNotes.Clear();
-                }
             }
         }
     }
@@ -337,15 +333,29 @@ public class MidiAudioManager : MonoBehaviour
 
     void ReleaseSustain()
     {
+        List<int> notesToRelease = new List<int>();
+
         foreach (int n in sustainedNotes)
         {
-            if (activeNotes.ContainsKey(n))
+            if (currentlyPressedNotes.Contains(n))
             {
-                activeNotes[n].Stop();
-                activeNotes.Remove(n);
+                continue;
             }
+
+            notesToRelease.Add(n);
         }
-        sustainedNotes.Clear();
+
+        for (int i = 0; i < notesToRelease.Count; i++)
+        {
+            int midiNote = notesToRelease[i];
+            if (activeNotes.ContainsKey(midiNote))
+            {
+                activeNotes[midiNote].Stop();
+                activeNotes.Remove(midiNote);
+            }
+
+            sustainedNotes.Remove(midiNote);
+        }
     }
     
     /// <summary>

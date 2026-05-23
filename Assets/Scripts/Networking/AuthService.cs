@@ -48,6 +48,7 @@ public class AuthService : MonoBehaviour
             request.timeout = 10;
 
             yield return request.SendWebRequest();
+            BackendConnectionManager.ReportRequestResult(request);
 
             if (request.result == UnityWebRequest.Result.Success)
             {
@@ -83,6 +84,7 @@ public class AuthService : MonoBehaviour
             ApplyAuthorizationHeader(request);
 
             yield return request.SendWebRequest();
+            BackendConnectionManager.ReportRequestResult(request);
 
             if (request.result == UnityWebRequest.Result.Success)
             {
@@ -112,6 +114,7 @@ public class AuthService : MonoBehaviour
             ApplyAuthorizationHeader(request);
 
             yield return request.SendWebRequest();
+            BackendConnectionManager.ReportRequestResult(request);
 
             if (request.result == UnityWebRequest.Result.Success)
             {
@@ -143,6 +146,7 @@ public class AuthService : MonoBehaviour
             }
 
             yield return request.SendWebRequest();
+            BackendConnectionManager.ReportRequestResult(request);
 
             if (request.result == UnityWebRequest.Result.Success)
             {

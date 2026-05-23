@@ -41,6 +41,10 @@ public class NetworkConfig : ScriptableObject
     }
 
     private bool _isInitializing = false;
+    private Task<bool> _currentDiscoveryTask;
+
+    public bool IsDiscoveryInProgress { get; private set; }
+    public bool HasConfiguredServer => !string.IsNullOrEmpty(ipAddress) && !string.IsNullOrEmpty(port);
 
     private void Initialize()
     {
@@ -54,10 +58,24 @@ public class NetworkConfig : ScriptableObject
         _ = DiscoverServerAsync();
     }
 
-    public async Task DiscoverServerAsync()
+    public Task<bool> DiscoverServerAsync()
+    {
+        if (_currentDiscoveryTask != null && !_currentDiscoveryTask.IsCompleted)
+        {
+            return _currentDiscoveryTask;
+        }
+
+        _currentDiscoveryTask = DiscoverServerInternalAsync();
+        return _currentDiscoveryTask;
+    }
+
+    private async Task<bool> DiscoverServerInternalAsync()
     {
         int discoveryPort = 8888; // Puerto de escucha UDP
         string magicWord = "ETHERIA_SEARCH";
+        bool discoveredServer = false;
+
+        IsDiscoveryInProgress = true;
         
         Debug.Log("<color=cyan>[NetworkConfig]</color> 📡 Buscando servidor EtheriaVR en la red local...");
 
@@ -87,6 +105,7 @@ public class NetworkConfig : ScriptableObject
                         {
                             this.ipAddress = parts[1];
                             this.port = parts[2];
+                            discoveredServer = true;
                             Debug.Log("<color=green>[NetworkConfig]</color> ✅ Servidor autodetectado.");
                         }
                     }
@@ -101,6 +120,9 @@ public class NetworkConfig : ScriptableObject
                 Debug.LogError($"[NetworkConfig] Error en el descubrimiento UDP: {e.Message}");
             }
         }
+
+        IsDiscoveryInProgress = false;
+        return discoveredServer || HasConfiguredServer;
     }
 
     public void LoadFromEnv()
