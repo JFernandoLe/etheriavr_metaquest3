@@ -157,7 +157,7 @@ public class SingPublicSystem : MonoBehaviour
             if (scoreManager == null) return 0f;
         }
 
-        float baseHarmony = scoreManager.harmonyPercent;
+        float baseHarmony = scoreManager.accuracyPercent;
         float baseRhythm = scoreManager.rhythmPercent;
 
         float liveHarmony = Mathf.Clamp(baseHarmony + livePitchPulse, 0f, 100f);
