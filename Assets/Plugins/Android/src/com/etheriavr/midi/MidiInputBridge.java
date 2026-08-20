@@ -21,7 +21,7 @@ import java.io.IOException;
 public class MidiInputBridge {
     private static final String TAG = "MidiInputBridge";
     private static MidiInputBridge instance;
-    private static final int BUFFER_SIZE = 32;  // Ring buffer for up to 32 events
+    private static final int BUFFER_SIZE = 128;  // Ring buffer: acordes / ráfagas sin pérdida
     
     private Context context;
     private MidiManager midiManager;
@@ -39,6 +39,7 @@ public class MidiInputBridge {
     private static int readIndex = 0;
     private static int eventCount = 0;
     private static final Object bufferLock = new Object();
+    private static byte[] reusableEvent;
     
     // Status
     public static boolean isConnected = false;
@@ -353,8 +354,7 @@ public class MidiInputBridge {
                 }
             }
             
-            Log.d(TAG, String.format("MIDI RX: status=0x%02X data1=%d data2=%d", 
-                msg[offset] & 0xFF, msg[offset + 1] & 0xFF, msg[offset + 2] & 0xFF));
+            // Sin Log.d por nota: en Quest el logging JNI añadía latencia perceptible.
         }
         
         @Override
@@ -373,15 +373,18 @@ public class MidiInputBridge {
             
             // Read from readIndex
             int bufIdx = (readIndex % BUFFER_SIZE) * 3;
-            byte[] event = new byte[3];
-            event[0] = eventBuffer[bufIdx];
-            event[1] = eventBuffer[bufIdx + 1];
-            event[2] = eventBuffer[bufIdx + 2];
+            // Reutiliza un buffer estático: Unity solo lee estos 3 bytes de inmediato.
+            if (reusableEvent == null) {
+                reusableEvent = new byte[3];
+            }
+            reusableEvent[0] = eventBuffer[bufIdx];
+            reusableEvent[1] = eventBuffer[bufIdx + 1];
+            reusableEvent[2] = eventBuffer[bufIdx + 2];
             
             readIndex++;
             eventCount--;
             
-            return event;
+            return reusableEvent;
         }
     }
     

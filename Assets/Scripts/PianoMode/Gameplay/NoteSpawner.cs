@@ -106,10 +106,9 @@ public class NoteSpawner : MonoBehaviour
     {
         if (!isSpawning) return;
 
-        // El tiempo del audio es la fuente de verdad; si no suena, se usa el reloj local.
+        // Sin pista de fondo, el reloj del juego (gameTime) es la fuente de verdad.
         PianoGameManager gameManager = PianoGameManager.Instance;
-        AudioSource music = gameManager != null ? gameManager.BackgroundMusicSource : null;
-        currentSongTime = music != null && music.isPlaying ? music.time : Time.time - songStartTime;
+        currentSongTime = gameManager != null ? gameManager.GetSongPlaybackTime() : Time.time - songStartTime;
 
         while (nextNoteIndex < allNotes.Count)
         {

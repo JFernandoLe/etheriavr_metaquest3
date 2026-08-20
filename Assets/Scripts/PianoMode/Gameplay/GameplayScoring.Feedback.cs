@@ -27,7 +27,8 @@ public partial class GameplayScoring
 
     private void ShowLiveInputGuide(int midiNote)
     {
-        StaffRenderer targetStaff = GetGuideStaffForMidiNote(midiNote);
+        // Staff por altura MIDI: evita escanear la partitura en el hot-path de Note On.
+        StaffRenderer targetStaff = GetStaffForMidiNote(midiNote);
         if (targetStaff == null) return;
 
         targetStaff.ShowLiveInputIndicator(midiNote, LiveGuideColor);

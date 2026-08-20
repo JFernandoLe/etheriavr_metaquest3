@@ -8,7 +8,7 @@ using System.Globalization;
 /// </summary>
 public partial class PianoGameManager
 {
-    /// <summary>Carga el JSON indicado en el file_path de la canción elegida en el repertorio.</summary>
+    /// <summary>Carga el MIDI indicado en el file_path (solo nombre de archivo) de la canción elegida.</summary>
     private void LoadSelectedSong()
     {
         if (SelectedSongManager.Instance == null || SelectedSongManager.Instance.selectedSong == null)
@@ -26,20 +26,17 @@ public partial class PianoGameManager
     {
         ApplySelectedSongMetadata(songData);
         currentSongData = songData;
-        SelectedSongManager.Instance?.LogSongSelectionCheckpoint("Piano JSON listo");
+        SelectedSongManager.Instance?.LogSongSelectionCheckpoint("Piano MIDI listo");
 
-        if (songData.backgroundAudioClip != null)
+        if (songData.backgroundAudioClip != null && backgroundMusicSource != null)
         {
             backgroundMusicSource.clip = songData.backgroundAudioClip;
             backgroundMusicSource.volume = songData.audio_file_volume;
         }
-        else
-        {
-            Debug.LogWarning("[PianoGame] No se cargó audio de fondo");
-        }
 
         MidiAudioManager sceneMidiAudioManager = FindObjectOfType<MidiAudioManager>();
-        if (sceneMidiAudioManager != null) sceneMidiAudioManager.SetPianoVolume(songData.piano_volume);
+        if (sceneMidiAudioManager != null)
+            sceneMidiAudioManager.SetPianoVolume(Mathf.Max(songData.piano_volume, 1.35f));
 
         if (gameplayScoring != null && songData.all_notes != null) gameplayScoring.InitializeForSong(songData);
 
@@ -49,7 +46,7 @@ public partial class PianoGameManager
 
     private void OnSongLoadError(string error) => Debug.LogError($"[PianoGame] Error cargando canción: {error}");
 
-    /// <summary>Los metadatos de la BD tienen prioridad sobre los del JSON cuando están presentes.</summary>
+    /// <summary>Los metadatos de la BD tienen prioridad sobre los del MIDI cuando están presentes.</summary>
     private void ApplySelectedSongMetadata(PianoSongData songData)
     {
         if (songData == null || selectedSongMetadata == null) return;
@@ -62,7 +59,10 @@ public partial class PianoGameManager
             ? songData.artist
             : selectedSongMetadata.artist_name;
         songData.tempo = selectedSongMetadata.tempo > 0 ? selectedSongMetadata.tempo : songData.tempo;
-        songData.duration = selectedSongMetadata.duration > 0 ? selectedSongMetadata.duration : songData.duration;
+
+        // La duración del chart MIDI manda si es mayor (evita cortar notas reales).
+        if (selectedSongMetadata.duration > 0)
+            songData.duration = Mathf.Max(songData.duration, selectedSongMetadata.duration);
     }
 
     /// <summary>Deja todo listo, pero sin arrancar: falta que el jugador confirme el área del piano.</summary>
@@ -190,14 +190,12 @@ public partial class PianoGameManager
     {
         isPlaying = true;
 
-        if (backgroundMusicSource.clip != null)
+        gameTime = 0f;
+
+        if (backgroundMusicSource != null && backgroundMusicSource.clip != null)
         {
             backgroundMusicSource.time = 0f;
             backgroundMusicSource.Play();
-        }
-        else
-        {
-            Debug.LogError("[PianoGame] backgroundMusicSource no tiene AudioClip asignado!");
         }
 
         if (gameplayScoring != null) gameplayScoring.StartScoring();
@@ -215,7 +213,7 @@ public partial class PianoGameManager
         isPaused = true;
         isPlaying = false;
 
-        if (backgroundMusicSource.isPlaying) backgroundMusicSource.Pause();
+        if (backgroundMusicSource != null && backgroundMusicSource.isPlaying) backgroundMusicSource.Pause();
         if (gameplayScoring != null) gameplayScoring.PauseScoring();
         if (noteSpawner != null) noteSpawner.StopSpawning();
 
@@ -245,7 +243,8 @@ public partial class PianoGameManager
         pausedByMidiDisconnect = false;
         MidiStatusWidgetController.Instance?.ClearGameplayPrompt();
 
-        if (backgroundMusicSource.clip != null && !backgroundMusicSource.isPlaying) backgroundMusicSource.UnPause();
+        if (backgroundMusicSource != null && backgroundMusicSource.clip != null && !backgroundMusicSource.isPlaying)
+            backgroundMusicSource.UnPause();
         if (gameplayScoring != null) gameplayScoring.ResumeScoring();
         if (noteSpawner != null) noteSpawner.ResumeSpawning();
 
@@ -263,7 +262,7 @@ public partial class PianoGameManager
 
         if (selectedSongMetadata != null) results.mode_name = selectedSongMetadata.mode;
 
-        if (backgroundMusicSource.isPlaying) backgroundMusicSource.Stop();
+        if (backgroundMusicSource != null && backgroundMusicSource.isPlaying) backgroundMusicSource.Stop();
         if (noteSpawner != null) noteSpawner.StopSpawning();
 
         SilenceAudienceApplause();

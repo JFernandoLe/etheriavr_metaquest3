@@ -3,144 +3,196 @@ using UnityEngine.Networking;
 using System.IO;
 using System.Collections;
 using System.Collections.Generic;
+using Melanchall.DryWetMidi.Core;
+using Melanchall.DryWetMidi.Interaction;
 
 /// <summary>
-/// Wrapper para JsonUtility: no soporta List&lt;T&gt; en la raíz, así que se leen arrays.
-/// Los nombres de campo son el contrato con el JSON y no deben cambiar.
-/// </summary>
-[System.Serializable]
-public class PianoSongDataWrapper
-{
-    public string song_title;
-    public string artist;
-    public int tempo;
-    public string background_music;
-    public string audio_file;
-    public float piano_volume = 1.0f;
-    public float audio_file_volume = 1.0f;
-
-    public GameNoteData[] all_notes;
-    public PianoNoteData[] melody;
-    public PianoChordData[] chords;
-}
-
-/// <summary>
-/// Carga canciones de piano (JSON + AudioClip) desde StreamingAssets.
+/// Carga charts de piano desde MIDI en StreamingAssets/PianoSongs/Songs/.
+/// El file_path de la BD es solo el nombre del archivo (ej: furelise.mid).
 /// </summary>
 public class PianoSongLoader : MonoBehaviour
 {
-    private const string SONGS_FOLDER = "PianoSongs/Songs/";
-    private const string MUSIC_FOLDER = "PianoSongs/BackgroundMusic/";
+    private const float ChordGroupEpsilonSeconds = 0.03f;
 
-    /// <param name="fileName">Nombre del archivo JSON (ej: "rocketman.json"), admite ruta relativa.</param>
+    /// <param name="fileName">Nombre del archivo MIDI desde la BD (ej: "furelise.mid").</param>
     public void LoadSong(string fileName, System.Action<PianoSongData> onSuccess, System.Action<string> onError) =>
         StartCoroutine(LoadSongCoroutine(fileName, onSuccess, onError));
 
     private IEnumerator LoadSongCoroutine(string fileName, System.Action<PianoSongData> onSuccess, System.Action<string> onError)
     {
-        string jsonPath = Path.Combine(Application.streamingAssetsPath, SONGS_FOLDER, Path.GetFileName(fileName));
-        string jsonContent = null;
+        string assetName = SongAssetPaths.GetAssetFileName(fileName);
+        if (string.IsNullOrWhiteSpace(assetName))
+        {
+            onError?.Invoke("file_path de canción vacío o inválido");
+            yield break;
+        }
 
-        #if UNITY_ANDROID && !UNITY_EDITOR
-        // En Android StreamingAssets vive dentro del APK, hay que leerlo vía jar:// con UnityWebRequest.
-        using (UnityWebRequest www = UnityWebRequest.Get(jsonPath))
+        string midiPath = SongAssetPaths.GetPianoMidiPath(assetName);
+        byte[] midiBytes = null;
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+        using (UnityWebRequest www = UnityWebRequest.Get(midiPath))
         {
             yield return www.SendWebRequest();
 
             if (www.result != UnityWebRequest.Result.Success)
             {
-                Debug.LogError($"[PianoLoader] Error leyendo {jsonPath}: {www.error}");
-                onError?.Invoke($"Error leyendo JSON: {www.error}");
+                Debug.LogError($"[PianoLoader] Error leyendo {midiPath}: {www.error}");
+                onError?.Invoke($"Error leyendo MIDI: {www.error}");
                 yield break;
             }
 
-            jsonContent = www.downloadHandler.text;
+            midiBytes = www.downloadHandler.data;
         }
-        #else
-        if (!File.Exists(jsonPath))
+#else
+        if (!File.Exists(midiPath))
         {
-            Debug.LogError($"[PianoLoader] Archivo no existe: {jsonPath}");
-            onError?.Invoke($"Archivo no encontrado: {jsonPath}");
+            Debug.LogError($"[PianoLoader] Archivo no existe: {midiPath}");
+            onError?.Invoke($"Archivo no encontrado: {midiPath}");
             yield break;
         }
 
         try
         {
-            jsonContent = File.ReadAllText(jsonPath);
+            midiBytes = File.ReadAllBytes(midiPath);
         }
         catch (System.Exception e)
         {
-            onError?.Invoke($"Error leyendo archivo: {e.Message}");
+            onError?.Invoke($"Error leyendo MIDI: {e.Message}");
             yield break;
         }
-        #endif
+#endif
 
-        PianoSongDataWrapper wrapper;
+        PianoSongData songData;
         try
         {
-            wrapper = JsonUtility.FromJson<PianoSongDataWrapper>(jsonContent);
+            songData = BuildSongDataFromMidi(midiBytes, assetName);
         }
         catch (System.Exception e)
         {
-            Debug.LogError($"[PianoLoader] Error parseando JSON ({jsonContent?.Length} chars): {e.Message}");
-            onError?.Invoke($"Error parseando JSON: {e.Message}");
+            Debug.LogError($"[PianoLoader] Error parseando MIDI: {e.Message}");
+            onError?.Invoke($"Error parseando MIDI: {e.Message}");
             yield break;
         }
 
-        if (wrapper == null)
+        if (songData.all_notes == null || songData.all_notes.Count <= 0)
         {
-            Debug.LogError("[PianoLoader] El JSON no se pudo parsear como wrapper");
-            onError?.Invoke("El JSON no se pudo parsear correctamente");
+            onError?.Invoke("El MIDI no contiene notas reproducibles");
             yield break;
         }
 
-        PianoSongData songData = new PianoSongData
-        {
-            song_title = wrapper.song_title,
-            artist = wrapper.artist,
-            tempo = wrapper.tempo,
-            background_music = wrapper.background_music,
-            audio_file = wrapper.audio_file,
-            piano_volume = wrapper.piano_volume,
-            audio_file_volume = wrapper.audio_file_volume,
-            all_notes = new List<GameNoteData>(wrapper.all_notes ?? new GameNoteData[0]),
-            melody = new List<PianoNoteData>(wrapper.melody ?? new PianoNoteData[0]),
-            chords = new List<PianoChordData>(wrapper.chords ?? new PianoChordData[0])
-        };
-
-        if (songData.all_notes.Count <= 0 && songData.melody.Count <= 0)
-            Debug.LogError("[PianoLoader] La canción no trae notas: all_notes y melody están vacíos.");
-
-        string audioFileToLoad = songData.GetAudioPath();
-        if (string.IsNullOrEmpty(audioFileToLoad))
-        {
-            Debug.LogWarning("[PianoLoader] No se encontró ruta de audio (audio_file ni background_music)");
-            onSuccess?.Invoke(songData);
-            yield break;
-        }
-
-        string audioPath = Path.Combine(Application.streamingAssetsPath, MUSIC_FOLDER, Path.GetFileName(audioFileToLoad));
-        using (UnityWebRequest audioRequest = UnityWebRequestMultimedia.GetAudioClip(audioPath, AudioType.MPEG))
-        {
-            yield return audioRequest.SendWebRequest();
-
-            // Quedarse sin audio no es fatal: el gameplay continúa sin pista de fondo.
-            if (audioRequest.result != UnityWebRequest.Result.Success)
-                Debug.LogWarning($"[PianoLoader] Error cargando audio {audioPath}: {audioRequest.error}");
-            else
-                songData.backgroundAudioClip = DownloadHandlerAudioClip.GetContent(audioRequest);
-        }
-
+        Debug.Log($"[PianoLoader] MIDI cargado: {assetName} | notas agrupadas={songData.all_notes.Count} | duración={songData.duration:F1}s | tempo={songData.tempo}");
         onSuccess?.Invoke(songData);
+    }
+
+    private static PianoSongData BuildSongDataFromMidi(byte[] midiBytes, string assetName)
+    {
+        using (MemoryStream stream = new MemoryStream(midiBytes))
+        {
+            MidiFile midiFile = MidiFile.Read(stream);
+            TempoMap tempoMap = midiFile.GetTempoMap();
+            ICollection<Note> midiNotes = midiFile.GetNotes();
+
+            List<TimedMidiNote> timedNotes = new List<TimedMidiNote>(midiNotes.Count);
+            foreach (Note note in midiNotes)
+            {
+                MetricTimeSpan start = note.TimeAs<MetricTimeSpan>(tempoMap);
+                MetricTimeSpan length = note.LengthAs<MetricTimeSpan>(tempoMap);
+                float timeSec = (float)start.TotalSeconds;
+                float durationSec = Mathf.Max(0.05f, (float)length.TotalSeconds);
+
+                timedNotes.Add(new TimedMidiNote
+                {
+                    time = timeSec,
+                    duration = durationSec,
+                    midi = (int)note.NoteNumber
+                });
+            }
+
+            timedNotes.Sort((a, b) => a.time.CompareTo(b.time));
+
+            List<GameNoteData> allNotes = GroupIntoGameNotes(timedNotes);
+            float songDuration = 0f;
+            foreach (GameNoteData gameNote in allNotes)
+                songDuration = Mathf.Max(songDuration, gameNote.time + gameNote.duration);
+
+            int tempoBpm = 120;
+            Tempo tempoAtStart = tempoMap.GetTempoAtTime(new MidiTimeSpan(0));
+            if (tempoAtStart != null)
+                tempoBpm = Mathf.RoundToInt((float)tempoAtStart.BeatsPerMinute);
+
+            string title = Path.GetFileNameWithoutExtension(assetName);
+
+            return new PianoSongData
+            {
+                song_title = title,
+                song_name = title,
+                tempo = tempoBpm,
+                duration = songDuration,
+                recorded_duration = songDuration,
+                piano_volume = 1f,
+                audio_file_volume = 1f,
+                all_notes = allNotes,
+                melody = new List<PianoNoteData>(),
+                chords = new List<PianoChordData>()
+            };
+        }
+    }
+
+    private static List<GameNoteData> GroupIntoGameNotes(List<TimedMidiNote> timedNotes)
+    {
+        List<GameNoteData> result = new List<GameNoteData>();
+        if (timedNotes == null || timedNotes.Count == 0) return result;
+
+        int index = 0;
+        while (index < timedNotes.Count)
+        {
+            TimedMidiNote first = timedNotes[index];
+            List<int> pitches = new List<int> { first.midi };
+            float maxDuration = first.duration;
+            int lookAhead = index + 1;
+
+            while (lookAhead < timedNotes.Count &&
+                   timedNotes[lookAhead].time - first.time <= ChordGroupEpsilonSeconds)
+            {
+                pitches.Add(timedNotes[lookAhead].midi);
+                maxDuration = Mathf.Max(maxDuration, timedNotes[lookAhead].duration);
+                lookAhead++;
+            }
+
+            pitches.Sort();
+            bool isChord = pitches.Count > 1;
+            int representative = pitches[pitches.Count / 2];
+
+            result.Add(new GameNoteData
+            {
+                time = first.time,
+                duration = maxDuration,
+                midi_notes = pitches.ToArray(),
+                clef = representative >= 60 ? "treble" : "bass",
+                is_chord = isChord
+            });
+
+            index = lookAhead;
+        }
+
+        return result;
     }
 
     public bool SongExists(string fileName)
     {
-        #if UNITY_ANDROID && !UNITY_EDITOR
-        // Dentro del APK no se puede comprobar con File.Exists; se asume presente.
-        return true;
-        #else
-        return File.Exists(Path.Combine(Application.streamingAssetsPath, SONGS_FOLDER, fileName));
-        #endif
+#if UNITY_ANDROID && !UNITY_EDITOR
+        return !string.IsNullOrWhiteSpace(fileName);
+#else
+        string assetName = SongAssetPaths.GetAssetFileName(fileName);
+        return !string.IsNullOrWhiteSpace(assetName) && File.Exists(SongAssetPaths.GetPianoMidiPath(assetName));
+#endif
+    }
+
+    private struct TimedMidiNote
+    {
+        public float time;
+        public float duration;
+        public int midi;
     }
 }

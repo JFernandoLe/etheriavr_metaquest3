@@ -23,7 +23,8 @@ public class SongLoader : MonoBehaviour
 
             Debug.Log("PATH DEL BACKEND: " + path);
 
-            songName = Path.GetFileNameWithoutExtension(path);
+            // BD homogénea: "rosa_pastel.json" (o legado "songs/rosa_pastel") → basename.
+            songName = SongAssetPaths.GetAssetBaseName(path);
         }
 
         SelectedSongManager.Instance?.LogSongSelectionCheckpoint("Escena SingGame iniciada");
