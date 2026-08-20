@@ -3,7 +3,7 @@ using TMPro;
 
 public class PlayerNoteVisualizer : MonoBehaviour
 {
-    public SUDPReceiver receiver;
+    public VocalPitchAnalyzer receiver;
 
     public float midiHeightMultiplier = 0.1f;
     public float smoothingSpeed = 10f;

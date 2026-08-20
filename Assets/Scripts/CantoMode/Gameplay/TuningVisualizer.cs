@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class TuningVisualizer : MonoBehaviour
 {
-    public SUDPReceiver receiver;
+    public VocalPitchAnalyzer receiver;
     public Transform indicator;
 
     public float maxCentsRange = 50f;

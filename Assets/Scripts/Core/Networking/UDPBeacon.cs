@@ -1,34 +1,15 @@
+using System;
 using UnityEngine;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
-using System.Collections;
 
+/// <summary>
+/// Obsoleto: EtheriaVR ya no requiere etheria_desktop para descubrimiento UDP.
+/// </summary>
+[Obsolete("UDPBeacon ya no es necesario. El procesamiento de voz es local en Quest.")]
 public class UDPBeacon : MonoBehaviour
 {
-    private UdpClient udpClient;
-    public int discoveryPort = 5555;
-    public string discoveryMessage = "ETHERIA_VR_DISCOVERY";
-
-    void Start() {
-        udpClient = new UdpClient();
-        udpClient.EnableBroadcast = true;
-        StartCoroutine(BroadcastPresence());
+    void Start()
+    {
+        Debug.Log("[UDPBeacon] Desactivado — ya no se requiere conexión con etheria_desktop.");
+        enabled = false;
     }
-
-    IEnumerator BroadcastPresence() {
-        while (true) {
-            try {
-                byte[] data = Encoding.UTF8.GetBytes(discoveryMessage);
-                IPEndPoint endPoint = new IPEndPoint(IPAddress.Broadcast, discoveryPort);
-                udpClient.Send(data, data.Length, endPoint);
-                Debug.Log("Beacon: Gritando presencia en la red...");
-            } catch (System.Exception e) {
-                Debug.LogError("Error en Beacon: " + e.Message);
-            }
-            yield return new WaitForSeconds(3f); // Cada 3 segundos
-        }
-    }
-
-    void OnDisable() { if (udpClient != null) udpClient.Close(); }
 }

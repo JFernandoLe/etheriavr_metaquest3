@@ -3,6 +3,7 @@ using System.Collections.Generic;
 
 /// <summary>
 /// Pide el repertorio al backend e instancia una tarjeta por canción en el ScrollView.
+/// También muestra canciones personalizadas importadas localmente en Quest.
 /// </summary>
 public class ShowRepertorio : MonoBehaviour
 {
@@ -13,7 +14,16 @@ public class ShowRepertorio : MonoBehaviour
     [Header("Servicios")]
     [SerializeField] private AuthService authService;
 
-    private void Start() => CargarDatos();
+    private void Start()
+    {
+        if (CustomSongManager.Instance == null)
+        {
+            var managerObject = new GameObject("CustomSongManager");
+            managerObject.AddComponent<CustomSongManager>();
+        }
+
+        CargarDatos();
+    }
 
     private void CargarDatos()
     {
@@ -30,13 +40,28 @@ public class ShowRepertorio : MonoBehaviour
                 if (songs != null) foreach (SongListarResponse song in songs) CreateSongItem(song);
 
                 SelectedSongManager.Instance?.LogRepertoryRequestCompleted(songs != null ? songs.Count : 0);
+                CargarCancionesPersonalizadas();
             },
             onError: err =>
             {
                 SelectedSongManager.Instance?.LogRepertoryRequestFailed(err);
                 Debug.LogError($"Error al cargar canciones: {err}");
+                CargarCancionesPersonalizadas();
             }
         ));
+    }
+
+    private void CargarCancionesPersonalizadas()
+    {
+        if (CustomSongManager.Instance == null || songBoxPrefab == null || songBoxContainer == null)
+            return;
+
+        IReadOnlyList<CustomSongEntry> customSongs = CustomSongManager.Instance.ListCustomSongs();
+        foreach (CustomSongEntry entry in customSongs)
+        {
+            SongListarResponse song = CustomSongManager.Instance.ToSongListEntry(entry);
+            CreateSongItem(song);
+        }
     }
 
     private void CreateSongItem(SongListarResponse song)

@@ -1,7 +1,8 @@
-using UnityEngine;
 using System.Collections;
-using UnityEngine.Networking;
+using System.Collections.Generic;
 using System.IO;
+using UnityEngine;
+using UnityEngine.Networking;
 
 public class SongLoader : MonoBehaviour
 {
@@ -20,14 +21,11 @@ public class SongLoader : MonoBehaviour
             SelectedSongManager.Instance.selectedSong != null)
         {
             string path = SelectedSongManager.Instance.selectedSong.file_path;
-
             Debug.Log("PATH DEL BACKEND: " + path);
-
             songName = Path.GetFileNameWithoutExtension(path);
         }
 
         SelectedSongManager.Instance?.LogSongSelectionCheckpoint("Escena SingGame iniciada");
-
         LoadSong(songName);
     }
 
@@ -37,13 +35,7 @@ public class SongLoader : MonoBehaviour
             return;
 
         float songTime = GetSongTime() + songOffset;
-
         currentNote = GetCurrentNote(songTime);
-
-        if (currentNote != null)
-        {
-            //Debug.Log($"Tiempo: {songTime:F2} | Nota esperada: {currentNote.note}");
-        }
     }
 
     public float GetSongTime()
@@ -61,7 +53,6 @@ public class SongLoader : MonoBehaviour
 
     IEnumerator LoadSongCoroutine(string fileName)
     {
-
         loadedSong = null;
         songPlaying = false;
 
@@ -71,24 +62,66 @@ public class SongLoader : MonoBehaviour
             audioSource.clip = null;
         }
 
-        string basePath = Application.streamingAssetsPath + "/SingSongs/Songs";
-
-        string jsonPath = basePath + "/" + fileName + ".json";
-
-        Debug.Log("JSON PATH: " + jsonPath);
-
-        UnityWebRequest jsonRequest = UnityWebRequest.Get(jsonPath);
-        yield return jsonRequest.SendWebRequest();
-
-        if (jsonRequest.result != UnityWebRequest.Result.Success)
+        if (TryGetCustomSongPaths(fileName, out string jsonPath, out string audioPath))
         {
-            Debug.LogError("Error cargando JSON: " + jsonRequest.error);
+            yield return LoadFromPaths(jsonPath, audioPath);
             yield break;
         }
 
-        string jsonText = jsonRequest.downloadHandler.text;
-        loadedSong = JsonUtility.FromJson<SongData>(jsonText);
+        string basePath = Application.streamingAssetsPath + "/SingSongs/Songs";
+        string streamingJson = basePath + "/" + fileName + ".json";
+        yield return LoadFromPaths(streamingJson, null, basePath, fileName);
+    }
 
+    private static bool TryGetCustomSongPaths(string fileName, out string jsonPath, out string audioPath)
+    {
+        jsonPath = null;
+        audioPath = null;
+
+        string customDir = Path.Combine(Application.persistentDataPath, CustomSongManager.CustomSongsFolderName);
+        string candidateJson = Path.Combine(customDir, fileName + ".json");
+        if (!File.Exists(candidateJson))
+            return false;
+
+        string mp3 = Path.Combine(customDir, fileName + ".mp3");
+        string wav = Path.Combine(customDir, fileName + ".wav");
+        if (!File.Exists(mp3) && !File.Exists(wav))
+            return false;
+
+        jsonPath = candidateJson;
+        audioPath = File.Exists(mp3) ? mp3 : wav;
+        return true;
+    }
+
+    private IEnumerator LoadFromPaths(string jsonPath, string explicitAudioPath = null, string streamingBasePath = null, string fileName = null)
+    {
+        string jsonText;
+
+        if (jsonPath.StartsWith("http") || jsonPath.Contains(Application.streamingAssetsPath))
+        {
+            UnityWebRequest jsonRequest = UnityWebRequest.Get(jsonPath);
+            yield return jsonRequest.SendWebRequest();
+
+            if (jsonRequest.result != UnityWebRequest.Result.Success)
+            {
+                Debug.LogError("Error cargando JSON: " + jsonRequest.error);
+                yield break;
+            }
+
+            jsonText = jsonRequest.downloadHandler.text;
+        }
+        else
+        {
+            if (!File.Exists(jsonPath))
+            {
+                Debug.LogError("JSON no encontrado: " + jsonPath);
+                yield break;
+            }
+
+            jsonText = File.ReadAllText(jsonPath);
+        }
+
+        loadedSong = JsonUtility.FromJson<SongData>(jsonText);
         if (loadedSong == null)
         {
             Debug.LogError("JSON invalido o vacio");
@@ -97,12 +130,36 @@ public class SongLoader : MonoBehaviour
 
         SelectedSongManager.Instance?.LogSongSelectionCheckpoint("Canto JSON listo");
 
+        string audioPath = explicitAudioPath;
+        AudioType audioType = AudioType.UNKNOWN;
 
-        string audioPath = basePath + "/" + fileName + ".wav";
+        if (audioPath == null && streamingBasePath != null)
+        {
+            string wavPath = streamingBasePath + "/" + fileName + ".wav";
+            string mp3Path = streamingBasePath + "/" + fileName + ".mp3";
+
+            if (File.Exists(mp3Path))
+            {
+                audioPath = mp3Path;
+                audioType = AudioType.MPEG;
+            }
+            else
+            {
+                audioPath = wavPath;
+                audioType = AudioType.WAV;
+            }
+        }
+        else if (audioPath != null)
+        {
+            audioType = audioPath.EndsWith(".mp3", System.StringComparison.OrdinalIgnoreCase)
+                ? AudioType.MPEG
+                : AudioType.WAV;
+        }
 
         Debug.Log("AUDIO PATH: " + audioPath);
 
-        UnityWebRequest audioRequest = UnityWebRequestMultimedia.GetAudioClip(audioPath, AudioType.WAV);
+        string requestUri = audioPath.StartsWith("http") ? audioPath : "file://" + audioPath;
+        using UnityWebRequest audioRequest = UnityWebRequestMultimedia.GetAudioClip(requestUri, audioType);
         yield return audioRequest.SendWebRequest();
 
         if (audioRequest.result != UnityWebRequest.Result.Success)
@@ -112,7 +169,6 @@ public class SongLoader : MonoBehaviour
         }
 
         AudioClip clip = DownloadHandlerAudioClip.GetContent(audioRequest);
-
         if (clip == null)
         {
             Debug.LogError("Clip nulo");
@@ -120,21 +176,16 @@ public class SongLoader : MonoBehaviour
         }
 
         if (audioSource != null)
-        {
             audioSource.clip = clip;
-        }
 
         SelectedSongManager.Instance?.CompleteSongSelectionMeasurement("Canto listo para iniciar gameplay");
-
         StartSong();
     }
 
     public void StartSong()
     {
         if (audioSource != null && audioSource.clip != null)
-        {
             audioSource.Play();
-        }
 
         songPlaying = true;
     }

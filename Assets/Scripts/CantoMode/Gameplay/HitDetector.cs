@@ -3,7 +3,7 @@ using TMPro;
 
 public class HitDetector : MonoBehaviour
 {
-    public SUDPReceiver receiver;
+    public VocalPitchAnalyzer receiver;
     public NoteScroller scroller;
     public SongLoader songLoader;
     public TextMeshPro resultText;
@@ -11,6 +11,12 @@ public class HitDetector : MonoBehaviour
     public ParticleSystem perfectEffect;
     public AudioSource sfxSource;
     public AudioClip perfectSound;
+
+    void Awake()
+    {
+        if (receiver == null)
+            receiver = FindObjectOfType<VocalPitchAnalyzer>();
+    }
 
     bool lastWasPerfect = false;
 
