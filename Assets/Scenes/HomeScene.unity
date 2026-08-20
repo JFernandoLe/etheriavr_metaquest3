@@ -787,6 +787,7 @@ MonoBehaviour:
   forwardOffset: 0.0005
   minScale: 0.008
   maxScale: 0.015
+  minVisibleDistance: 0.05
   reticleColor: {r: 1, g: 1, b: 1, a: 1}
 --- !u!23 &610436368
 MeshRenderer:
@@ -1859,10 +1860,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UserSession
   token: 
-  userId: 0
   username: 
   email: 
   tessitura: 
+  userId: 0
   midiDeviceName: NO REGISTRADO
   audienceIntensity: Medio
   IsLoggedIn: 0
@@ -2507,6 +2508,7 @@ MonoBehaviour:
   forwardOffset: 0.0005
   minScale: 0.008
   maxScale: 0.015
+  minVisibleDistance: 0.05
   reticleColor: {r: 1, g: 1, b: 1, a: 1}
 --- !u!23 &2133843197
 MeshRenderer:

@@ -19,7 +19,39 @@ public class Login : MonoBehaviour
     {
         midiReceiver = FindObjectOfType<DirectMidiReceiver>();
 
+        if (UserSession.Instance != null && UserSession.Instance.IsLoggedIn)
+        {
+            TryRestoreSession();
+            return;
+        }
+
         if (loginButton != null) loginButton.onClick.AddListener(OnLoginClicked);
+    }
+
+    private void TryRestoreSession()
+    {
+        if (loginButton != null) loginButton.interactable = false;
+
+        StartCoroutine(authService.GetUserConfiguration(
+            UserSession.Instance.userId,
+            onSuccess: json =>
+            {
+                UserConfigurationData config = JsonUtility.FromJson<UserConfigurationData>(json);
+                UserSession.Instance.ApplyConfiguration(config);
+                UserSession.Instance.PersistSession();
+                SceneManager.LoadScene("HomeScene");
+            },
+            onError: _ =>
+            {
+                Debug.LogWarning("[Login] Sesión guardada inválida o expirada; se requiere iniciar sesión.");
+                UserSession.Instance.ClearSession();
+                if (loginButton != null)
+                {
+                    loginButton.interactable = true;
+                    loginButton.onClick.AddListener(OnLoginClicked);
+                }
+            }
+        ));
     }
 
     private void OnLoginClicked()

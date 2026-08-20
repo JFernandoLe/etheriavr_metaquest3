@@ -121,7 +121,7 @@ public class SUDPReceiver : MonoBehaviour
 
     }
 
-    // Métodos públicos para el visualizador
+    // Mï¿½todos pï¿½blicos para el visualizador
     public float GetCurrentCents()
     {
         return currentCents;

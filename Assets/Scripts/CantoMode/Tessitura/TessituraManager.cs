@@ -13,7 +13,7 @@ public class TessituraManager : MonoBehaviour
 {
     [Header("Referencias")]
     public SUDPReceiver receiver;
-    public AuthService authServiceManual; // Arrastra el AuthManager aquí en el Inspector
+    public AuthService authServiceManual; // Arrastra el AuthManager aquï¿½ en el Inspector
 
     [Header("UI TextmeshPro")]
     public TextMeshPro currentNoteText;
@@ -35,7 +35,7 @@ public class TessituraManager : MonoBehaviour
 
         int midi = receiver.GetCurrentMidi();
 
-        // Filtro de rango vocal humano estándar
+        // Filtro de rango vocal humano estï¿½ndar
         if (midi < 40 || midi > 85) return;
 
         totalFrames++;
@@ -65,7 +65,7 @@ public class TessituraManager : MonoBehaviour
 
     public void FinishMeasurement()
     {
-        Debug.Log("<color=yellow>TERMINÉ MEDICIÓN</color>");
+        Debug.Log("<color=yellow>TERMINï¿½ MEDICIï¿½N</color>");
         isMeasuring = false;
 
         float avg = totalMidi / Mathf.Max(count, 1);
@@ -127,11 +127,11 @@ public class TessituraManager : MonoBehaviour
 
                 if (UserSession.Instance != null)
                 {
-                    // Limpiamos la respuesta de la IA (quitamos espacios y pasamos a Mayúsculas)
+                    // Limpiamos la respuesta de la IA (quitamos espacios y pasamos a Mayï¿½sculas)
                     string vozIA = ai.voice.Trim();
                     string valorParaDB = "";
 
-                    // Mapeo exacto según tu lista de la IA
+                    // Mapeo exacto segï¿½n tu lista de la IA
                     switch (vozIA)
                     {
                         case "Bajo":
@@ -157,8 +157,9 @@ public class TessituraManager : MonoBehaviour
                             break;
                     }
 
-                    // Actualizamos la sesión local inmediatamente
+                    // Actualizamos la sesiÃ³n local inmediatamente
                     UserSession.Instance.tessitura = valorParaDB;
+                    UserSession.Instance.PersistSession();
                     Debug.Log($"<color=cyan>[Mapeo]</color> IA: {vozIA} -> DB: {valorParaDB}");
 
                     // Lanzamos el guardado al AuthService
@@ -177,7 +178,7 @@ public class TessituraManager : MonoBehaviour
         }
         else
         {
-            Debug.LogError("Error de conexión con IA: " + www.error);
+            Debug.LogError("Error de conexiï¿½n con IA: " + www.error);
         }
     }
 

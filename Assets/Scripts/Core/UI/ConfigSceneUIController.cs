@@ -155,7 +155,11 @@ public class ConfigSceneUIController : MonoBehaviour
         string selectedIntensity = GetSelectedIntensity();
         persistedSelection = selectedIntensity;
 
-        if (UserSession.Instance != null) UserSession.Instance.audienceIntensity = selectedIntensity;
+        if (UserSession.Instance != null)
+        {
+            UserSession.Instance.audienceIntensity = selectedIntensity;
+            UserSession.Instance.PersistSession();
+        }
 
         bool canPersistToServer = UserSession.Instance != null
                                   && UserSession.Instance.userId > 0

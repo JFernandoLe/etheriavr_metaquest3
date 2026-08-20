@@ -19,7 +19,7 @@ public class LyricsDisplay : MonoBehaviour
         float time = songLoader.GetSongTime() + songLoader.songOffset;
         var lyrics = songLoader.loadedSong.lyrics;
 
-        // avanzar a la siguiente línea cuando toca
+        // avanzar a la siguiente lï¿½nea cuando toca
         if (currentIndex < lyrics.Length - 1 &&
             time >= lyrics[currentIndex + 1].time)
         {
