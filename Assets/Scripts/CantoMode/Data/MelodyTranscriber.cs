@@ -1,27 +1,45 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using UnityEngine;
 
 /// <summary>
-/// Transcripción monofónica offline: analiza un AudioClip y extrae la melodía principal.
-/// Alternativa viable a MP3→MIDI completo en Quest (polifónico es demasiado costoso).
+/// Orquestador de transcripción musical offline.
+/// Delega el análisis a MelodyAnalysisPipeline y produce SongData + diagnósticos.
 /// </summary>
 public static class MelodyTranscriber
 {
-    private const int AnalysisSampleRate = 22050;
-    private const int FrameSize = 2048;
-    private const int HopSize = 512;
-    private const float MinNoteDuration = 0.12f;
-    private const float MinEnergy = 0.00008f;
-    private const float YinThreshold = 0.12f;
-
     public struct TranscriptionResult
     {
         public SongData Song;
         public float EstimatedBpm;
         public int NoteCount;
         public string SourceAudioPath;
+        public MelodyKeyEstimate EstimatedKey;
+        public TranscriptionDebugInfo DebugInfo;
+        public List<NoteEvent> NoteEvents;
+    }
+
+    public struct TranscriptionDebugInfo
+    {
+        public float DurationSeconds;
+        public int SourceSampleRate;
+        public int SourceChannels;
+        public int TotalSourceSamples;
+        public int ResampledSamples;
+        public int FramesAnalyzed;
+        public int ValidPitchFrames;
+        public int InvalidPitchFrames;
+        public int NotesDetected;
+        public int NotesDiscarded;
+        public float GlobalRms;
+        public float PeakAmplitude;
+        public float AveragePitchMidi;
+        public int MinDetectedMidi;
+        public int MaxDetectedMidi;
+        public string EstimatedKey;
+        public float KeyConfidence;
     }
 
     public static TranscriptionResult Transcribe(AudioClip clip, string songName, string sourcePath = null)
@@ -29,122 +47,170 @@ public static class MelodyTranscriber
         if (clip == null)
             throw new ArgumentNullException(nameof(clip));
 
-        float[] mono = ExtractMonoSamples(clip);
-        var notes = new List<SongNote>();
-        var onsets = new List<float>();
-
-        int totalFrames = Math.Max(0, (mono.Length - FrameSize) / HopSize);
-        int lastMidi = -1;
-        float segmentStart = 0f;
-        float segmentDuration = 0f;
-        float lastValidTime = 0f;
-
-        for (int frame = 0; frame < totalFrames; frame++)
+        var debug = new TranscriptionDebugInfo
         {
-            int offset = frame * HopSize;
-            float[] window = new float[FrameSize];
-            Array.Copy(mono, offset, window, 0, FrameSize);
+            DurationSeconds = clip.length,
+            SourceSampleRate = clip.frequency,
+            SourceChannels = clip.channels,
+            TotalSourceSamples = clip.samples
+        };
 
-            float time = offset / (float)AnalysisSampleRate;
-            float energy = YinPitchDetector.ComputeEnergy(window);
-            if (energy < MinEnergy)
+        float[] mono = ExtractMonoSamples(clip, ref debug);
+        return TranscribeFromMono(mono, clip.length, songName, sourcePath, ref debug);
+    }
+
+    /// <summary>Transcripción sobre buffer mono ya extraído (seguro para hilos en segundo plano).</summary>
+    public static TranscriptionResult TranscribeFromMono(float[] mono, float durationSeconds, string songName,
+        string sourcePath, ref TranscriptionDebugInfo debug)
+    {
+        if (mono == null || mono.Length == 0)
+            throw new ArgumentException("Buffer mono vacío.", nameof(mono));
+
+        debug.GlobalRms = ComputeRms(mono);
+
+        MelodyAnalysisPipeline.PipelineResult pipeline = MelodyAnalysisPipeline.Analyze(mono, durationSeconds, ref debug);
+        debug.InvalidPitchFrames = debug.FramesAnalyzed - debug.ValidPitchFrames;
+
+        var songNotes = new List<SongNote>();
+        ComputePitchRange(pipeline.NoteEvents, ref debug);
+
+        foreach (NoteEvent ev in pipeline.NoteEvents)
+        {
+            songNotes.Add(new SongNote
             {
-                FlushSegment(notes, ref lastMidi, ref segmentStart, ref segmentDuration, time);
-                continue;
-            }
-
-            float pitch = YinPitchDetector.DetectPitch(window, AnalysisSampleRate, YinThreshold);
-            if (pitch <= 0f)
-            {
-                FlushSegment(notes, ref lastMidi, ref segmentStart, ref segmentDuration, time);
-                continue;
-            }
-
-            int midi = MusicalNoteUtility.RoundMidi(MusicalNoteUtility.HzToMidi(pitch));
-            if (midi < 36 || midi > 96)
-                continue;
-
-            float hopSeconds = HopSize / (float)AnalysisSampleRate;
-
-            if (lastMidi == -1)
-            {
-                lastMidi = midi;
-                segmentStart = time;
-                segmentDuration = hopSeconds;
-                lastValidTime = time;
-                onsets.Add(time);
-                continue;
-            }
-
-            if (midi == lastMidi || Math.Abs(midi - lastMidi) <= 1)
-            {
-                segmentDuration += hopSeconds;
-                lastValidTime = time;
-                if (midi != lastMidi)
-                    lastMidi = midi;
-            }
-            else
-            {
-                FlushSegment(notes, ref lastMidi, ref segmentStart, ref segmentDuration, time);
-                lastMidi = midi;
-                segmentStart = time;
-                segmentDuration = hopSeconds;
-                onsets.Add(time);
-                lastValidTime = time;
-            }
+                note = ev.noteName,
+                midi = ev.midiRounded,
+                start = ev.startTime,
+                duration = ev.duration
+            });
         }
-
-        FlushSegment(notes, ref lastMidi, ref segmentStart, ref segmentDuration, clip.length);
-
-        float bpm = EstimateBpm(onsets);
 
         return new TranscriptionResult
         {
             Song = new SongData
             {
                 songName = songName,
-                songDuration = clip.length,
-                notes = notes.ToArray(),
+                songDuration = durationSeconds,
+                notes = songNotes.ToArray(),
                 lyrics = Array.Empty<LyricLine>()
             },
-            EstimatedBpm = bpm,
-            NoteCount = notes.Count,
-            SourceAudioPath = sourcePath
+            EstimatedBpm = pipeline.EstimatedBpm,
+            NoteCount = songNotes.Count,
+            SourceAudioPath = sourcePath,
+            EstimatedKey = pipeline.Key,
+            DebugInfo = debug,
+            NoteEvents = pipeline.NoteEvents
         };
     }
 
-    public static string SaveTranscription(TranscriptionResult result, string outputDirectory)
+    public static void LogTranscriptionSummary(string songName, TranscriptionResult result)
+    {
+        LogTranscriptionSummary(songName, result.DebugInfo, new List<SongNote>(result.Song.notes), result.EstimatedKey);
+    }
+
+    public static string SaveTranscription(TranscriptionResult result, string outputDirectory, string fileId = null)
     {
         Directory.CreateDirectory(outputDirectory);
-        string safeName = SanitizeFileName(result.Song.songName);
-        string jsonPath = Path.Combine(outputDirectory, safeName + ".json");
-        string json = JsonUtility.ToJson(result.Song, true);
-        File.WriteAllText(jsonPath, json);
+        string baseName = string.IsNullOrWhiteSpace(fileId)
+            ? SanitizeFileName(result.Song.songName)
+            : fileId;
+        string jsonPath = Path.Combine(outputDirectory, baseName + ".json");
+        File.WriteAllText(jsonPath, JsonUtility.ToJson(result.Song, true));
+        SaveDebugLog(result, outputDirectory, baseName);
         return jsonPath;
     }
 
-    private static float[] ExtractMonoSamples(AudioClip clip)
+    public static void SaveDebugLog(TranscriptionResult result, string outputDirectory, string safeName = null)
+    {
+        safeName ??= SanitizeFileName(result.Song.songName);
+        var sb = new StringBuilder();
+        TranscriptionDebugInfo d = result.DebugInfo;
+
+        sb.AppendLine("=== MelodyTranscriber Debug ===");
+        sb.AppendLine($"Canción: {result.Song.songName}");
+        sb.AppendLine($"Duración: {d.DurationSeconds:F2} s");
+        sb.AppendLine($"Sample rate origen: {d.SourceSampleRate} Hz");
+        sb.AppendLine($"Canales origen: {d.SourceChannels}");
+        sb.AppendLine($"Samples origen: {d.TotalSourceSamples}");
+        sb.AppendLine($"Samples resampleados: {d.ResampledSamples}");
+        sb.AppendLine($"RMS global: {d.GlobalRms:F6}");
+        sb.AppendLine($"Pico: {d.PeakAmplitude:F4}");
+        sb.AppendLine($"Frames analizados: {d.FramesAnalyzed}");
+        sb.AppendLine($"Frames con pitch válido: {d.ValidPitchFrames}");
+        sb.AppendLine($"Frames sin pitch: {d.InvalidPitchFrames}");
+        sb.AppendLine($"Notas detectadas: {d.NotesDetected}");
+        sb.AppendLine($"Notas descartadas: {d.NotesDiscarded}");
+        sb.AppendLine($"Pitch promedio (MIDI): {d.AveragePitchMidi:F2}");
+        sb.AppendLine($"Rango melódico: {d.MinDetectedMidi} - {d.MaxDetectedMidi}");
+        sb.AppendLine($"Tonalidad estimada: {d.EstimatedKey} (conf={d.KeyConfidence:F2})");
+        sb.AppendLine($"BPM estimado: {result.EstimatedBpm:F1}");
+        sb.AppendLine();
+        sb.AppendLine("Limitación: YIN monofónico sobre mezcla completa; bajo/acordes pueden dominar.");
+        sb.AppendLine("--- Notas finales ---");
+
+        if (result.Song.notes != null)
+        {
+            foreach (SongNote note in result.Song.notes)
+                sb.AppendLine($"[{FormatTime(note.start)}] {note.note} (MIDI {note.midi}) dur={note.duration:F3}s");
+        }
+
+        string logPath = Path.Combine(outputDirectory, safeName + ".transcription.log");
+        File.WriteAllText(logPath, sb.ToString());
+        Debug.Log($"[MelodyTranscriber] Log guardado: {logPath}");
+    }
+
+    private static void ComputePitchRange(List<NoteEvent> events, ref TranscriptionDebugInfo debug)
+    {
+        if (events == null || events.Count == 0)
+            return;
+
+        float sum = 0f;
+        int min = 127;
+        int max = 0;
+        foreach (NoteEvent ev in events)
+        {
+            sum += ev.pitchMidi;
+            min = Math.Min(min, ev.midiRounded);
+            max = Math.Max(max, ev.midiRounded);
+        }
+
+        debug.AveragePitchMidi = sum / events.Count;
+        debug.MinDetectedMidi = min;
+        debug.MaxDetectedMidi = max;
+    }
+
+    public static float[] ExtractMonoSamplesPublic(AudioClip clip, ref TranscriptionDebugInfo debug) =>
+        ExtractMonoSamples(clip, ref debug);
+
+    private static float[] ExtractMonoSamples(AudioClip clip, ref TranscriptionDebugInfo debug)
     {
         float[] raw = new float[clip.samples * clip.channels];
         clip.GetData(raw, 0);
 
-        if (clip.channels == 1 && clip.frequency == AnalysisSampleRate)
-            return raw;
-
         int monoLength = clip.samples;
         float[] mono = new float[monoLength];
-        for (int i = 0; i < monoLength; i++)
+        if (clip.channels >= 2)
         {
-            float sum = 0f;
-            for (int c = 0; c < clip.channels; c++)
-                sum += raw[i * clip.channels + c];
-            mono[i] = sum / clip.channels;
+            for (int i = 0; i < monoLength; i++)
+            {
+                float left = raw[i * clip.channels];
+                float right = raw[i * clip.channels + 1];
+                float mid = (left + right) * 0.5f;
+                float side = (left - right) * 0.5f;
+                mono[i] = mid * 1.25f - side * 0.55f;
+            }
+        }
+        else
+        {
+            for (int i = 0; i < monoLength; i++)
+                mono[i] = raw[i];
         }
 
-        if (clip.frequency == AnalysisSampleRate)
-            return mono;
+        if (clip.frequency != MelodyAnalysisPipeline.AnalysisSampleRate)
+            mono = Resample(mono, clip.frequency, MelodyAnalysisPipeline.AnalysisSampleRate);
 
-        return Resample(mono, clip.frequency, AnalysisSampleRate);
+        debug.ResampledSamples = mono.Length;
+        return mono;
     }
 
     private static float[] Resample(float[] input, int sourceRate, int targetRate)
@@ -169,46 +235,36 @@ public static class MelodyTranscriber
         return output;
     }
 
-    private static void FlushSegment(List<SongNote> notes, ref int lastMidi, ref float segmentStart, ref float segmentDuration, float time)
+    private static float ComputeRms(float[] samples)
     {
-        if (lastMidi < 0 || segmentDuration < MinNoteDuration)
-        {
-            lastMidi = -1;
-            segmentDuration = 0f;
-            return;
-        }
+        if (samples == null || samples.Length == 0)
+            return 0f;
 
-        notes.Add(new SongNote
-        {
-            note = MusicalNoteUtility.MidiToNoteName(lastMidi),
-            midi = lastMidi,
-            start = segmentStart,
-            duration = segmentDuration
-        });
-
-        lastMidi = -1;
-        segmentDuration = 0f;
+        double sum = 0d;
+        for (int i = 0; i < samples.Length; i++)
+            sum += samples[i] * samples[i];
+        return (float)Math.Sqrt(sum / samples.Length);
     }
 
-    private static float EstimateBpm(List<float> onsets)
+    private static void LogTranscriptionSummary(string songName, TranscriptionDebugInfo debug, List<SongNote> notes, MelodyKeyEstimate key)
     {
-        if (onsets.Count < 4)
-            return 0f;
+        Debug.Log($"[MelodyTranscriber] '{songName}' dur={debug.DurationSeconds:F1}s frames={debug.FramesAnalyzed} " +
+                  $"valid={debug.ValidPitchFrames} notes={debug.NotesDetected} discarded={debug.NotesDiscarded} " +
+                  $"key={key.keyName}({key.confidence:F2}) bpm-range={debug.MinDetectedMidi}-{debug.MaxDetectedMidi}");
 
-        var intervals = new List<float>();
-        for (int i = 1; i < onsets.Count; i++)
+        int previewCount = Mathf.Min(notes.Count, 15);
+        for (int i = 0; i < previewCount; i++)
         {
-            float delta = onsets[i] - onsets[i - 1];
-            if (delta >= 0.25f && delta <= 2f)
-                intervals.Add(delta);
+            SongNote n = notes[i];
+            Debug.Log($"[MelodyTranscriber] [{FormatTime(n.start)}] {n.note} dur={n.duration:F3}s");
         }
+    }
 
-        if (intervals.Count == 0)
-            return 0f;
-
-        intervals.Sort();
-        float median = intervals[intervals.Count / 2];
-        return median > 0f ? 60f / median : 0f;
+    private static string FormatTime(float seconds)
+    {
+        int mins = (int)(seconds / 60f);
+        float secs = seconds - mins * 60f;
+        return $"{mins:00}:{secs:00.00}";
     }
 
     private static string SanitizeFileName(string name)

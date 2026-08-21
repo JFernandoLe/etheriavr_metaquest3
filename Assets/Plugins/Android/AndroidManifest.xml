@@ -32,5 +32,10 @@
             <meta-data android:name="android.app.lib_name" android:value="game" />
         </activity>
 
+        <activity
+            android:name="com.etheriavr.audiopicker.AudioPickerActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
     </application>
 </manifest>

@@ -23,6 +23,11 @@ public static class MusicalNoteUtility
         return 440f * Mathf.Pow(2f, (midi - 69f) / 12f);
     }
 
+    public static float MidiToHz(float midi)
+    {
+        return 440f * Mathf.Pow(2f, (midi - 69f) / 12f);
+    }
+
     public static int RoundMidi(float midiFloat)
     {
         return Mathf.RoundToInt(midiFloat);
