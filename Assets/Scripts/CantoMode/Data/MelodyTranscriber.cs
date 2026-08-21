@@ -197,7 +197,7 @@ public static class MelodyTranscriber
                 float right = raw[i * clip.channels + 1];
                 float mid = (left + right) * 0.5f;
                 float side = (left - right) * 0.5f;
-                mono[i] = mid * 1.25f - side * 0.55f;
+                mono[i] = mid * 1.30f - side * 0.60f;
             }
         }
         else

@@ -341,7 +341,7 @@ public class CustomSongManager : MonoBehaviour
             keyConfidence = transcription.EstimatedKey.confidence,
             durationSeconds = duration,
             importedAtUtc = DateTime.UtcNow.ToString("o"),
-            analysisType = "melody_pipeline_v5",
+            analysisType = "melody_pipeline_v6",
             midiFileGenerated = false
         };
 

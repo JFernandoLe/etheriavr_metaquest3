@@ -6,19 +6,19 @@ using UnityEngine;
 /// </summary>
 public class VocalPitchAnalyzer : MonoBehaviour
 {
-    private const float LiveMinFrequency = 70f;
-    private const float LiveMaxFrequency = 1300f;
+    private const float LiveMinFrequency = 65f;
+    private const float LiveMaxFrequency = 1350f;
 
     [Header("Captura")]
     [SerializeField] private int sampleRate = YinPitchDetector.DefaultSampleRate;
-    [SerializeField] private int frameSize = YinPitchDetector.DefaultFrameSize;
-    [SerializeField] private float yinThreshold = 0.18f;
-    [SerializeField] private float energyThreshold = 0.00035f;
-    [SerializeField] private int maxDropFrames = 4;
-    [SerializeField] private float sendInterval = 0.025f;
+    [SerializeField] private int frameSize = 1536;
+    [SerializeField] private float yinThreshold = 0.17f;
+    [SerializeField] private float energyThreshold = 0.0003f;
+    [SerializeField] private int maxDropFrames = 5;
+    [SerializeField] private float sendInterval = 0.02f;
 
     [Header("Suavizado")]
-    [SerializeField] private float centsSmoothingFactor = 0.18f;
+    [SerializeField] private float centsSmoothingFactor = 0.22f;
 
     [Header("UI opcional")]
     public TextMeshPro centsText;
@@ -29,12 +29,13 @@ public class VocalPitchAnalyzer : MonoBehaviour
     private float[] analysisBuffer;
     private float previousPitch = -1f;
     private float lastValidPitch = -1f;
+    private float lastConfidence;
     private int dropFrames;
     private float lastProcessTime;
     private float smoothedCents;
     private float noiseFloorEma = 0.0002f;
 
-    private readonly float[] recentMidi = new float[3];
+    private readonly float[] recentMidi = new float[5];
     private int recentMidiCount;
 
     private int currentMidi = -1;
@@ -71,10 +72,10 @@ public class VocalPitchAnalyzer : MonoBehaviour
 
         lastProcessTime = Time.unscaledTime;
 
-        if (!TryReadLatestFrame(out float[] frame))
+        if (!TryReadLatestFrame(out _))
             return;
 
-        ProcessFrame(frame);
+        ProcessFrame(analysisBuffer);
     }
 
     public float GetCurrentCents() => currentCents;
@@ -128,63 +129,81 @@ public class VocalPitchAnalyzer : MonoBehaviour
     private void ProcessFrame(float[] frame)
     {
         float energy = YinPitchDetector.ComputeEnergy(frame);
-        noiseFloorEma = noiseFloorEma * 0.92f + energy * 0.08f;
-        float adaptiveThreshold = Mathf.Max(energyThreshold, noiseFloorEma * 2.2f);
+        noiseFloorEma = noiseFloorEma * 0.90f + energy * 0.10f;
+        float adaptiveThreshold = Mathf.Max(energyThreshold, noiseFloorEma * 1.9f);
 
         if (energy < adaptiveThreshold)
         {
             dropFrames++;
-            if (dropFrames < maxDropFrames && lastValidPitch > 0f)
-                PublishPitch(lastValidPitch);
+            if (ShouldHoldPitch() && lastValidPitch > 0f)
+                PublishPitch(lastValidPitch, lastConfidence * 0.92f);
             return;
         }
 
         System.Array.Copy(frame, analysisBuffer, frameSize);
+        PitchAnalysisCore.ApplyFirstOrderHighPassInPlace(analysisBuffer, sampleRate, 90f);
+        PitchAnalysisCore.ApplyPreEmphasisInPlace(analysisBuffer, 0.95f);
         PitchAnalysisCore.ApplyHanningInPlace(analysisBuffer);
 
-        float adaptiveYin = Mathf.Lerp(yinThreshold, yinThreshold * 0.72f,
-            Mathf.Clamp01(energy / (adaptiveThreshold * 4f)));
-
-        YinPitchDetector.YinResult yin = YinPitchDetector.DetectPitchDetailed(
-            analysisBuffer, sampleRate, adaptiveYin, LiveMinFrequency, LiveMaxFrequency);
-
-        float pitch = yin.IsValid
-            ? PitchAnalysisCore.ValidateFundamentalHz(analysisBuffer, sampleRate, yin)
-            : -1f;
-
-        if (pitch <= 0f)
+        float flatness = PitchAnalysisCore.ComputeSpectralFlatness(analysisBuffer, sampleRate);
+        if (flatness > 0.72f && energy < adaptiveThreshold * 2.5f)
         {
             dropFrames++;
-            if (dropFrames < maxDropFrames && lastValidPitch > 0f)
-                PublishPitch(lastValidPitch);
+            if (ShouldHoldPitch() && lastValidPitch > 0f)
+                PublishPitch(lastValidPitch, lastConfidence * 0.9f);
             return;
         }
 
-        pitch = SmoothPitch(pitch);
-        pitch = ApplyRecentMedian(pitch);
+        float adaptiveYin = Mathf.Lerp(yinThreshold, yinThreshold * 0.68f,
+            Mathf.Clamp01(energy / (adaptiveThreshold * 3.5f)));
+
+        PitchAnalysisCore.RobustPitchResult result = PitchAnalysisCore.DetectPitchRobust(
+            analysisBuffer, sampleRate, adaptiveYin, LiveMinFrequency, LiveMaxFrequency);
+
+        if (!result.IsValid || result.Confidence < 0.18f)
+        {
+            dropFrames++;
+            if (ShouldHoldPitch() && lastValidPitch > 0f)
+                PublishPitch(lastValidPitch, lastConfidence * 0.88f);
+            return;
+        }
+
+        float pitch = SmoothPitch(result.PitchHz, result.Confidence);
+        pitch = ApplyAdaptiveMedian(pitch, result.Confidence);
         lastValidPitch = pitch;
+        lastConfidence = result.Confidence;
         dropFrames = 0;
-        PublishPitch(pitch);
+        PublishPitch(pitch, result.Confidence);
     }
 
-    private float ApplyRecentMedian(float pitchHz)
+    private bool ShouldHoldPitch() => dropFrames < maxDropFrames + (lastConfidence > 0.55f ? 2 : 0);
+
+    private float ApplyAdaptiveMedian(float pitchHz, float confidence)
     {
         float midi = MusicalNoteUtility.HzToMidi(pitchHz);
         recentMidi[recentMidiCount % recentMidi.Length] = midi;
         recentMidiCount++;
 
         int count = Mathf.Min(recentMidiCount, recentMidi.Length);
-        if (count < 2)
+        if (count < 3 || confidence > 0.62f)
             return pitchHz;
 
-        float[] sorted = new float[count];
+        var cluster = new float[count];
+        int clusterCount = 0;
         for (int i = 0; i < count; i++)
-            sorted[i] = recentMidi[i];
-        System.Array.Sort(sorted);
-        return MusicalNoteUtility.MidiToHz(sorted[count / 2]);
+        {
+            if (Mathf.Abs(recentMidi[i] - midi) <= 1.2f)
+                cluster[clusterCount++] = recentMidi[i];
+        }
+
+        if (clusterCount < 2)
+            return pitchHz;
+
+        System.Array.Sort(cluster, 0, clusterCount);
+        return MusicalNoteUtility.MidiToHz(cluster[clusterCount / 2]);
     }
 
-    private float SmoothPitch(float currentPitch)
+    private float SmoothPitch(float currentPitch, float confidence)
     {
         if (previousPitch <= 0f)
         {
@@ -193,13 +212,21 @@ public class VocalPitchAnalyzer : MonoBehaviour
         }
 
         float centsDiff = 1200f * Mathf.Log(currentPitch / previousPitch, 2f);
-        float alpha = Mathf.Abs(centsDiff) > 100f ? 0.55f : 0.35f;
+        float absCents = Mathf.Abs(centsDiff);
+        float alpha = absCents switch
+        {
+            > 180f => 0.72f,
+            > 100f => 0.52f,
+            > 40f => 0.42f,
+            _ => 0.28f + confidence * 0.18f
+        };
+
         currentPitch = alpha * currentPitch + (1f - alpha) * previousPitch;
         previousPitch = currentPitch;
         return currentPitch;
     }
 
-    private void PublishPitch(float frequency)
+    private void PublishPitch(float frequency, float confidence)
     {
         packetCount++;
 
@@ -207,7 +234,8 @@ public class VocalPitchAnalyzer : MonoBehaviour
         int midi = MusicalNoteUtility.RoundMidi(midiFloat);
         float rawCents = MusicalNoteUtility.FrequencyToCents(frequency, midi);
 
-        smoothedCents = Mathf.Lerp(smoothedCents, rawCents, centsSmoothingFactor);
+        float adaptiveSmooth = Mathf.Lerp(centsSmoothingFactor, centsSmoothingFactor * 1.8f, confidence);
+        smoothedCents = Mathf.Lerp(smoothedCents, rawCents, adaptiveSmooth);
         currentMidi = midi;
         currentCents = smoothedCents;
         currentTuningState = GetTuningState(smoothedCents);

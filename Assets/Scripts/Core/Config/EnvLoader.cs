@@ -72,25 +72,47 @@ public static class EnvLoader
 
     private static string ReadRawContent(string path)
     {
+        string examplePath = Path.Combine(Application.streamingAssetsPath, ".env.example");
+
         if (Application.platform != RuntimePlatform.Android)
         {
-            if (File.Exists(path)) return File.ReadAllText(path);
+            if (File.Exists(path))
+                return File.ReadAllText(path);
 
-            Debug.LogWarning("[EnvLoader] No se encontró StreamingAssets/.env");
+            if (File.Exists(examplePath))
+            {
+                Debug.LogWarning("[EnvLoader] No hay .env; usando .env.example incluido en el repo.");
+                return File.ReadAllText(examplePath);
+            }
+
+            Debug.LogWarning("[EnvLoader] No se encontró StreamingAssets/.env ni .env.example");
             return "";
         }
 
-        // En Quest el .env vive dentro del APK y solo se puede leer por UnityWebRequest.
-        // Se bloquea a propósito: ocurre una única vez durante el arranque.
-        using (UnityWebRequest request = UnityWebRequest.Get(path))
+        string content = ReadStreamingAssetViaWebRequest(path);
+        if (!string.IsNullOrEmpty(content))
+            return content;
+
+        content = ReadStreamingAssetViaWebRequest(examplePath);
+        if (!string.IsNullOrEmpty(content))
         {
-            UnityWebRequestAsyncOperation operation = request.SendWebRequest();
-            while (!operation.isDone) { }
-
-            if (request.result == UnityWebRequest.Result.Success) return request.downloadHandler.text;
-
-            Debug.LogError($"[EnvLoader] Error cargando .env en Quest: {request.error}");
-            return "";
+            Debug.LogWarning("[EnvLoader] No hay .env en el build; usando .env.example.");
+            return content;
         }
+
+        Debug.LogError("[EnvLoader] No se pudo cargar .env ni .env.example en Quest.");
+        return "";
+    }
+
+    private static string ReadStreamingAssetViaWebRequest(string assetPath)
+    {
+        using UnityWebRequest request = UnityWebRequest.Get(assetPath);
+        UnityWebRequestAsyncOperation operation = request.SendWebRequest();
+        while (!operation.isDone) { }
+
+        if (request.result == UnityWebRequest.Result.Success)
+            return request.downloadHandler.text;
+
+        return "";
     }
 }

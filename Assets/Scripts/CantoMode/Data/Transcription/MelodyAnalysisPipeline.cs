@@ -10,7 +10,7 @@ public static class MelodyAnalysisPipeline
 {
     public const int AnalysisSampleRate = 22050;
     public const int FrameSize = 2048;
-    public const int HopSize = 256;
+    public const int HopSize = 192;
 
     private const float NoteChangeCentsThreshold = 40f;
     private const float VibratoCentsThreshold = 35f;
@@ -33,14 +33,16 @@ public static class MelodyAnalysisPipeline
     public static PipelineResult Analyze(float[] mono, float songDuration, ref MelodyTranscriber.TranscriptionDebugInfo debug)
     {
         mono = Preprocess(mono, ref debug);
-        mono = EmphasizeVocalBand(mono);
+        mono = ExtractMelodyTrack(mono);
         float noiseFloor = EstimateNoiseFloor(mono);
 
         List<PitchFrameData> frames = ExtractPitchFrames(mono, noiseFloor, ref debug, strictPass: true);
         FillMissedPitchFrames(mono, noiseFloor, frames, ref debug);
+        RescueHighEnergyFrames(mono, noiseFloor, frames);
         ApplyTemporalSmoothing(frames);
+        ApplyBackwardPitchSmoothing(frames);
         ApplyPitchContinuityFilter(frames);
-        FillPitchGaps(frames, maxGapFrames: 8, maxMidiJump: 2f);
+        FillPitchGaps(frames, maxGapFrames: 10, maxMidiJump: 2.5f);
         RemoveSpuriousOutliers(frames);
 
         MelodyKeyEstimate key = EstimateKey(frames);
@@ -75,14 +77,74 @@ public static class MelodyAnalysisPipeline
         };
     }
 
-    private static float[] EmphasizeVocalBand(float[] mono)
+    private static float[] ExtractMelodyTrack(float[] mono)
     {
-        float[] band = ApplyHighPass(mono, AnalysisSampleRate, 180f);
-        band = ApplyLowPass(band, AnalysisSampleRate, 2200f);
+        float[] vocalBand = ApplyHighPass(mono, AnalysisSampleRate, 200f);
+        vocalBand = ApplyLowPass(vocalBand, AnalysisSampleRate, 2100f);
+
+        float[] brightBand = ApplyHighPass(mono, AnalysisSampleRate, 350f);
+        brightBand = ApplyLowPass(brightBand, AnalysisSampleRate, 1800f);
+
         float[] output = new float[mono.Length];
         for (int i = 0; i < mono.Length; i++)
-            output[i] = mono[i] * 0.25f + band[i] * 0.75f;
+            output[i] = mono[i] * 0.15f + vocalBand[i] * 0.55f + brightBand[i] * 0.30f;
         return output;
+    }
+
+    private static void RescueHighEnergyFrames(float[] mono, float noiseFloor, List<PitchFrameData> frames)
+    {
+        float[] window = new float[FrameSize];
+        float threshold = noiseFloor * 1.6f;
+
+        for (int frame = 0; frame < frames.Count; frame++)
+        {
+            PitchFrameData data = frames[frame];
+            if (data.valid || data.energy < threshold)
+                continue;
+
+            int offset = frame * HopSize;
+            if (offset + FrameSize > mono.Length)
+                continue;
+
+            Array.Copy(mono, offset, window, 0, FrameSize);
+            ApplyHanning(window);
+
+            PitchAnalysisCore.RobustPitchResult robust = PitchAnalysisCore.DetectPitchRobust(
+                window, AnalysisSampleRate, 0.22f,
+                MusicalNoteUtility.MidiToHz(MinMelodyMidi),
+                MusicalNoteUtility.MidiToHz(MaxMelodyMidi));
+
+            if (!robust.IsValid || robust.Confidence < 0.16f)
+                continue;
+
+            float midiFloat = MusicalNoteUtility.HzToMidi(robust.PitchHz);
+            if (midiFloat < MinMelodyMidi || midiFloat > MaxMelodyMidi)
+                continue;
+
+            data.valid = true;
+            data.frequency = robust.PitchHz;
+            data.midiFloat = midiFloat;
+            data.confidence = robust.Confidence * 0.9f;
+            frames[frame] = data;
+        }
+    }
+
+    private static void ApplyBackwardPitchSmoothing(List<PitchFrameData> frames)
+    {
+        for (int i = frames.Count - 2; i >= 0; i--)
+        {
+            if (!frames[i].valid || !frames[i + 1].valid)
+                continue;
+
+            float jumpCents = Mathf.Abs(1200f * Mathf.Log(frames[i].midiFloat / frames[i + 1].midiFloat, 2f));
+            if (jumpCents > 90f || frames[i].confidence > 0.58f)
+                continue;
+
+            PitchFrameData curr = frames[i];
+            curr.midiFloat = curr.midiFloat * 0.35f + frames[i + 1].midiFloat * 0.65f;
+            curr.frequency = MusicalNoteUtility.MidiToHz(curr.midiFloat);
+            frames[i] = curr;
+        }
     }
 
     private static float EstimateBpm(List<NoteEvent> events)
@@ -308,23 +370,62 @@ public static class MelodyAnalysisPipeline
                 ? Mathf.Lerp(0.20f, 0.12f, Mathf.Clamp01(energy / (noiseFloor * 20f)))
                 : Mathf.Lerp(0.26f, 0.16f, Mathf.Clamp01(energy / (noiseFloor * 20f)));
             YinPitchDetector.YinResult yin = YinPitchDetector.DetectPitchDetailed(window, AnalysisSampleRate, yinThreshold);
+            if (!yin.IsValid && energy > adaptiveEnergyThreshold * 1.7f)
+            {
+                PitchAnalysisCore.RobustPitchResult rescue = PitchAnalysisCore.DetectPitchRobust(
+                    window, AnalysisSampleRate, yinThreshold + 0.05f,
+                    MusicalNoteUtility.MidiToHz(MinMelodyMidi),
+                    MusicalNoteUtility.MidiToHz(MaxMelodyMidi));
+                if (rescue.IsValid)
+                {
+                    yin = new YinPitchDetector.YinResult
+                    {
+                        PitchHz = rescue.PitchHz,
+                        Confidence = rescue.Confidence,
+                        IsValid = true
+                    };
+                }
+            }
+
             if (!yin.IsValid)
             {
                 frames.Add(data);
                 continue;
             }
 
-            float validatedHz = ValidateFundamental(window, AnalysisSampleRate, yin);
+            float validatedHz = PitchAnalysisCore.ValidateFundamentalHz(window, AnalysisSampleRate, yin);
             float midiFloat = MusicalNoteUtility.HzToMidi(validatedHz);
             if (midiFloat < MinMelodyMidi || midiFloat > MaxMelodyMidi)
             {
-                frames.Add(data);
-                continue;
+                if (energy > adaptiveEnergyThreshold * 2f)
+                {
+                    PitchAnalysisCore.RobustPitchResult rescue = PitchAnalysisCore.DetectPitchRobust(
+                        window, AnalysisSampleRate, yinThreshold + 0.04f,
+                        MusicalNoteUtility.MidiToHz(MinMelodyMidi),
+                        MusicalNoteUtility.MidiToHz(MaxMelodyMidi));
+                    if (rescue.IsValid)
+                    {
+                        validatedHz = rescue.PitchHz;
+                        midiFloat = MusicalNoteUtility.HzToMidi(validatedHz);
+                        yin = new YinPitchDetector.YinResult
+                        {
+                            PitchHz = validatedHz,
+                            Confidence = rescue.Confidence,
+                            IsValid = true
+                        };
+                    }
+                }
+
+                if (midiFloat < MinMelodyMidi || midiFloat > MaxMelodyMidi)
+                {
+                    frames.Add(data);
+                    continue;
+                }
             }
 
             float minConfidence = strictPass
-                ? Mathf.Lerp(0.32f, 0.14f, Mathf.Clamp01(energy / (noiseFloor * 30f)))
-                : Mathf.Lerp(0.22f, 0.12f, Mathf.Clamp01(energy / (noiseFloor * 30f)));
+                ? Mathf.Lerp(0.28f, 0.12f, Mathf.Clamp01(energy / (noiseFloor * 30f)))
+                : Mathf.Lerp(0.20f, 0.10f, Mathf.Clamp01(energy / (noiseFloor * 30f)));
             if (yin.Confidence < minConfidence)
             {
                 frames.Add(data);
@@ -366,7 +467,7 @@ public static class MelodyAnalysisPipeline
             if (!yin.IsValid)
                 continue;
 
-            float validatedHz = ValidateFundamental(window, AnalysisSampleRate, yin);
+            float validatedHz = PitchAnalysisCore.ValidateFundamentalHz(window, AnalysisSampleRate, yin);
             float midiFloat = MusicalNoteUtility.HzToMidi(validatedHz);
             if (midiFloat < MinMelodyMidi || midiFloat > MaxMelodyMidi || yin.Confidence < 0.12f)
                 continue;
@@ -523,9 +624,10 @@ public static class MelodyAnalysisPipeline
             if (Mathf.Abs(before.midiFloat - after.midiFloat) > maxMidiJump)
                 continue;
 
-            float interpolated = (before.midiFloat + after.midiFloat) * 0.5f;
             for (int g = gapStart; g < gapEnd; g++)
             {
+                float t = (g - gapStart + 1f) / (gapEnd - gapStart + 1f);
+                float interpolated = Mathf.Lerp(before.midiFloat, after.midiFloat, t);
                 frames[g] = new PitchFrameData
                 {
                     time = frames[g].time,
@@ -729,7 +831,7 @@ public static class MelodyAnalysisPipeline
             else
             {
                 consecutiveSilentFrames++;
-                if (current != null && consecutiveSilentFrames >= 3)
+                if (current != null && consecutiveSilentFrames >= 2)
                 {
                     events.Add(current);
                     current = null;
@@ -912,6 +1014,9 @@ public static class MelodyAnalysisPipeline
         for (int i = 0; i < events.Count; i++)
         {
             NoteEvent ev = events[i];
+            if (ev.confidence >= 0.72f)
+                continue;
+
             int pc = ((ev.midiRounded % 12) + 12) % 12;
             int rel = (pc - key.rootPc + 12) % 12;
             if (Array.IndexOf(scale, rel) >= 0)
@@ -1021,8 +1126,7 @@ public static class MelodyAnalysisPipeline
             if (endSample - startSample < FrameSize)
                 continue;
 
-            var pitches = new List<float>();
-            var weights = new List<float>();
+            var samples = new List<(float pitch, float weight)>();
 
             for (int offset = startSample; offset + FrameSize <= endSample; offset += refineHop)
             {
@@ -1032,33 +1136,32 @@ public static class MelodyAnalysisPipeline
                 if (energy < noiseFloor * 1.2f)
                     continue;
 
-                YinPitchDetector.YinResult yin = YinPitchDetector.DetectPitchDetailed(window, AnalysisSampleRate, 0.14f);
-                if (!yin.IsValid || yin.Confidence < 0.22f)
-                {
-                    float ac = PitchAnalysisCore.AutocorrelationPitchHz(window, AnalysisSampleRate);
-                    if (ac <= 0f)
-                        continue;
-                    yin = new YinPitchDetector.YinResult { PitchHz = ac, Confidence = 0.28f, IsValid = true };
-                }
+                PitchAnalysisCore.RobustPitchResult robust = PitchAnalysisCore.DetectPitchRobust(
+                    window, AnalysisSampleRate, 0.16f,
+                    MusicalNoteUtility.MidiToHz(MinMelodyMidi),
+                    MusicalNoteUtility.MidiToHz(MaxMelodyMidi));
 
-                float hz = PitchAnalysisCore.ValidateFundamentalHz(window, AnalysisSampleRate, yin);
-                float midi = MusicalNoteUtility.HzToMidi(hz);
+                if (!robust.IsValid || robust.Confidence < 0.18f)
+                    continue;
+
+                float midi = MusicalNoteUtility.HzToMidi(robust.PitchHz);
                 if (midi < MinMelodyMidi || midi > MaxMelodyMidi)
                     continue;
 
-                pitches.Add(midi);
-                weights.Add(yin.Confidence * Mathf.Sqrt(energy));
+                samples.Add((midi, robust.Confidence * Mathf.Sqrt(energy)));
             }
 
-            if (pitches.Count == 0)
+            if (samples.Count < 2)
                 continue;
 
+            samples.Sort((a, b) => a.pitch.CompareTo(b.pitch));
+            int trim = Mathf.Max(0, samples.Count / 7);
             float weightedSum = 0f;
             float weightTotal = 0f;
-            for (int i = 0; i < pitches.Count; i++)
+            for (int i = trim; i < samples.Count - trim; i++)
             {
-                weightedSum += pitches[i] * weights[i];
-                weightTotal += weights[i];
+                weightedSum += samples[i].pitch * samples[i].weight;
+                weightTotal += samples[i].weight;
             }
 
             if (weightTotal <= 0f)
