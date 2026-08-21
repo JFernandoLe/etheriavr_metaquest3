@@ -25,7 +25,7 @@ public partial class StaffRenderer
             if (indicatorCollider != null) Destroy(indicatorCollider);
 
             Renderer newRenderer = indicator.GetComponent<Renderer>();
-            newRenderer.material = GetLiveInputIndicatorMaterial();
+            newRenderer.sharedMaterial = GetLiveInputIndicatorMaterial();
             newRenderer.shadowCastingMode = ShadowCastingMode.Off;
             newRenderer.receiveShadows = false;
 
@@ -33,8 +33,7 @@ public partial class StaffRenderer
         }
 
         float noteY = GetNoteYPosition(midiNote);
-        CreateLedgerLinesForNote(noteY);
-        UpdateHitLineHeight();
+        // Sin CreateLedgerLines/UpdateHitLine en cada pulsación: eso retrasaba el feedback MIDI.
 
         float hitLineX = transform.InverseTransformPoint(GetHitPoint()).x;
         indicator.transform.localPosition = new Vector3(hitLineX, noteY, -0.03f);
@@ -42,7 +41,7 @@ public partial class StaffRenderer
         indicator.SetActive(true);
 
         Renderer activeRenderer = indicator.GetComponent<Renderer>();
-        if (activeRenderer != null) activeRenderer.material.color = color;
+        if (activeRenderer != null) activeRenderer.sharedMaterial.color = color;
     }
 
     public void HideLiveInputIndicator(int midiNote)

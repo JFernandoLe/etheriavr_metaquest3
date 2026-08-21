@@ -15,13 +15,19 @@ public class DirectMidiReceiver : MonoBehaviour
     [Header("Configuración")]
     [Tooltip("1ms de sondeo = respuesta inmediata")]
     [SerializeField] private float checkInterval = 0.001f;
-    [SerializeField] private int maxEventsPerFrame = 32;
+    [SerializeField] private int maxEventsPerFrame = 128;
     [SerializeField] private bool autoReconnect = true;
     [SerializeField] private float autoReconnectInterval = 1.5f;
     [SerializeField] private bool verboseMidiLogging = false;
 
-    /// <summary>Cola consumida por MidiAudioManager.</summary>
+    /// <summary>Cola de respaldo (si nadie consume el callback inmediato).</summary>
     public ConcurrentQueue<byte[]> messageQueue = new ConcurrentQueue<byte[]>();
+
+    /// <summary>
+    /// Disparado en el mismo frame en que se drena el evento del puente Java.
+    /// MidiAudioManager se suscribe aquí para sonar sin esperar otro Update.
+    /// </summary>
+    public event Action<byte, byte, byte> OnRawMidiEvent;
 
     private bool isMidiConnected = false;
     private string currentMidiDeviceName = UnregisteredMidiDeviceName;
@@ -48,7 +54,7 @@ public class DirectMidiReceiver : MonoBehaviour
     void Start()
     {
         validationActive = MidiInitializer.ShouldEnableMidiForScene(SceneManager.GetActiveScene().name);
-        maxEventsPerFrame = Mathf.Max(maxEventsPerFrame, 256);
+        maxEventsPerFrame = Mathf.Max(maxEventsPerFrame, 128);
 
         nextCheckTime = 0f;
         nextReconnectAttemptTime = 0f;
@@ -142,6 +148,7 @@ public class DirectMidiReceiver : MonoBehaviour
     {
         int eventsDequeued = 0;
         int safeEventBudget = Mathf.Max(1, maxEventsPerFrame);
+        bool hasImmediateListener = OnRawMidiEvent != null;
 
         for (int i = 0; i < safeEventBudget; i++)
         {
@@ -150,14 +157,25 @@ public class DirectMidiReceiver : MonoBehaviour
             if (eventData == null) break;
             if (eventData.Length < 3) continue;
 
-            byte[] midiData = { (byte)eventData[0], (byte)eventData[1], (byte)eventData[2] };
-            messageQueue.Enqueue(midiData);
-            eventsDequeued++;
+            byte status = (byte)eventData[0];
+            byte data1 = (byte)eventData[1];
+            byte data2 = (byte)eventData[2];
 
-            RaiseMidiNoteActivity(midiData[0], midiData[2]);
+            // Audio/scoring inmediato: evita un frame extra por la ConcurrentQueue.
+            if (hasImmediateListener)
+            {
+                OnRawMidiEvent.Invoke(status, data1, data2);
+            }
+            else
+            {
+                messageQueue.Enqueue(new byte[] { status, data1, data2 });
+            }
+
+            eventsDequeued++;
+            RaiseMidiNoteActivity(status, data2);
 
             if (verboseMidiLogging)
-                Debug.Log($"[MIDI] RX: 0x{midiData[0]:X2} data1={midiData[1]} data2={midiData[2]}");
+                Debug.Log($"[MIDI] RX: 0x{status:X2} data1={data1} data2={data2}");
         }
 
         if (verboseMidiLogging && eventsDequeued > 0)

@@ -56,8 +56,21 @@ public partial class PianoGameManager : MonoBehaviour
 
     private const float MidiManagerLookupInterval = 0.5f;
 
-    /// <summary>El audio es la fuente de verdad temporal para notas y scoring.</summary>
+    /// <summary>Audio de fondo opcional. Si no hay clip, el reloj del juego usa <see cref="gameTime"/>.</summary>
     public AudioSource BackgroundMusicSource => backgroundMusicSource;
+
+    /// <summary>
+    /// Tiempo de reproducción de la canción: prioriza el AudioSource si hay pista;
+    /// si no (modo MIDI puro), usa el reloj interno que sí respeta pausa.
+    /// </summary>
+    public float GetSongPlaybackTime()
+    {
+        if (backgroundMusicSource != null && backgroundMusicSource.clip != null &&
+            (backgroundMusicSource.isPlaying || (isPaused && backgroundMusicSource.time > 0f)))
+            return backgroundMusicSource.time;
+
+        return gameTime;
+    }
 
     public bool CanTogglePause => gameStarted && (isPlaying || isPaused);
     public bool HasGameplayStarted => gameStarted;

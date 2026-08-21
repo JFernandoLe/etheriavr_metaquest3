@@ -22,7 +22,7 @@ public class SongLoader : MonoBehaviour
         {
             string path = SelectedSongManager.Instance.selectedSong.file_path;
             Debug.Log("[SongLoader] Canción seleccionada: " + path);
-            songName = Path.GetFileNameWithoutExtension(path);
+            songName = SongAssetPaths.GetAssetBaseName(path);
         }
 
         SelectedSongManager.Instance?.LogSongSelectionCheckpoint("Escena SingGame iniciada");

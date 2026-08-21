@@ -74,7 +74,7 @@ public class TessituraManager : MonoBehaviour
 
     public void FinishMeasurement()
     {
-        Debug.Log("<color=yellow>TERMINÉ MEDICIÓN</color>");
+        Debug.Log("<color=yellow>TERMINÓ MEDICIÓN</color>");
         isMeasuring = false;
 
         TessituraClassifier.VocalRangeResult result = TessituraClassifier.Analyze(samples, minimumSamplesForClassification);
@@ -87,7 +87,7 @@ public class TessituraManager : MonoBehaviour
         }
 
         if (resultText != null)
-            resultText.text = $"{result.Classification}\n{result.MinNoteName} ? {result.MaxNoteName}";
+            resultText.text = $"{result.Classification}\n{result.MinNoteName} - {result.MaxNoteName}";
 
         SaveTessitura(result.Classification);
     }
@@ -99,6 +99,7 @@ public class TessituraManager : MonoBehaviour
 
         string valorParaDB = TessituraClassifier.MapToDatabaseEnum(classification);
         UserSession.Instance.tessitura = valorParaDB;
+        UserSession.Instance.PersistSession();
         Debug.Log($"<color=cyan>[Tessitura]</color> {classification} -> DB: {valorParaDB}");
 
         AuthService auth = authServiceManual != null ? authServiceManual : FindObjectOfType<AuthService>();

@@ -107,8 +107,8 @@ public class MusicNote : MonoBehaviour
     private float GetCurrentSongTime()
     {
         PianoGameManager gameManager = PianoGameManager.Instance;
-        AudioSource music = gameManager != null ? gameManager.BackgroundMusicSource : null;
-        return music != null && music.isPlaying ? music.time : Time.time - fallbackStartTime;
+        if (gameManager != null) return gameManager.GetSongPlaybackTime();
+        return Time.time - fallbackStartTime;
     }
 
     private Vector3 CalculateHeadPosition(float songTime) =>

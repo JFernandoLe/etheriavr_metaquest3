@@ -12,6 +12,7 @@ public class MidiAudioManager : MonoBehaviour
     private const int MsgNoteOff = 0;
     private const int MsgNoteOn = 1;
     private const int MsgControlChange = 2;
+    private const int MidiNoteCount = 128;
 
     private static readonly Dictionary<string, int> NoteOffsets = new Dictionary<string, int>
     {
@@ -27,12 +28,12 @@ public class MidiAudioManager : MonoBehaviour
     public event OnMidiNoteDelegate OnMidiNoteOff;
 
     [Header("Ajustes de Sonido")]
-    [Range(0.5f, 20f)] public float volumeBoost = 1.0f;
-    [Range(1f, 4f)] public float velocityCurve = 2.2f;
-    public int poolSize = 40;
+    [Range(0.5f, 12f)] public float volumeBoost = 6.0f;
+    [Range(0.8f, 2.5f)] public float velocityCurve = 1.15f;
+    public int poolSize = 48;
     [SerializeField] private bool optimizeLowLatency = true;
-    [SerializeField] private int targetDspBufferSize = 256;
-    [SerializeField] private int targetRealVoices = 64;
+    [SerializeField] private int targetDspBufferSize = 128;
+    [SerializeField] private int targetRealVoices = 128;
     [SerializeField] private bool verboseMidiLogging = false;
 
     [Header("Aplausos")]
@@ -46,20 +47,24 @@ public class MidiAudioManager : MonoBehaviour
     private AudioSource applauseSource;
     private readonly Dictionary<int, AudioClip> pianoSamples = new Dictionary<int, AudioClip>();
     private readonly List<int> availableMidiNotes = new List<int>();
-    private readonly List<AudioSource> audioPool = new List<AudioSource>();
+    private readonly AudioClip[] nearestClipByMidi = new AudioClip[MidiNoteCount];
+    private readonly float[] nearestPitchByMidi = new float[MidiNoteCount];
+    private readonly Queue<AudioSource> freeVoices = new Queue<AudioSource>(64);
     private readonly Dictionary<int, AudioSource> activeNotes = new Dictionary<int, AudioSource>();
     private readonly HashSet<int> sustainedNotes = new HashSet<int>();
     private readonly HashSet<int> currentlyPressedNotes = new HashSet<int>();
     private readonly List<int> sustainReleaseBuffer = new List<int>();
     private bool isPedalDown = false;
     private int packetsReceived = 0;
+    private bool subscribedToImmediateMidi;
 
     /// <summary>True mientras la tecla siga pulsada (sin note off).</summary>
     public bool IsNotePressedNow(int midiNote) => currentlyPressedNotes.Contains(midiNote);
 
     public void SetPianoVolume(float volume)
     {
-        volumeBoost = Mathf.Clamp(volume * 1.75f, 0.85f, 2.5f);
+        // Sube el techo: en Quest el piano se oía muy bajo.
+        volumeBoost = Mathf.Clamp(volume * 4.5f, 3.5f, 12f);
         Debug.Log($"<color=cyan>[MIDI Audio]</color> Piano volume set to {volumeBoost:F3}");
     }
 
@@ -70,7 +75,7 @@ public class MidiAudioManager : MonoBehaviour
 
     void Start()
     {
-        poolSize = Mathf.Max(poolSize, 128);
+        poolSize = Mathf.Max(poolSize, 48);
         targetRealVoices = Mathf.Max(targetRealVoices, 128);
 
         if (directMidiReceiver == null)
@@ -84,7 +89,9 @@ public class MidiAudioManager : MonoBehaviour
         }
 
         LoadPianoSamples();
+        BuildNearestSampleLookup();
         BuildVoicePool();
+        SubscribeImmediateMidi();
 
         if (pianoSamples.Count == 0)
         {
@@ -94,15 +101,38 @@ public class MidiAudioManager : MonoBehaviour
 
         Debug.Log($"<color=green>[MIDI INIT]</color> {pianoSamples.Count} samples (MIDI {availableMidiNotes[0]}-" +
                   $"{availableMidiNotes[availableMidiNotes.Count - 1]}) | pool={poolSize} voces | " +
-                  $"volumeBoost={volumeBoost:F2}x | velocityCurve={velocityCurve:F2}");
+                  $"volumeBoost={volumeBoost:F2}x | velocityCurve={velocityCurve:F2} | dsp={AudioSettings.GetConfiguration().dspBufferSize}");
     }
 
-    /// <summary>Mapea los samples "c2", "c#2", ... a su número MIDI.</summary>
+    void OnEnable() => SubscribeImmediateMidi();
+
+    void OnDisable() => UnsubscribeImmediateMidi();
+
+    void OnDestroy() => UnsubscribeImmediateMidi();
+
+    private void SubscribeImmediateMidi()
+    {
+        if (subscribedToImmediateMidi || directMidiReceiver == null) return;
+
+        directMidiReceiver.OnRawMidiEvent += ProcessMidiBytes;
+        subscribedToImmediateMidi = true;
+    }
+
+    private void UnsubscribeImmediateMidi()
+    {
+        if (!subscribedToImmediateMidi || directMidiReceiver == null) return;
+
+        directMidiReceiver.OnRawMidiEvent -= ProcessMidiBytes;
+        subscribedToImmediateMidi = false;
+    }
+
+    /// <summary>Mapea los samples "c2", "c#2", ... a su número MIDI y precarga el audio en RAM.</summary>
     private void LoadPianoSamples()
     {
         foreach (AudioClip clip in Resources.LoadAll<AudioClip>("notes"))
         {
             string name = clip.name.ToLower().Trim();
+            if (string.IsNullOrEmpty(name)) continue;
 
             char octaveChar = name[name.Length - 1];
             if (!char.IsDigit(octaveChar)) continue;
@@ -115,40 +145,69 @@ public class MidiAudioManager : MonoBehaviour
 
             pianoSamples[midiNum] = clip;
             availableMidiNotes.Add(midiNum);
+
+            if (clip.loadState == AudioDataLoadState.Unloaded)
+                clip.LoadAudioData();
         }
 
         availableMidiNotes.Sort();
     }
 
+    /// <summary>O(1) en cada Note On: clip más cercano + pitch ya precalculados.</summary>
+    private void BuildNearestSampleLookup()
+    {
+        if (availableMidiNotes.Count == 0) return;
+
+        for (int targetNote = 0; targetNote < MidiNoteCount; targetNote++)
+        {
+            int bestBaseNote = availableMidiNotes[0];
+            int minDiff = Mathf.Abs(targetNote - bestBaseNote);
+
+            for (int i = 1; i < availableMidiNotes.Count; i++)
+            {
+                int candidate = availableMidiNotes[i];
+                int diff = Mathf.Abs(targetNote - candidate);
+                if (diff < minDiff)
+                {
+                    minDiff = diff;
+                    bestBaseNote = candidate;
+                }
+            }
+
+            nearestClipByMidi[targetNote] = pianoSamples[bestBaseNote];
+            nearestPitchByMidi[targetNote] = Mathf.Pow(2f, (targetNote - bestBaseNote) / 12f);
+        }
+    }
+
     private void BuildVoicePool()
     {
+        freeVoices.Clear();
+
         for (int i = 0; i < poolSize; i++)
         {
             AudioSource source = gameObject.AddComponent<AudioSource>();
             source.playOnAwake = false;
-            source.spatialBlend = 0;
+            source.spatialBlend = 0f;
             source.priority = 0;
             source.bypassEffects = true;
             source.bypassListenerEffects = true;
             source.bypassReverbZones = true;
-            audioPool.Add(source);
+            source.dopplerLevel = 0f;
+            source.mute = false;
+            freeVoices.Enqueue(source);
         }
     }
 
     void Update()
     {
-        if (directMidiReceiver == null) return;
+        // Fallback si nadie está suscrito al callback inmediato (p. ej. orden de init).
+        if (directMidiReceiver == null || subscribedToImmediateMidi) return;
 
-        int dequeueCount = 0;
         while (directMidiReceiver.messageQueue.TryDequeue(out byte[] data))
         {
-            packetsReceived++;
-            dequeueCount++;
-            ProcessMidi(data);
+            if (data == null || data.Length < 3) continue;
+            ProcessMidiBytes(data[0], data[1], data[2]);
         }
-
-        if (verboseMidiLogging && dequeueCount > 0)
-            Debug.Log($"<color=green>[MidiAudioManager]</color> Dequeued {dequeueCount} evento(s) en este frame");
     }
 
     private void ApplyLowLatencyAudioConfiguration()
@@ -168,29 +227,27 @@ public class MidiAudioManager : MonoBehaviour
             changed = true;
         }
 
+        if (config.numVirtualVoices < Mathf.Max(config.numRealVoices, 256))
+        {
+            config.numVirtualVoices = Mathf.Max(config.numRealVoices, 256);
+            changed = true;
+        }
+
         if (!changed) return;
 
         bool resetOk = AudioSettings.Reset(config);
         Debug.Log($"<color=cyan>[MIDI Audio]</color> Low latency audio config | dspBuffer={config.dspBufferSize} | " +
-                  $"realVoices={config.numRealVoices} | reset={resetOk}");
+                  $"realVoices={config.numRealVoices} | virtualVoices={config.numVirtualVoices} | reset={resetOk}");
     }
 
-    /// <summary>Parsea un paquete MIDI binario de 3 bytes (status, nota, velocidad).</summary>
-    void ProcessMidi(byte[] data)
+    /// <summary>Entrada MIDI inmediata (sin esperar otro Update).</summary>
+    public void ProcessMidiBytes(byte status, byte note, byte vel)
     {
-        if (data.Length != 3)
-        {
-            Debug.LogWarning($"<color=yellow>[MIDI]</color> Paquete incorrecto: {data.Length} bytes (esperaba 3)");
-            return;
-        }
-
-        byte status = data[0];
-        byte note = data[1];
-        byte vel = data[2];
+        packetsReceived++;
 
         int msgType = (status & 0xF0) switch
         {
-            0x90 => vel > 0 ? MsgNoteOn : MsgNoteOff, // Note On con velocidad 0 equivale a Note Off
+            0x90 => vel > 0 ? MsgNoteOn : MsgNoteOff,
             0x80 => MsgNoteOff,
             0xB0 => MsgControlChange,
             _ => -1
@@ -211,6 +268,8 @@ public class MidiAudioManager : MonoBehaviour
 
         if (msgType == MsgControlChange)
         {
+            if (note != 64) return; // solo sustain pedal
+
             isPedalDown = vel >= 64;
             if (!isPedalDown) ReleaseSustain();
             return;
@@ -218,6 +277,7 @@ public class MidiAudioManager : MonoBehaviour
 
         if (msgType == MsgNoteOn)
         {
+            // Audio primero; scoring/visual después.
             PlayNote(note, vel);
             currentlyPressedNotes.Add(note);
             OnMidiNoteOn?.Invoke(note, vel);
@@ -232,65 +292,78 @@ public class MidiAudioManager : MonoBehaviour
 
     void PlayNote(int targetNote, int vel)
     {
-        if (availableMidiNotes.Count == 0)
-        {
-            Debug.LogError("<color=red>[MIDI]</color> No hay samples cargados!");
-            return;
-        }
+        if ((uint)targetNote >= MidiNoteCount) return;
 
-        // Se usa el sample más cercano y se ajusta el pitch por semitonos.
-        int bestBaseNote = availableMidiNotes[0];
-        float minDiff = float.MaxValue;
-        foreach (int n in availableMidiNotes)
-        {
-            float diff = Mathf.Abs(targetNote - n);
-            if (diff < minDiff)
-            {
-                minDiff = diff;
-                bestBaseNote = n;
-            }
-        }
+        AudioClip clip = nearestClipByMidi[targetNote];
+        if (clip == null) return;
 
         if (activeNotes.TryGetValue(targetNote, out AudioSource previousSource))
         {
             previousSource.Stop();
             activeNotes.Remove(targetNote);
+            freeVoices.Enqueue(previousSource);
         }
 
-        AudioSource foundSource = null;
-        int sourceIndex = -1;
-        for (int i = 0; i < audioPool.Count; i++)
+        if (!TryAcquireVoice(out AudioSource voice))
         {
-            if (audioPool[i].isPlaying) continue;
-
-            foundSource = audioPool[i];
-            sourceIndex = i;
-            break;
-        }
-
-        if (foundSource == null)
-        {
-            Debug.LogWarning($"<color=yellow>[MIDI]</color> Pool de voces lleno (necesita {audioPool.Count + 1})");
+            if (verboseMidiLogging)
+                Debug.LogWarning($"<color=yellow>[MIDI]</color> Pool de voces lleno ({poolSize})");
             return;
         }
 
-        foundSource.clip = pianoSamples[bestBaseNote];
-        if (foundSource.clip != null && foundSource.clip.loadState == AudioDataLoadState.Unloaded)
-            foundSource.clip.LoadAudioData();
+        float normalizedVelocity = Mathf.Clamp01(vel / 127f);
+        // Curva suave + boost alto: teclas suaves siguen audibles.
+        float gain = Mathf.Pow(normalizedVelocity, velocityCurve) * volumeBoost;
 
-        foundSource.pitch = Mathf.Pow(2.0f, (targetNote - bestBaseNote) / 12.0f);
-        foundSource.volume = Mathf.Clamp01(Mathf.Pow(vel / 127f, velocityCurve) * volumeBoost);
-        foundSource.Play();
+        voice.clip = clip;
+        voice.pitch = nearestPitchByMidi[targetNote];
+        voice.volume = Mathf.Clamp(gain, 0.05f, 1f);
+        voice.Play();
 
-        activeNotes[targetNote] = foundSource;
+        activeNotes[targetNote] = voice;
         sustainedNotes.Remove(targetNote);
+    }
 
-        if (verboseMidiLogging)
+    private bool TryAcquireVoice(out AudioSource voice)
+    {
+        while (freeVoices.Count > 0)
         {
-            string sampleName = foundSource.clip != null ? foundSource.clip.name : "NULL";
-            Debug.Log($"<color=green>[MIDI PLAY]</color> MIDI{targetNote} | Vel{vel}/127 | Pitch{foundSource.pitch:F2}x | " +
-                      $"Vol{foundSource.volume:F3} | Src{sourceIndex}/{audioPool.Count} | Sample:{sampleName}");
+            voice = freeVoices.Dequeue();
+            if (voice != null) return true;
         }
+
+        // Pool agotado: reutiliza cualquier voz ya detenida, o la primera activa.
+        int stealMidi = -1;
+        AudioSource stealVoice = null;
+
+        foreach (KeyValuePair<int, AudioSource> pair in activeNotes)
+        {
+            if (pair.Value == null) continue;
+
+            if (!pair.Value.isPlaying)
+            {
+                stealMidi = pair.Key;
+                stealVoice = pair.Value;
+                break;
+            }
+
+            if (stealVoice == null)
+            {
+                stealMidi = pair.Key;
+                stealVoice = pair.Value;
+            }
+        }
+
+        if (stealVoice == null)
+        {
+            voice = null;
+            return false;
+        }
+
+        stealVoice.Stop();
+        activeNotes.Remove(stealMidi);
+        voice = stealVoice;
+        return true;
     }
 
     void StopNote(int note)
@@ -298,12 +371,14 @@ public class MidiAudioManager : MonoBehaviour
         if (isPedalDown)
         {
             sustainedNotes.Add(note);
+            return;
         }
-        else if (activeNotes.TryGetValue(note, out AudioSource source))
-        {
-            source.Stop();
-            activeNotes.Remove(note);
-        }
+
+        if (!activeNotes.TryGetValue(note, out AudioSource source)) return;
+
+        source.Stop();
+        activeNotes.Remove(note);
+        freeVoices.Enqueue(source);
     }
 
     /// <summary>Al soltar el pedal, corta las notas sostenidas que ya no estén pulsadas.</summary>
@@ -321,6 +396,7 @@ public class MidiAudioManager : MonoBehaviour
             {
                 source.Stop();
                 activeNotes.Remove(midiNote);
+                freeVoices.Enqueue(source);
             }
 
             sustainedNotes.Remove(midiNote);
@@ -345,10 +421,6 @@ public class MidiAudioManager : MonoBehaviour
         RefreshApplauseClipForCurrentIntensity();
     }
 
-    /// <summary>
-    /// Ajusta el volumen de los aplausos al score del público (0-100):
-    /// silencio por debajo del 35% y volumen pleno a partir del 80%.
-    /// </summary>
     public void SetApplauseVolume(float publicScore)
     {
         if (applauseSource == null || applauseSource.clip == null) return;
@@ -378,7 +450,6 @@ public class MidiAudioManager : MonoBehaviour
         if (applauseSource != null && applauseSource.isPlaying) applauseSource.Stop();
     }
 
-    /// <summary>Selecciona el clip de aplausos acorde a la intensidad configurada por el usuario.</summary>
     public void RefreshApplauseClipForCurrentIntensity()
     {
         if (applauseSource == null) return;
@@ -408,11 +479,6 @@ public class MidiAudioManager : MonoBehaviour
         if (wasPlaying && !applauseSource.isPlaying) applauseSource.Play();
     }
 
-    /// <summary>
-    /// Busca un clip de aplausos por orden de preferencia: el de la intensidad actual,
-    /// el genérico de este componente, el de otro MidiAudioManager, Resources, el
-    /// controlador de audiencia y por último cualquier AudioSource de la escena.
-    /// </summary>
     private AudioClip ResolveApplauseClip()
     {
         AudioClip intensityClip = ResolveIntensityApplauseClip();
@@ -435,14 +501,6 @@ public class MidiAudioManager : MonoBehaviour
         {
             AudioClip audienceClip = audienceController.fuenteAplausos.clip;
             if (audienceClip != null) return audienceClip;
-        }
-
-        foreach (AudioSource sceneAudioSource in FindObjectsOfType<AudioSource>(true))
-        {
-            if (sceneAudioSource == null || sceneAudioSource.clip == null) continue;
-
-            string clipName = sceneAudioSource.clip.name.ToLowerInvariant();
-            if (clipName.Contains("aplause") || clipName.Contains("applause")) return sceneAudioSource.clip;
         }
 
         return null;

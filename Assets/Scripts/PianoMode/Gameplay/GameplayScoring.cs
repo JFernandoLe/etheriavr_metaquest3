@@ -227,10 +227,7 @@ public partial class GameplayScoring : MonoBehaviour
     private float GetCurrentSongTime()
     {
         if (gameManager == null) gameManager = GetComponent<PianoGameManager>();
-
-        AudioSource source = gameManager != null ? gameManager.BackgroundMusicSource : null;
-        if (source != null && (source.isPlaying || source.time > 0f)) return source.time;
-
+        if (gameManager != null) return gameManager.GetSongPlaybackTime();
         return Time.time - gameStartTime;
     }
 
