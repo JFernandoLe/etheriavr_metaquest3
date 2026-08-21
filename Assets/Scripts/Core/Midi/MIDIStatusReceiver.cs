@@ -4,10 +4,11 @@ public class MIDIStatusReceiver : MonoBehaviour
 {
     public delegate void StatusReceivedDelegate(bool isConnected);
     public event StatusReceivedDelegate OnStatusReceived;
-    
+
     private DirectMidiReceiver midiReceiver;
     private bool lastKnownStatus, isSubscribed;
     private float nextSearchTime;
+    private int failedAttachAttempts;
 
     public DirectMidiReceiver CurrentReceiver => midiReceiver;
     public string CurrentDeviceName => midiReceiver ? midiReceiver.CurrentMidiDeviceName : "NO REGISTRADO";
@@ -16,13 +17,22 @@ public class MIDIStatusReceiver : MonoBehaviour
 
     private void Update()
     {
-        if (Time.unscaledTime < nextSearchTime) return;
-        nextSearchTime = Time.unscaledTime + 0.5f;
-
+        // Una vez suscritos, el estado llega por eventos (sin polling).
         if (isSubscribed && midiReceiver)
-            HandleMidiStatusChange(midiReceiver.IsMidiConnected);
-        else
-            TryAttachToReceiver();
+        {
+            enabled = false;
+            return;
+        }
+
+        if (failedAttachAttempts > 20)
+        {
+            enabled = false;
+            return;
+        }
+
+        if (Time.unscaledTime < nextSearchTime) return;
+        nextSearchTime = Time.unscaledTime + 1f;
+        TryAttachToReceiver();
     }
 
     private void HandleMidiStatusChange(bool isConnected)
@@ -30,7 +40,6 @@ public class MIDIStatusReceiver : MonoBehaviour
         if (lastKnownStatus == isConnected) return;
 
         lastKnownStatus = isConnected;
-        Debug.Log($"<color={(isConnected ? "green" : "red")}>[MIDI Status]</color> 🔔 ESTADO CAMBIÓ: {(isConnected ? "CONECTADO ✅" : "DESCONECTADO ❌")}");
         OnStatusReceived?.Invoke(isConnected);
     }
 
@@ -39,18 +48,17 @@ public class MIDIStatusReceiver : MonoBehaviour
         midiReceiver ??= FindObjectOfType<DirectMidiReceiver>();
         if (!midiReceiver)
         {
-            Debug.LogWarning("<color=yellow>[MIDI Status]</color> ⏳ DirectMidiReceiver aún no está disponible");
+            failedAttachAttempts++;
             return;
         }
 
+        failedAttachAttempts = 0;
         if (!isSubscribed)
         {
             midiReceiver.OnConnectionStatusChanged += HandleMidiStatusChange;
             isSubscribed = true;
-            Debug.Log("<color=green>[MIDI Status]</color> ✅ Suscrito a OnConnectionStatusChanged");
+            HandleMidiStatusChange(midiReceiver.IsMidiConnected);
         }
-
-        HandleMidiStatusChange(midiReceiver.IsMidiConnected);
     }
 
     private void OnDestroy()

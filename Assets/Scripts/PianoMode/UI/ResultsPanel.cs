@@ -207,6 +207,7 @@ public class ResultsPanel : MonoBehaviour
             return;
         }
 
+        // Sin manager: salida directa sin fade genérico.
         SceneManager.LoadScene("RepertorioScene");
     }
 

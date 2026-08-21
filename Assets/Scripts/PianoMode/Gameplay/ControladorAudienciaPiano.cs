@@ -9,6 +9,7 @@ public class ControladorAudienciaPiano : MonoBehaviour
         public float offsetCalidad;
         public float velocidadSuavizado;
         public float velocidadRotacion;
+        public float lastCalidad;
     }
 
     private static readonly int CalidadHash = Animator.StringToHash("Calidad");
@@ -21,27 +22,32 @@ public class ControladorAudienciaPiano : MonoBehaviour
     [SerializeField] private float velocidadSeguimientoPuntaje = 3.1f;
     [SerializeField] private Vector2 rangoOffsetCalidad = new Vector2(-10f, 10f);
     [SerializeField] private Vector2 rangoSuavizadoAnimacion = new Vector2(0.7f, 1.9f);
-    [SerializeField] private float intervaloRecacheo = 2f;
+    [SerializeField] private float animationUpdateHz = 12f;
+    [SerializeField] private float lookUpdateHz = 8f;
 
     [Header("Rotación")]
     public Transform jugador;
     public float velocidadRotacion = 2f;
 
     private readonly List<DatosAnimadorPiano> listaAnimadores = new List<DatosAnimadorPiano>();
-    private float siguienteRecacheo = 0f;
+    private float nextAnimationUpdate;
+    private float nextLookUpdate;
+    private float animationStep;
+    private float lookStep;
 
     void Start()
     {
         ResolveDependencies();
         CacheAudienceAnimators();
+        animationStep = 1f / Mathf.Max(1f, animationUpdateHz);
+        lookStep = 1f / Mathf.Max(1f, lookUpdateHz);
     }
 
     void Update()
     {
-        ResolveDependencies();
+        if (Time.timeScale <= 0f) return;
 
-        if (listaAnimadores.Count == 0 || Time.unscaledTime >= siguienteRecacheo)
-            CacheAudienceAnimators();
+        if (sistemaPublico == null) ResolveDependencies();
 
         if (sistemaPublico != null)
         {
@@ -49,7 +55,13 @@ public class ControladorAudienciaPiano : MonoBehaviour
                 Time.deltaTime * velocidadSeguimientoPuntaje);
         }
 
-        if (jugador == null) return;
+        float now = Time.unscaledTime;
+        bool updateAnim = now >= nextAnimationUpdate;
+        bool updateLook = now >= nextLookUpdate && jugador != null;
+
+        if (!updateAnim && !updateLook) return;
+        if (updateAnim) nextAnimationUpdate = now + animationStep;
+        if (updateLook) nextLookUpdate = now + lookStep;
 
         for (int i = listaAnimadores.Count - 1; i >= 0; i--)
         {
@@ -60,10 +72,19 @@ public class ControladorAudienciaPiano : MonoBehaviour
                 continue;
             }
 
-            float calidadObjetivo = Mathf.Clamp(puntajePiano + datos.offsetCalidad, 0f, 100f);
-            float calidadActual = datos.animador.GetFloat(CalidadHash);
-            datos.animador.SetFloat(CalidadHash,
-                Mathf.Lerp(calidadActual, calidadObjetivo, Time.deltaTime * datos.velocidadSuavizado));
+            if (updateAnim)
+            {
+                float calidadObjetivo = Mathf.Clamp(puntajePiano + datos.offsetCalidad, 0f, 100f);
+                float calidadActual = datos.lastCalidad;
+                float calidadNueva = Mathf.Lerp(calidadActual, calidadObjetivo, animationStep * datos.velocidadSuavizado);
+                if (Mathf.Abs(calidadNueva - calidadActual) > 0.05f)
+                {
+                    datos.lastCalidad = calidadNueva;
+                    datos.animador.SetFloat(CalidadHash, calidadNueva);
+                }
+            }
+
+            if (!updateLook) continue;
 
             Vector3 direccion = jugador.position - datos.animador.transform.position;
             direccion.y = 0f;
@@ -73,7 +94,7 @@ public class ControladorAudienciaPiano : MonoBehaviour
             datos.animador.transform.rotation = Quaternion.Slerp(
                 datos.animador.transform.rotation,
                 rotacionObjetivo,
-                Time.deltaTime * velocidadRotacion * datos.velocidadRotacion);
+                lookStep * velocidadRotacion * datos.velocidadRotacion);
         }
     }
 
@@ -85,7 +106,6 @@ public class ControladorAudienciaPiano : MonoBehaviour
 
     private void CacheAudienceAnimators()
     {
-        siguienteRecacheo = Time.unscaledTime + Mathf.Max(0.5f, intervaloRecacheo);
         listaAnimadores.Clear();
 
         foreach (GameObject personaje in GameObject.FindGameObjectsWithTag("Publico"))
@@ -95,12 +115,14 @@ public class ControladorAudienciaPiano : MonoBehaviour
             Animator animador = personaje.GetComponent<Animator>() ?? personaje.GetComponentInChildren<Animator>(true);
             if (animador == null) continue;
 
+            float offset = Random.Range(rangoOffsetCalidad.x, rangoOffsetCalidad.y);
             listaAnimadores.Add(new DatosAnimadorPiano
             {
                 animador = animador,
-                offsetCalidad = Random.Range(rangoOffsetCalidad.x, rangoOffsetCalidad.y),
+                offsetCalidad = offset,
                 velocidadSuavizado = Random.Range(rangoSuavizadoAnimacion.x, rangoSuavizadoAnimacion.y),
-                velocidadRotacion = Random.Range(0.75f, 1.35f)
+                velocidadRotacion = Random.Range(0.75f, 1.35f),
+                lastCalidad = animador.GetFloat(CalidadHash)
             });
         }
     }

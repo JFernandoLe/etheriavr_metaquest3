@@ -31,7 +31,7 @@ public class BackendConnectionManager : MonoBehaviour
     [Header("Monitoreo")]
     [SerializeField] private float initialRetryInterval = 1.25f;
     [SerializeField] private float reconnectRetryInterval = 1.5f;
-    [SerializeField] private float connectedPollInterval = 5f;
+    [SerializeField] private float connectedPollInterval = 30f;
     [SerializeField] private int requestTimeoutSeconds = 5;
     [SerializeField] private float successDisplayDuration = 1.15f;
 
@@ -83,11 +83,17 @@ public class BackendConnectionManager : MonoBehaviour
 
     private void Update()
     {
-        RotateSpinner();
-        PositionCanvas();
+        bool panelVisible = panelRect != null && panelRect.gameObject.activeSelf;
+
+        if (panelVisible)
+        {
+            RotateSpinner();
+            PositionCanvas();
+        }
 
         if (IsShowingConnectedState && Time.unscaledTime >= successVisibleUntil) SetPanelVisible(false);
 
+        // Conectado: AuthService ya reporta fallos; health check es solo respaldo lento.
         if (!isChecking && Time.unscaledTime >= nextCheckTime) StartCoroutine(CheckConnectionRoutine());
     }
 

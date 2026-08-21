@@ -14,9 +14,20 @@ public class SmoothFollowCanvas : MonoBehaviour
     Vector3 velocity = Vector3.zero;
     private bool firstFrame = true; // Control para el salto inicial
 
+    void Awake()
+    {
+        if (!enableFollowing) enabled = false;
+    }
+
     // Cada vez que el Canvas se activa (al iniciar la app o cambiar escena)
     void OnEnable()
     {
+        if (!enableFollowing)
+        {
+            enabled = false;
+            return;
+        }
+
         firstFrame = true;
         velocity = Vector3.zero; // Reseteamos la inercia
     }

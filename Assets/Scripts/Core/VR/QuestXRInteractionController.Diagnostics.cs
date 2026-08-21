@@ -179,23 +179,11 @@ public partial class QuestXRInteractionController
 
     private void WriteDiagnostic(string message, bool isWarning)
     {
+        if (!enableXrHandsDebugLogs) return;
+
         string formattedMessage = $"[{DiagnosticTag}] {message}";
 
         if (isWarning) Debug.LogWarning(formattedMessage, this);
         else Debug.Log(formattedMessage, this);
-
-#if UNITY_ANDROID && !UNITY_EDITOR
-        // Duplicado en logcat para poder depurar sobre el visor sin el editor conectado.
-        try
-        {
-            using (AndroidJavaClass logClass = new AndroidJavaClass("android.util.Log"))
-            {
-                logClass.CallStatic<int>(isWarning ? "w" : "i", DiagnosticTag, message);
-            }
-        }
-        catch
-        {
-        }
-#endif
     }
 }

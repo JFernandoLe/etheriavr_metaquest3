@@ -30,6 +30,8 @@ public class MidiAudioManager : MonoBehaviour
     [Header("Ajustes de Sonido")]
     [Range(0.5f, 12f)] public float volumeBoost = 6.0f;
     [Range(0.8f, 2.5f)] public float velocityCurve = 1.15f;
+    [Tooltip("Corrección de octava de los samples vs su nombre de archivo. -1 = el WAV suena una octava más grave que el nombre (c5.wav ≈ Do4).")]
+    [SerializeField] private int sampleOctaveCorrection = -1;
     public int poolSize = 48;
     [SerializeField] private bool optimizeLowLatency = true;
     [SerializeField] private int targetDspBufferSize = 128;
@@ -126,7 +128,7 @@ public class MidiAudioManager : MonoBehaviour
         subscribedToImmediateMidi = false;
     }
 
-    /// <summary>Mapea los samples "c2", "c#2", ... a su número MIDI y precarga el audio en RAM.</summary>
+    /// <summary>Mapea los samples "c2", "c#2", ... a su número MIDI real (pitch del audio) y precarga en RAM.</summary>
     private void LoadPianoSamples()
     {
         foreach (AudioClip clip in Resources.LoadAll<AudioClip>("notes"))
@@ -140,11 +142,14 @@ public class MidiAudioManager : MonoBehaviour
             string noteName = name.Substring(0, name.Length - 1);
             if (!NoteOffsets.TryGetValue(noteName, out int offset)) continue;
 
-            int octave = (int)char.GetNumericValue(octaveChar);
-            int midiNum = (octave + 1) * 12 + offset;
+            int namedOctave = (int)char.GetNumericValue(octaveChar);
+            // Notación científica del nombre: C4 = MIDI 60. Luego se aplica la corrección
+            // porque este bank suena una octava más grave que el nombre del archivo.
+            int midiNum = ((namedOctave + 1 + sampleOctaveCorrection) * 12) + offset;
+            if (midiNum < 0 || midiNum >= MidiNoteCount) continue;
 
             pianoSamples[midiNum] = clip;
-            availableMidiNotes.Add(midiNum);
+            if (!availableMidiNotes.Contains(midiNum)) availableMidiNotes.Add(midiNum);
 
             if (clip.loadState == AudioDataLoadState.Unloaded)
                 clip.LoadAudioData();

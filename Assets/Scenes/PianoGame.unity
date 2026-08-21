@@ -14100,7 +14100,7 @@ MonoBehaviour:
   virtualGreenScreenApplyDepthCulling: 0
   virtualGreenScreenDepthTolerance: 0.2
   mrcActivationMode: 0
-  launchSimultaneousHandsControllersOnStartup: 0
+  launchSimultaneousHandsControllersOnStartup: 1
   isInsightPassthroughEnabled: 1
   shouldBoundaryVisibilityBeSuppressed: 0
   requestBodyTrackingPermissionOnStartup: 0
@@ -14119,7 +14119,7 @@ MonoBehaviour:
   LateControllerUpdate: 1
   LateLatching: 0
   controllerDrivenHandPosesType: 0
-  SimultaneousHandsAndControllersEnabled: 0
+  SimultaneousHandsAndControllersEnabled: 1
   _readOnlyWideMotionModeHandPosesEnabled: 0
   wideMotionModeHandPosesEnabled: 0
   dynamicResolutionVersion: 1
@@ -15615,7 +15615,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1683256925}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e0d87e18a48c71345a89552bb8e54006, type: 3}
   m_Name: 
@@ -15629,7 +15629,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1683256925}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9c82d03f80847f7408f1b5b4d4bbd69b, type: 3}
   m_Name: 
@@ -15648,12 +15648,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MidiAudioManager
   directMidiReceiver: {fileID: 0}
-  volumeBoost: 10
-  velocityCurve: 2.2
-  poolSize: 20
+  volumeBoost: 6
+  velocityCurve: 1.15
+  poolSize: 48
   optimizeLowLatency: 1
-  targetDspBufferSize: 256
-  targetRealVoices: 64
+  targetDspBufferSize: 128
+  targetRealVoices: 128
   verboseMidiLogging: 0
   applauseClip: {fileID: 8300000, guid: 3512d18c193879d48b12a59d3e33ce54, type: 3}
   applauseClipLow: {fileID: 8300000, guid: 7651990dfbb542e0a16ab664a312dbf5, type: 3}

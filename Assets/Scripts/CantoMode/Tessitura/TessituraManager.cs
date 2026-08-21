@@ -28,6 +28,11 @@ public class TessituraManager : MonoBehaviour
     private int totalFrames = 0;
     private int lastMidi = -1;
     private bool isMeasuring = true;
+    private int lastDisplayedMidi = int.MinValue;
+    private int lastDisplayedMin = int.MinValue;
+    private int lastDisplayedMax = int.MinValue;
+    private static readonly string[] NoteNames =
+        { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
 
     void Update()
     {
@@ -35,7 +40,7 @@ public class TessituraManager : MonoBehaviour
 
         int midi = receiver.GetCurrentMidi();
 
-        // Filtro de rango vocal humano est�ndar
+        // Filtro de rango vocal humano estándar
         if (midi < 40 || midi > 85) return;
 
         totalFrames++;
@@ -59,8 +64,18 @@ public class TessituraManager : MonoBehaviour
         totalMidi += midi;
         count++;
 
-        if (currentNoteText != null) currentNoteText.text = MidiToNote(midi);
-        if (rangeText != null) rangeText.text = $"{MidiToNote(minMidi)} - {MidiToNote(maxMidi)}";
+        if (currentNoteText != null && midi != lastDisplayedMidi)
+        {
+            lastDisplayedMidi = midi;
+            currentNoteText.text = MidiToNote(midi);
+        }
+
+        if (rangeText != null && (minMidi != lastDisplayedMin || maxMidi != lastDisplayedMax))
+        {
+            lastDisplayedMin = minMidi;
+            lastDisplayedMax = maxMidi;
+            rangeText.text = $"{MidiToNote(minMidi)} - {MidiToNote(maxMidi)}";
+        }
     }
 
     public void FinishMeasurement()
@@ -184,9 +199,8 @@ public class TessituraManager : MonoBehaviour
 
     string MidiToNote(int midi)
     {
-        string[] notes = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
         int note = midi % 12;
         int octave = (midi / 12) - 1;
-        return notes[note] + octave;
+        return NoteNames[note] + octave;
     }
 }

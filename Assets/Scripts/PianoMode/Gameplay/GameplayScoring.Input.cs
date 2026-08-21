@@ -86,6 +86,8 @@ public partial class GameplayScoring
     /// </summary>
     public void ReportVisualFeedbackLatency(int midiNote, string visualObjectName)
     {
+        if (!enableFeedbackLatencyLogs) return;
+
         DateTimeOffset visualTriggeredAt = DateTimeOffset.UtcNow;
 
         if (!pendingFeedbackLatencyByMidiNote.TryGetValue(midiNote, out Queue<PendingFeedbackLatencyEvent> pendingEvents)

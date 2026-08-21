@@ -18,6 +18,7 @@ public class ScoreManager : MonoBehaviour
     private int rhythmCount = 0;
 
     public float rhythmPercent = 0f;
+    private int lastDisplayedScore = int.MinValue;
 
     void Awake()
     {
@@ -28,27 +29,24 @@ public class ScoreManager : MonoBehaviour
     {
         score += amount;
 
-        if (scoreText != null)
+        if (scoreText != null && score != lastDisplayedScore)
+        {
+            lastDisplayedScore = score;
             scoreText.text = score.ToString();
+        }
     }
 
     public void RegisterHit(float value)
     {
         accuracySum += value;
         totalEvaluations++;
-
         accuracyPercent = (accuracySum / totalEvaluations) * 100f;
-
-        Debug.Log(" RegisterHit llamado: " + value +
-                  " | Total: " + totalEvaluations +
-                  " | Accuracy: " + accuracyPercent);
     }
 
     public void RegisterRhythm(float value)
     {
         rhythmSum += value;
         rhythmCount++;
-
         rhythmPercent = (rhythmSum / rhythmCount) * 100f;
     }
 }

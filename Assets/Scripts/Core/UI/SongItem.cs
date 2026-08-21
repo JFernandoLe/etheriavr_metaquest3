@@ -70,7 +70,10 @@ public class SongItem : MonoBehaviour
         if (targetScene == null) return;
 
         SelectedSongManager.Instance.BeginSongSelectionMeasurement(_myFullData, targetScene);
-        SceneManager.LoadScene(targetScene);
+
+        // Fade solo en Repertorio → PianoGame. Canto y el resto cargan normal.
+        if (IsPianoMode) SceneTransition.Load(targetScene, "Preparando práctica de piano...");
+        else SceneManager.LoadScene(targetScene);
     }
 
     /// <summary>

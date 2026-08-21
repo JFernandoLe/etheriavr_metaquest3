@@ -22,6 +22,9 @@ public class NoteSpawner : MonoBehaviour
     private float songStartTime;
     private float currentSongTime = 0f;
     private readonly List<MusicNote> previewNotes = new List<MusicNote>();
+    private readonly List<MusicNote> spawnedNotes = new List<MusicNote>(64);
+    private MidiAudioManager cachedMidiAudio;
+    private GameplayScoring cachedScoring;
 
     /// <summary>
     /// Carga la canción y prepara las notas para spawn.
@@ -64,6 +67,14 @@ public class NoteSpawner : MonoBehaviour
 
         NormalizeHandsByMidiSplit();
         allNotes.Sort((a, b) => a.time.CompareTo(b.time));
+        EnsureSharedManagers();
+    }
+
+    private void EnsureSharedManagers()
+    {
+        if (cachedMidiAudio == null) cachedMidiAudio = FindObjectOfType<MidiAudioManager>();
+        if (cachedScoring == null) cachedScoring = FindObjectOfType<GameplayScoring>();
+        MusicNote.BindSharedManagers(cachedMidiAudio, cachedScoring);
     }
 
     private void NormalizeHandsByMidiSplit()
@@ -179,9 +190,11 @@ public class NoteSpawner : MonoBehaviour
 
         // La velocidad se deriva de la distancia real spawn->hit para respetar noteTravelTime.
         float distance = Vector3.Distance(targetStaff.GetSpawnPoint(), targetStaff.GetHitPoint());
+        EnsureSharedManagers();
         note.Initialize(noteData, spawnPos, hitPos, distance / SafeTravelTime);
 
         if (previewMode) note.SetPreviewPose(referenceSongTime);
+        else spawnedNotes.Add(note);
 
         return note;
     }
@@ -189,8 +202,12 @@ public class NoteSpawner : MonoBehaviour
     /// <summary>Destruye todas las notas activas (para reset o salida).</summary>
     public void ClearAllNotes()
     {
-        foreach (MusicNote note in FindObjectsOfType<MusicNote>())
-            Destroy(note.gameObject);
+        for (int i = spawnedNotes.Count - 1; i >= 0; i--)
+        {
+            if (spawnedNotes[i] != null) Destroy(spawnedNotes[i].gameObject);
+        }
+
+        spawnedNotes.Clear();
     }
 
     public void ClearPreviewNotes()

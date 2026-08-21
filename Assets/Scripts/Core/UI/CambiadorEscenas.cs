@@ -1,5 +1,5 @@
 using UnityEngine;
-using UnityEngine.SceneManagement; // Obligatorio para cambiar escenas
+using UnityEngine.SceneManagement;
 
 public class CambiadorEscenas : MonoBehaviour
 {

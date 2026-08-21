@@ -16,6 +16,10 @@ public class MusicNote : MonoBehaviour
     }
 
     private static readonly string[] NoteNames = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+    private static readonly List<MusicNote> ActiveNotes = new List<MusicNote>(64);
+    private static Material sharedUnburnedMaterial;
+    private static Material sharedBurnedMaterial;
+    private static Shader cachedLineShader;
 
     [Header("Datos de la Nota")]
     public int midiNote;
@@ -41,14 +45,22 @@ public class MusicNote : MonoBehaviour
     private MidiAudioManager midiAudioManager;
     private GameplayScoring gameplayScoring;
     private float originalLineLength = 0f;
-    private Material durationLineMaterial;
     private float fallbackStartTime = 0f;
     private Vector3 localHitPosition;
     private readonly List<BurnSegmentVisual> burnSegments = new List<BurnSegmentVisual>();
     private BurnSegmentVisual activeBurnSegment;
     private bool isPreviewMode = false;
 
-    public static List<MusicNote> GetActiveNotes() => new List<MusicNote>(FindObjectsOfType<MusicNote>(true));
+    public static IReadOnlyList<MusicNote> GetActiveNotes() => ActiveNotes;
+
+    public static void BindSharedManagers(MidiAudioManager audio, GameplayScoring scoring)
+    {
+        SharedMidiAudio = audio;
+        SharedScoring = scoring;
+    }
+
+    private static MidiAudioManager SharedMidiAudio;
+    private static GameplayScoring SharedScoring;
 
     void Awake()
     {
@@ -64,6 +76,16 @@ public class MusicNote : MonoBehaviour
         if (parentCollider != null) Destroy(parentCollider);
     }
 
+    void OnEnable()
+    {
+        if (!ActiveNotes.Contains(this)) ActiveNotes.Add(this);
+    }
+
+    void OnDisable()
+    {
+        ActiveNotes.Remove(this);
+    }
+
     public void Initialize(PianoNoteData noteData, Vector3 startPosition, Vector3 hitPosition, float speedOverride = -1)
     {
         midiNote = noteData.midi;
@@ -72,8 +94,8 @@ public class MusicNote : MonoBehaviour
         hand = noteData.hand;
         localHitPosition = hitPosition;
 
-        midiAudioManager = FindObjectOfType<MidiAudioManager>();
-        gameplayScoring = FindObjectOfType<GameplayScoring>();
+        midiAudioManager = SharedMidiAudio;
+        gameplayScoring = SharedScoring;
 
         targetDirection = (hitPosition - startPosition).normalized;
         if (speedOverride > 0) moveSpeed = speedOverride;
@@ -92,7 +114,9 @@ public class MusicNote : MonoBehaviour
         transform.localPosition = CalculateHeadPosition(songTime);
 
         bool isPlayableWindow = songTime >= spawnTime && songTime <= (spawnTime + duration);
-        bool isPressedNow = midiAudioManager != null && midiAudioManager.IsNotePressedNow(midiNote);
+        bool isPressedNow = isPlayableWindow
+            && midiAudioManager != null
+            && midiAudioManager.IsNotePressedNow(midiNote);
 
         if (isPlayableWindow && isPressedNow) ExtendBurnSegment(songTime);
         else activeBurnSegment = null;
@@ -114,14 +138,12 @@ public class MusicNote : MonoBehaviour
     private Vector3 CalculateHeadPosition(float songTime) =>
         localHitPosition - (targetDirection * moveSpeed * (spawnTime - songTime));
 
-    /// <summary>Marca la nota como fallada.</summary>
     public void OnNoteMissed()
     {
         isActive = false;
         Destroy(gameObject);
     }
 
-    /// <summary>Invocado al soltar la tecla MIDI.</summary>
     public void OnNoteRelease()
     {
     }
@@ -136,21 +158,34 @@ public class MusicNote : MonoBehaviour
 
     private static Shader ResolveLineShader()
     {
-        Shader shader = Shader.Find("Unlit/Color");
-        return shader != null ? shader : Shader.Find("Standard");
+        if (cachedLineShader != null) return cachedLineShader;
+        cachedLineShader = Shader.Find("Unlit/Color");
+        if (cachedLineShader == null) cachedLineShader = Shader.Find("Standard");
+        return cachedLineShader;
     }
 
-    /// <summary>Crea un cubo visual sin collider, hijo de esta nota.</summary>
-    private GameObject CreateLineCube(string name, Color color, out Material material)
+    private static Material GetSharedMaterial(bool burned)
+    {
+        if (burned)
+        {
+            if (sharedBurnedMaterial == null)
+                sharedBurnedMaterial = new Material(ResolveLineShader()) { color = new Color(1f, 0.35f, 0.1f) };
+            return sharedBurnedMaterial;
+        }
+
+        if (sharedUnburnedMaterial == null)
+            sharedUnburnedMaterial = new Material(ResolveLineShader()) { color = new Color(1f, 1f, 0.3f) };
+        return sharedUnburnedMaterial;
+    }
+
+    private GameObject CreateLineCube(string name, bool burned)
     {
         GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
         cube.name = name;
         cube.transform.SetParent(transform, false);
 
-        material = new Material(ResolveLineShader()) { color = color };
-
         Renderer cubeRenderer = cube.GetComponent<Renderer>();
-        cubeRenderer.material = material;
+        cubeRenderer.sharedMaterial = GetSharedMaterial(burned);
         cubeRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         cubeRenderer.receiveShadows = false;
 
@@ -160,18 +195,14 @@ public class MusicNote : MonoBehaviour
         return cube;
     }
 
-    /// <summary>
-    /// Crea la línea que representa la duración de la nota, con su nombre en la cabeza.
-    /// </summary>
     private void CreateDurationLine(float noteSpeed)
     {
         if (duration <= 0) return;
 
         float speed = noteSpeed > 0 ? noteSpeed : moveSpeed;
-        // Se limita la longitud para evitar escalas exageradas en notas muy largas.
         originalLineLength = Mathf.Min(speed * duration, 8f);
 
-        durationLine = CreateLineCube($"DurationLine_MIDI{midiNote}", unburnedColor, out durationLineMaterial);
+        durationLine = CreateLineCube($"DurationLine_MIDI{midiNote}", false);
         durationLine.transform.localPosition = new Vector3(originalLineLength / 2f, 0, 0);
         durationLine.transform.localScale = new Vector3(originalLineLength, 0.08f, 0.08f);
 
@@ -210,7 +241,7 @@ public class MusicNote : MonoBehaviour
 
     private BurnSegmentVisual CreateBurnSegment(float startOffset)
     {
-        GameObject segmentObject = CreateLineCube($"BurnedSegment_MIDI{midiNote}", burnedColor, out _);
+        GameObject segmentObject = CreateLineCube($"BurnedSegment_MIDI{midiNote}", true);
 
         BurnSegmentVisual segment = new BurnSegmentVisual
         {
@@ -220,7 +251,6 @@ public class MusicNote : MonoBehaviour
         };
 
         gameplayScoring?.ReportVisualFeedbackLatency(midiNote, segmentObject.name);
-
         UpdateBurnSegmentVisual(segment);
         return segment;
     }
@@ -238,7 +268,6 @@ public class MusicNote : MonoBehaviour
         segment.segmentObject.transform.localScale = new Vector3(segmentLength, 0.1f, 0.1f);
     }
 
-    /// <summary>Convierte un número MIDI a nombre de nota (60 -> "C4", 61 -> "C#4").</summary>
     public static string MidiToNoteName(int midiNumber) => NoteNames[midiNumber % 12] + ((midiNumber / 12) - 1);
 
     private void OnTriggerExit(Collider other)

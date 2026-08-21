@@ -11,36 +11,38 @@ public class NoteScroller : MonoBehaviour
     public float midiHeightMultiplier = 0.1f;
     public float destroyX = -20f;
 
-    private List<GameObject> activeNotes = new List<GameObject>();
+    private readonly List<GameObject> activeNotes = new List<GameObject>();
+    private readonly List<ScrollingNote> activeScrollingNotes = new List<ScrollingNote>();
 
     IEnumerator Start()
     {
         while (songLoader == null || songLoader.loadedSong == null)
             yield return null;
 
-        Debug.Log("NOTES COUNT: " + songLoader.loadedSong.notes.Length);
-
         SpawnAllNotes();
-
         songLoader.StartSong();
     }
 
     void Update()
     {
-        if (songLoader == null || songLoader.loadedSong == null)
-            return;
+        if (Time.timeScale <= 0f) return;
+        if (songLoader == null || songLoader.loadedSong == null) return;
 
         float songTime = songLoader.GetSongTime();
 
-        for (int i = activeNotes.Count - 1; i >= 0; i--)
+        for (int i = activeScrollingNotes.Count - 1; i >= 0; i--)
         {
+            ScrollingNote sn = activeScrollingNotes[i];
+            if (sn == null)
+            {
+                activeScrollingNotes.RemoveAt(i);
+                if (i < activeNotes.Count) activeNotes.RemoveAt(i);
+                continue;
+            }
+
             GameObject noteObj = activeNotes[i];
-            ScrollingNote sn = noteObj.GetComponent<ScrollingNote>();
-
             float noteLength = sn.duration * scrollSpeed;
-
             float startX = (sn.startTime - songTime) * scrollSpeed;
-
             float correctedX = startX + noteLength / 2f;
 
             Vector3 pos = noteObj.transform.position;
@@ -51,6 +53,7 @@ public class NoteScroller : MonoBehaviour
             {
                 Destroy(noteObj);
                 activeNotes.RemoveAt(i);
+                activeScrollingNotes.RemoveAt(i);
             }
         }
     }
@@ -58,10 +61,7 @@ public class NoteScroller : MonoBehaviour
     void SpawnAllNotes()
     {
         if (songLoader.loadedSong.notes == null || songLoader.loadedSong.notes.Length == 0)
-        {
-            Debug.LogError("NO HAY NOTAS EN EL JSON");
             return;
-        }
 
         foreach (var note in songLoader.loadedSong.notes)
         {
@@ -71,7 +71,6 @@ public class NoteScroller : MonoBehaviour
             obj.transform.position = new Vector3(0, yPos, 0);
 
             float noteLength = note.duration * scrollSpeed;
-
             obj.transform.localScale = new Vector3(noteLength, 0.3f, 0.3f);
 
             ScrollingNote sn = obj.AddComponent<ScrollingNote>();
@@ -80,13 +79,11 @@ public class NoteScroller : MonoBehaviour
             sn.duration = note.duration;
 
             activeNotes.Add(obj);
+            activeScrollingNotes.Add(sn);
         }
-
-        Debug.Log("Notas generadas: " + activeNotes.Count);
     }
 
-    public List<GameObject> GetActiveNotes()
-    {
-        return activeNotes;
-    }
+    public List<GameObject> GetActiveNotes() => activeNotes;
+
+    public List<ScrollingNote> GetActiveScrollingNotes() => activeScrollingNotes;
 }

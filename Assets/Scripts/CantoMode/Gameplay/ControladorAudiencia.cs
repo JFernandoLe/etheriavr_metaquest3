@@ -62,12 +62,12 @@ public class ControladorAudiencia : MonoBehaviour
                 animadores.Add(datos);
             }
         }
-
-        Debug.Log("Animadores encontrados: " + animadores.Count);
     }
 
     void Update()
     {
+        if (Time.timeScale <= 0f) return;
+
         if (ScoreManager.Instance != null)
         {
             float raw = ScoreManager.Instance.accuracyPercent;
@@ -89,12 +89,6 @@ public class ControladorAudiencia : MonoBehaviour
 
             // Inercia (tendencia)
             puntajeSuavizado = Mathf.Lerp(puntajeSuavizado, puntajeCanto, Time.deltaTime * inercia);
-
-            // Debug ligero
-            if (Time.frameCount % 120 == 0)
-            {
-                Debug.Log("Raw: " + raw + " | Puntaje: " + puntajeCanto);
-            }
         }
 
         // ROTACIÓN NATURAL
@@ -180,7 +174,5 @@ public class ControladorAudiencia : MonoBehaviour
                 dificultad = 70f;
                 break;
         }
-
-        Debug.Log("Dificultad aplicada: " + nivel + " → " + dificultad);
     }
 }

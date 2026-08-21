@@ -61,3 +61,6 @@ INSTRUCCIONES_FASE3.txt
 .metadata/
 /[Aa]ssets/.[Uu]tmp/
 .[Uu]tmp/
+# Cursor SpecStory local history (not runtime)
+.specstory/
+

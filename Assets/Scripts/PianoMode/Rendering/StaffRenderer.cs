@@ -170,18 +170,31 @@ public partial class StaffRenderer : MonoBehaviour
         hitLine.transform.localPosition = pos;
     }
 
-    /// <summary>Posición Y local de una nota MIDI en este pentagrama.</summary>
+    /// <summary>
+    /// Posición Y local de una nota MIDI en este pentagrama (posiciones diatónicas reales).
+    /// Clave de Sol: línea inferior = E4. Clave de Fa: línea inferior = G2.
+    /// Las alteraciones (sostenidos/bemoles) comparten la misma línea/espacio que su nota natural.
+    /// </summary>
     public float GetNoteYPosition(int midiNote)
     {
-        int referenceMidi = staffType == StaffType.Treble ? 64 : 43;
-        return (GetChromaticStaffPosition(midiNote) - GetChromaticStaffPosition(referenceMidi)) * (lineSpacing / 2f);
+        int referenceMidi = staffType == StaffType.Treble ? 64 : 43; // E4 / G2
+        int stepsFromReference = GetDiatonicStaffPosition(midiNote) - GetDiatonicStaffPosition(referenceMidi);
+        return stepsFromReference * (lineSpacing * 0.5f);
     }
 
     /// <summary>
-    /// Retícula cromática uniforme: cada semitono ocupa su propio escalón visual, de forma
-    /// que las teclas negras no queden "entre" dos marcas de notas blancas.
+    /// Índice diatónico en el pentagrama: 7 grados por octava (C D E F G A B).
+    /// Los sostenidos/bemoles usan el mismo escalón que su nota natural.
     /// </summary>
-    private float GetChromaticStaffPosition(int midiNote) => midiNote;
+    private static int GetDiatonicStaffPosition(int midiNote)
+    {
+        // C C# D D# E F F# G G# A A# B
+        int[] semitoneToDegree = { 0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6 };
+        int safeMidi = Mathf.Clamp(midiNote, 0, 127);
+        int octave = safeMidi / 12;
+        int semitone = safeMidi % 12;
+        return (octave * 7) + semitoneToDegree[semitone];
+    }
 
     /// <summary>Las notas aparecen a la derecha (+X) y viajan hacia la izquierda (-X).</summary>
     public Vector3 GetSpawnPoint() => transform.position + transform.right * (staffWidth * 0.5f);

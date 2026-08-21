@@ -1,0 +1,56 @@
+---
+description: Memoria de cambios EtheriaVR (MIDI, piano, optimización Quest) — restaurar si un merge los pisa
+alwaysApply: true
+---
+
+# EtheriaVR — cambios Victor (piano / MIDI / perf) — no perder en merges
+
+Victor es dueño de **modo piano** y sistemas compartidos Core. **Modo canto** es del compañero: no rediseñar gameplay de canto; solo tocar perf compartida si hace falta.
+
+Si un `pull`/`merge` del compañero **revierte** algo de esta lista, **restaurarlo** (salvo que Victor diga lo contrario).
+
+## MIDI (latencia y fiabilidad)
+
+- Entrada: `DirectMidiReceiver` → bridge Java `MidiInputBridge`; audio vía `OnRawMidiEvent` (inmediato), no solo cola.
+- Sondeo eventos ~**72 Hz** (`checkInterval ≈ 0.014`); estado conexión ~**0.5 s**; auto-reconnect ~**5 s**.
+- `MIDIStatusReceiver` event-driven (se desactiva tras suscribirse); sin polling cada frame.
+- `MIDIConnectionManager` sin `Update` polling; `UDPBeacon`/`UDPReceiver` legacy **off** (Login beacon desactivado; Piano NetworkManager components disabled).
+- `MidiAudioManager`: voices/freelist, lookup O(1), DSP bajo, volumen alto; **`sampleOctaveCorrection = -1`** (WAVs suenan 1 octava baja vs nombre).
+- Widget MIDI: no trabajar Update/LateUpdate si está oculto; health backend poll lento (~30 s) + skip canvas si panel oculto.
+
+## Piano — canciones y reloj
+
+- Charts piano: **MIDI** (`StreamingAssets/PianoSongs/Songs/*.mid`), no JSON+MP3 BackgroundMusic.
+- `PianoSongLoader` + DryWetMidi → `PianoSongData.all_notes`; clock `GetSongPlaybackTime()` / `gameTime`.
+- Backend `file_path` = solo filename; modo elige carpeta (`SongAssetPaths`).
+
+## Piano — gameplay / VR UX
+
+- Staff: Y diatónico (clave sol E4 / fa G2); ledger lines fuera de 5 líneas.
+- Fade `SceneTransition` solo **Repertorio ↔ PianoGame**.
+- `PianoCalibrator`: esquinas sticky, histéresis trigger, delay, marcadores (anti-shrink).
+- Manos en PianoGame: tras confirmar área → ocultar modelos mando + simultaneous hands+controllers; mandos a un lado para trackear manos.
+- Sesión: `UserSession` persistente (PlayerPrefs + Bearer); Login valida config.
+
+## Optimización Quest (Core + Piano + canto solo perf)
+
+- `Initializer`: `targetFrameRate = 72`, `vSyncCount = 0`.
+- XR refresh throttled; diagnostics logs off por defecto.
+- Notas: sin `FindObjectOfType` por spawn (`MusicNote.BindSharedManagers`); materiales compartidos burn; registry active notes.
+- Audiencia piano: cache una vez; anim/look ~8–12 Hz (no tag Find cada 2 s).
+- `PianoPublicSystem`: prune con `RemoveRange`; sample+prune en tick periódico.
+- Applause volume ~10 Hz y solo si cambia.
+- Staff hit/live guides: `MaterialPropertyBlock` **lazy** (`??=` en uso; **nunca** `new MaterialPropertyBlock()` en field initializer — rompe serialización Unity).
+- Canto perf-only: sin Debug.Log por paquete/hit; NoteScroller cache; HitDetector/TuningVisualizer property blocks lazy; TMP dirty-check; Tessitura note names static.
+
+## Diseño pendiente (acordado, no implementado aún)
+
+- Menú: **Presentación** vs **Práctica** (hub); Config en esquina.
+- Práctica piano: notas paran en hit line hasta teclas correctas; sin audiencia; rewind ~10 s con gesto palma; Presentación = modo actual con público.
+- No preguntar por canción si ya entró por hub Práctica.
+
+## Merge con compañero (canto / rama vieja)
+
+- Su PR desde copia antigua **puede reintroducir** archivos/código borrados.
+- Él debe rebase/pull de `main` actual antes del PR; revisar diff; no mergear a ciegas basura piano/MIDI vieja.
+- Tras merge conflictivo: priorizar esta regla en `Assets/Scripts/Core/Midi/**`, `PianoMode/**`, networking UDP legacy off, y fixes StaffRenderer MPB.

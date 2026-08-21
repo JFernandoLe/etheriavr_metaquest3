@@ -46,7 +46,7 @@ public class PianoPublicSystem : MonoBehaviour
     [SerializeField] private float mistakeRhythmPenalty = 14f;
     [SerializeField] private float mistakeHarmonyPenalty = 18f;
     [SerializeField] private float liveWindowReactionMultiplier = 1.1f;
-    [SerializeField] private bool enableAudienceSyncLogs = true;
+    [SerializeField] private bool enableAudienceSyncLogs = false;
 
     private float currentPublicScore = 0f;
     private float animationPublicScore = 0f;
@@ -101,9 +101,8 @@ public class PianoPublicSystem : MonoBehaviour
         {
             AddPerformanceSample(combinedPerformance);
             nextPeriodicSampleTime = Time.time + Mathf.Max(0.05f, periodicSampleInterval);
+            PruneExpiredSamples();
         }
-
-        PruneExpiredSamples();
 
         AudienceComputationSnapshot snapshot = BuildAudienceComputationSnapshot();
         lastWindowAverage = snapshot.windowAverage;
@@ -268,10 +267,11 @@ public class PianoPublicSystem : MonoBehaviour
     private void PruneExpiredSamples()
     {
         float oldestAllowedTime = Time.time - Mathf.Max(0.5f, performanceWindowSeconds);
-        for (int i = performanceWindow.Count - 1; i >= 0; i--)
-        {
-            if (performanceWindow[i].time < oldestAllowedTime) performanceWindow.RemoveAt(i);
-        }
+        int removeCount = 0;
+        while (removeCount < performanceWindow.Count && performanceWindow[removeCount].time < oldestAllowedTime)
+            removeCount++;
+
+        if (removeCount > 0) performanceWindow.RemoveRange(0, removeCount);
     }
 
     private float CalculateWindowAverage()

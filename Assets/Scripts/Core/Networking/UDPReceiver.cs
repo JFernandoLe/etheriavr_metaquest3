@@ -5,29 +5,38 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Collections.Concurrent;
 
+/// <summary>
+/// Receptor UDP MIDI legacy. Desactivado por defecto (DirectMidiReceiver lo reemplaza).
+/// </summary>
 public class UDPReceiver : MonoBehaviour
 {
+    [SerializeField] private bool enableReceiver = false;
     public int port = 12345;
     public ConcurrentQueue<byte[]> messageQueue = new();
-    
+
     private Thread receiveThread;
     private UdpClient client;
     private volatile bool keepRunning = true;
 
-    private void Start() 
+    private void Start()
     {
+        if (!enableReceiver)
+        {
+            enabled = false;
+            return;
+        }
+
         (receiveThread = new Thread(ReceiveData) { IsBackground = true }).Start();
-        Debug.Log($"<color=cyan>[MIDI RX SETUP]</color> 🎹 Escuchando datos binarios MIDI en puerto {port}");
     }
 
-    private void ReceiveData() 
+    private void ReceiveData()
     {
         try
         {
             client = new UdpClient(port);
             client.Client.ReceiveTimeout = 1000;
             IPEndPoint anyIP = new IPEndPoint(IPAddress.Any, 0);
-            
+
             while (keepRunning)
             {
                 try { messageQueue.Enqueue(client.Receive(ref anyIP)); }
@@ -35,11 +44,11 @@ public class UDPReceiver : MonoBehaviour
                 catch (ObjectDisposedException) { break; }
             }
         }
-        catch (Exception e) { Debug.LogError($"<color=red>[UDP]</color> Error: {e.Message}"); }
+        catch (Exception e) { Debug.LogError($"[UDP] Error: {e.Message}"); }
         finally { client?.Close(); }
     }
 
-    private void OnApplicationQuit() 
+    private void OnApplicationQuit()
     {
         keepRunning = false;
         client?.Close();

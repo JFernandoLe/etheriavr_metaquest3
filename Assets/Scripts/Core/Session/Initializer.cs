@@ -1,16 +1,18 @@
 using UnityEngine;
 
 /// <summary>
-/// Arranca la configuración de red al inicio de la app.
+/// Arranca la configuración de red y ajustes de rendimiento Quest al inicio.
 /// </summary>
 public class Initializer : MonoBehaviour
 {
     private void Awake()
     {
-        // Acceder a Instance dispara la carga del .env (y UDP solo si está habilitado).
+        // Quest 3: 72 Hz nativo; vSync off evita esperar vsync de desktop en builds.
+        Application.targetFrameRate = 72;
+        QualitySettings.vSyncCount = 0;
+
         string baseUrl = NetworkConfig.Instance.BaseUrl;
-        Debug.Log(string.IsNullOrEmpty(baseUrl)
-            ? "[App] NetworkConfig sin BaseUrl aún."
-            : $"[App] Backend configurado: {baseUrl}");
+        if (string.IsNullOrEmpty(baseUrl))
+            Debug.Log("[App] NetworkConfig sin BaseUrl aún.");
     }
 }

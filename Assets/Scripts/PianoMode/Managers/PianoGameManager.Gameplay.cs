@@ -324,7 +324,7 @@ public partial class PianoGameManager
     {
         saveAndExitInProgress = false;
         SilenceAudienceApplause();
-        UnityEngine.SceneManagement.SceneManager.LoadScene("RepertorioScene");
+        SceneTransition.Load("RepertorioScene", "Volviendo al repertorio...");
     }
 
     public void PrepareForSceneExit()

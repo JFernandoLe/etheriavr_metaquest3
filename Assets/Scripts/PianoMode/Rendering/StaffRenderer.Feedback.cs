@@ -8,8 +8,24 @@ public partial class StaffRenderer
 {
     private static readonly Color PerfectGreen = new Color(0, 1, 0, 1);
     private static readonly Color GoodGreen = new Color(0.5f, 1, 0.5f, 1);
+    private static readonly int ColorId = Shader.PropertyToID("_Color");
+    private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
 
-    private Renderer HitLineRenderer => hitLine != null ? hitLine.GetComponent<Renderer>() : null;
+    private Renderer cachedHitLineRenderer;
+    private MaterialPropertyBlock hitLinePropertyBlock;
+    private static readonly WaitForSeconds Wait02 = new WaitForSeconds(0.2f);
+    private static readonly WaitForSeconds Wait025 = new WaitForSeconds(0.25f);
+    private static readonly WaitForSeconds Wait03 = new WaitForSeconds(0.3f);
+
+    private Renderer HitLineRenderer
+    {
+        get
+        {
+            if (cachedHitLineRenderer == null && hitLine != null)
+                cachedHitLineRenderer = hitLine.GetComponent<Renderer>();
+            return cachedHitLineRenderer;
+        }
+    }
 
     public void SetHitLinePerfect() => FlashHitLine(PerfectGreen, 0.3f);
 
@@ -17,28 +33,27 @@ public partial class StaffRenderer
 
     public void SetHitLineError() => FlashHitLine(Color.red, 0.2f);
 
-    /// <summary>Tiñe la línea de hit y programa su vuelta al amarillo.</summary>
     private void FlashHitLine(Color color, float resetDelay)
     {
         Renderer hitLineRenderer = HitLineRenderer;
         if (hitLineRenderer == null) return;
 
-        hitLineRenderer.material.color = color;
+        SetHitLineColorInternal(hitLineRenderer, color);
         StartCoroutine(ResetHitLineColor(resetDelay));
     }
 
     private IEnumerator ResetHitLineColor(float delay)
     {
-        yield return new WaitForSeconds(delay);
+        yield return GetWait(delay);
 
         Renderer hitLineRenderer = HitLineRenderer;
-        if (hitLineRenderer != null) hitLineRenderer.material.color = Color.yellow;
+        if (hitLineRenderer != null) SetHitLineColorInternal(hitLineRenderer, Color.yellow);
     }
 
     public void SetHitLineColor(Color color)
     {
         Renderer hitLineRenderer = HitLineRenderer;
-        if (hitLineRenderer != null) hitLineRenderer.material.color = color;
+        if (hitLineRenderer != null) SetHitLineColorInternal(hitLineRenderer, color);
     }
 
     public void PulseHitLine(Color pulseColor, float duration = 0.2f)
@@ -51,8 +66,25 @@ public partial class StaffRenderer
         Renderer hitLineRenderer = HitLineRenderer;
         if (hitLineRenderer == null) yield break;
 
-        hitLineRenderer.material.color = pulseColor;
-        yield return new WaitForSeconds(duration);
-        hitLineRenderer.material.color = Color.yellow;
+        SetHitLineColorInternal(hitLineRenderer, pulseColor);
+        yield return GetWait(duration);
+        SetHitLineColorInternal(hitLineRenderer, Color.yellow);
+    }
+
+    private void SetHitLineColorInternal(Renderer rend, Color color)
+    {
+        hitLinePropertyBlock ??= new MaterialPropertyBlock();
+        rend.GetPropertyBlock(hitLinePropertyBlock);
+        hitLinePropertyBlock.SetColor(ColorId, color);
+        hitLinePropertyBlock.SetColor(BaseColorId, color);
+        rend.SetPropertyBlock(hitLinePropertyBlock);
+    }
+
+    private static WaitForSeconds GetWait(float delay)
+    {
+        if (Mathf.Approximately(delay, 0.2f)) return Wait02;
+        if (Mathf.Approximately(delay, 0.25f)) return Wait025;
+        if (Mathf.Approximately(delay, 0.3f)) return Wait03;
+        return new WaitForSeconds(delay);
     }
 }

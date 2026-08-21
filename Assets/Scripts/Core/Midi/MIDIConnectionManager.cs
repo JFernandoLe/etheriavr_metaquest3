@@ -28,11 +28,7 @@ public class MIDIConnectionManager : MonoBehaviour
         RefreshStateFromReceiver();
     }
 
-    private void Update()
-    {
-        if (!statusReceiver || !statusReceiver.CurrentReceiver) EnsureStatusReceiver();
-        RefreshStateFromReceiver();
-    }
+    // Event-driven: ya no se hace polling cada frame (causaba FindObjectOfType + GC en Quest).
 
     public DirectMidiReceiver GetReceiver()
     {
@@ -53,10 +49,7 @@ public class MIDIConnectionManager : MonoBehaviour
         CurrentDeviceName = resolvedDeviceName;
 
         if (statusChanged) 
-        {
             OnMidiConnectionChanged?.Invoke(isConnected);
-            Debug.Log($"<color={(isConnected ? "green" : "red")}>[MIDI Manager]</color> Estado MIDI: {(isConnected ? "CONECTADO" : "DESCONECTADO")}");
-        }
 
         if ((statusChanged || deviceNameChanged) && isConnected)
             UpdateRuntimeSessionForConnectedDevice(resolvedDeviceName);

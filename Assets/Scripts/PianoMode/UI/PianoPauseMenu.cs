@@ -48,11 +48,7 @@ public class PianoPauseMenu : MonoBehaviour
             }
         }
 
-        if (!pianoGameManager.CanTogglePause)
-        {
-            Debug.Log("[PianoPauseMenu] Pausa ignorada: el gameplay aún no inicia o ya terminó");
-            return;
-        }
+        if (!pianoGameManager.CanTogglePause) return;
 
         if (pianoGameManager.isPaused) TryResumeFromPauseMenu();
         else ShowPauseMenu();

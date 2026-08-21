@@ -42,6 +42,9 @@ public partial class QuestXRInteractionController
             return;
         }
 
+        if (IsActiveScene(PianoGameSceneName))
+            TryEnableSimultaneousHandsAndControllers();
+
         HandSubsystemManager handSubsystemManager = EnsureHandSubsystemManager();
         LogHands($"EnsureHandTrackingSupport managerFound={(handSubsystemManager != null)} {DescribeHandSubsystems()}");
         EnsureHandTrackingPermission(handSubsystemManager);
@@ -75,8 +78,62 @@ public partial class QuestXRInteractionController
 
         AssignHandsToModalityManager(existingLeftHand, existingRightHand);
         AssignHandVisualizerMeshes(existingHandVisualizer, existingLeftHand, existingRightHand);
+        EnsureHandVisualizerDrawMeshes(existingHandVisualizer);
+        ForceActivatePianoHandVisuals(existingLeftHand, existingRightHand, existingHandVisualizer);
         SyncHandPointerDots(existingLeftHand, existingRightHand);
         RefreshTrackedInteractionState(forceLog: true);
+    }
+
+    /// <summary>
+    /// En PianoGame las raíces de mano y el visualizador deben estar activos siempre.
+    /// Si arrancan desactivados, el HandVisualizer no puede dibujar aunque el tracking exista.
+    /// </summary>
+    private void ForceActivatePianoHandVisuals(GameObject leftHand, GameObject rightHand, GameObject handVisualizer)
+    {
+        if (!ShouldPreferHandsInPianoGame()) return;
+
+        SetActiveIfNeeded(leftHand, true);
+        SetActiveIfNeeded(rightHand, true);
+        SetActiveIfNeeded(handVisualizer, true);
+
+        // También fuerza activos los meshes Meta Quest dentro de cada mano.
+        ForceActivateNamedChild(leftHand, MetaQuestLeftHandVisualName);
+        ForceActivateNamedChild(rightHand, MetaQuestRightHandVisualName);
+        ForceActivateNamedChild(leftHand, AndroidXRLeftHandVisualName);
+        ForceActivateNamedChild(rightHand, AndroidXRRightHandVisualName);
+
+        LogHands($"ForceActivatePianoHandVisuals left={(leftHand != null && leftHand.activeSelf)} right={(rightHand != null && rightHand.activeSelf)} visualizer={(handVisualizer != null && handVisualizer.activeSelf)}");
+    }
+
+    private static void ForceActivateNamedChild(GameObject handRoot, string childName)
+    {
+        if (handRoot == null || string.IsNullOrEmpty(childName)) return;
+
+        GameObject child = FindChildObject(handRoot.transform, childName);
+        SetActiveIfNeeded(child, true);
+    }
+
+    private void EnsureHandVisualizerDrawMeshes(GameObject handVisualizer)
+    {
+        if (handVisualizer == null) return;
+
+        foreach (Component component in handVisualizer.GetComponents<Component>())
+        {
+            if (component == null) continue;
+
+            // HandVisualizer.drawMeshes (paquete XR Hands) — se setea por reflexión por si el tipo cambia de nombre.
+            System.Type type = component.GetType();
+            if (type.Name.IndexOf("HandVisualizer", System.StringComparison.OrdinalIgnoreCase) < 0) continue;
+
+            System.Reflection.PropertyInfo drawMeshesProperty = type.GetProperty("drawMeshes");
+            if (drawMeshesProperty != null && drawMeshesProperty.CanWrite && drawMeshesProperty.PropertyType == typeof(bool))
+            {
+                drawMeshesProperty.SetValue(component, true);
+                LogHands($"Forced {type.Name}.drawMeshes=true");
+            }
+
+            TrySetBoolField(component, "m_DrawMeshes", true);
+        }
     }
 
     private void DisableHandTrackingSceneObjects()
@@ -106,6 +163,47 @@ public partial class QuestXRInteractionController
 
         inputModalityManager.leftHand = null;
         inputModalityManager.rightHand = null;
+    }
+
+    /// <summary>
+    /// En PianoGame los mandos suelen seguir trackeados (sobre la mesa). Sin modo
+    /// simultáneo, Meta apaga el tracking de manos y las mallas nunca aparecen.
+    /// Hay que llamar a OVRInput.EnableSimultaneousHandsAndControllers(), no solo
+    /// marcar el checkbox de OVRManager.
+    /// </summary>
+    private void TryEnableSimultaneousHandsAndControllers()
+    {
+        try
+        {
+            if (cachedOvrManager == null) cachedOvrManager = FindObjectOfType<OVRManager>(true);
+            if (cachedOvrManager != null)
+            {
+                cachedOvrManager.SimultaneousHandsAndControllersEnabled = true;
+                cachedOvrManager.launchSimultaneousHandsControllersOnStartup = true;
+            }
+
+            bool enabled = OVRInput.EnableSimultaneousHandsAndControllers();
+            LogHands($"OVRInput.EnableSimultaneousHandsAndControllers result={enabled}");
+        }
+        catch (System.Exception e)
+        {
+            LogHandsWarning($"Could not enable SimultaneousHandsAndControllers: {e.Message}");
+        }
+    }
+
+    private void MaintainPianoHandTracking()
+    {
+        nextPianoHandsMaintainTime = Time.unscaledTime + 2.5f;
+        TryEnableSimultaneousHandsAndControllers();
+        EnsureHandSubsystemManager()?.EnableHandTracking();
+
+        Transform cameraOffset = transform.Find(cameraOffsetName);
+        if (cameraOffset == null) return;
+
+        ForceActivatePianoHandVisuals(
+            FindChildObject(cameraOffset, leftHandName),
+            FindChildObject(cameraOffset, rightHandName),
+            FindChildObject(cameraOffset, handVisualizerName));
     }
 
     private HandSubsystemManager EnsureHandSubsystemManager()

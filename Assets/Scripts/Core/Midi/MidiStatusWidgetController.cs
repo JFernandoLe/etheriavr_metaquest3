@@ -62,6 +62,8 @@ public partial class MidiStatusWidgetController : MonoBehaviour
 
     private void Update()
     {
+        if (!widgetVisible && !gameplayPromptActive) return;
+
         ResolveDependencies(false);
         UpdateBadgePulse();
 
@@ -71,7 +73,11 @@ public partial class MidiStatusWidgetController : MonoBehaviour
         RefreshView(false);
     }
 
-    private void LateUpdate() => PositionCanvas();
+    private void LateUpdate()
+    {
+        if (!widgetVisible && !gameplayPromptActive) return;
+        PositionCanvas();
+    }
 
     private void OnDisable()
     {
@@ -141,7 +147,7 @@ public partial class MidiStatusWidgetController : MonoBehaviour
 
         if (connectionManager == null)
         {
-            connectionManager = FindObjectOfType<MIDIConnectionManager>();
+            connectionManager = MIDIConnectionManager.Instance ?? FindObjectOfType<MIDIConnectionManager>();
             if (connectionManager != null)
             {
                 connectionManager.OnMidiConnectionChanged -= HandleConnectionChanged;
@@ -151,7 +157,7 @@ public partial class MidiStatusWidgetController : MonoBehaviour
 
         DirectMidiReceiver newReceiver = connectionManager != null
             ? connectionManager.GetReceiver()
-            : FindObjectOfType<DirectMidiReceiver>();
+            : receiver;
 
         if (receiver != newReceiver)
         {

@@ -13,11 +13,13 @@ public class DirectMidiReceiver : MonoBehaviour
     private const string UnregisteredMidiDeviceName = "NO REGISTRADO";
 
     [Header("Configuración")]
-    [Tooltip("1ms de sondeo = respuesta inmediata")]
-    [SerializeField] private float checkInterval = 0.001f;
-    [SerializeField] private int maxEventsPerFrame = 128;
+    [Tooltip("Sondeo de eventos MIDI (s). ~72 Hz alinea con Quest y reduce JNI.")]
+    [SerializeField] private float checkInterval = 0.014f;
+    [Tooltip("Sondeo de estado de conexión (s). Más lento: no hace falta 72 Hz.")]
+    [SerializeField] private float connectionPollInterval = 0.5f;
+    [SerializeField] private int maxEventsPerFrame = 64;
     [SerializeField] private bool autoReconnect = true;
-    [SerializeField] private float autoReconnectInterval = 1.5f;
+    [SerializeField] private float autoReconnectInterval = 5f;
     [SerializeField] private bool verboseMidiLogging = false;
 
     /// <summary>Cola de respaldo (si nadie consume el callback inmediato).</summary>
@@ -32,6 +34,7 @@ public class DirectMidiReceiver : MonoBehaviour
     private bool isMidiConnected = false;
     private string currentMidiDeviceName = UnregisteredMidiDeviceName;
     private float nextCheckTime = 0f;
+    private float nextConnectionPollTime = 0f;
     private float nextReconnectAttemptTime = 0f;
     private bool manualDisconnectRequested = false;
     private bool validationActive = true;
@@ -54,7 +57,7 @@ public class DirectMidiReceiver : MonoBehaviour
     void Start()
     {
         validationActive = MidiInitializer.ShouldEnableMidiForScene(SceneManager.GetActiveScene().name);
-        maxEventsPerFrame = Mathf.Max(maxEventsPerFrame, 128);
+        maxEventsPerFrame = Mathf.Max(maxEventsPerFrame, 64);
 
         nextCheckTime = 0f;
         nextReconnectAttemptTime = 0f;
@@ -110,7 +113,12 @@ public class DirectMidiReceiver : MonoBehaviour
 
         try
         {
-            PollConnectionState();
+            if (Time.unscaledTime >= nextConnectionPollTime)
+            {
+                nextConnectionPollTime = Time.unscaledTime + Mathf.Max(0.1f, connectionPollInterval);
+                PollConnectionState();
+            }
+
             DrainPendingEvents();
         }
         catch (Exception e)
@@ -127,10 +135,14 @@ public class DirectMidiReceiver : MonoBehaviour
 
         if (javaConnected)
         {
-            string javaDeviceName = bridgeClass.CallStatic<string>("getConnectedDeviceName");
-            currentMidiDeviceName = string.IsNullOrWhiteSpace(javaDeviceName)
-                ? UnregisteredMidiDeviceName
-                : javaDeviceName;
+            // Solo pregunta el nombre cuando cambia el estado o aún no lo tenemos.
+            if (!isMidiConnected || currentMidiDeviceName == UnregisteredMidiDeviceName)
+            {
+                string javaDeviceName = bridgeClass.CallStatic<string>("getConnectedDeviceName");
+                currentMidiDeviceName = string.IsNullOrWhiteSpace(javaDeviceName)
+                    ? UnregisteredMidiDeviceName
+                    : javaDeviceName;
+            }
 
             if (!isMidiConnected) UpdateConnectionStatus(true);
             return;

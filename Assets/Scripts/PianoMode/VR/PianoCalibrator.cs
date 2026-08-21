@@ -38,10 +38,17 @@ public class PianoCalibrator : MonoBehaviour
     [SerializeField] private Transform pianoSpawnPoint;
     [SerializeField] private Transform passthroughWindow;
     [SerializeField] private Vector3 controllerCornerLocalOffset = new Vector3(0f, -0.01f, 0.06f);
-    [SerializeField] private float triggerDragThreshold = 0.15f;
-    [SerializeField] private float minPreviewWidth = 0.18f;
-    [SerializeField] private float minPreviewDepth = 0.08f;
+    [Tooltip("Gatillo debe superar este valor para EMPEZAR a arrastrar")]
+    [SerializeField] private float triggerPressThreshold = 0.55f;
+    [Tooltip("Gatillo debe bajar de este valor para SOLTAR (histéresis anti-microcorte)")]
+    [SerializeField] private float triggerReleaseThreshold = 0.22f;
+    [Tooltip("Segundos sosteniendo el gatillo antes de mover la esquina (evita toques accidentales)")]
+    [SerializeField] private float dragArmDelay = 0.1f;
+    [SerializeField] private float minPreviewWidth = 0.25f;
+    [SerializeField] private float minPreviewDepth = 0.12f;
     [SerializeField] private float gripRotationThreshold = 0.15f;
+    [SerializeField] private bool showCornerMarkers = true;
+    [SerializeField] private float cornerMarkerScale = 0.035f;
 
     private bool isLocked;
     private Vector3 continueButtonBaseScale = Vector3.one;
@@ -53,6 +60,12 @@ public class PianoCalibrator : MonoBehaviour
     private bool rightCornerSet;
     private bool leftTriggerHeld;
     private bool rightTriggerHeld;
+    private bool leftDragging;
+    private bool rightDragging;
+    private bool leftPressArmed;
+    private bool rightPressArmed;
+    private float leftPressStartTime;
+    private float rightPressStartTime;
     private bool leftGripHeld;
     private bool rightGripHeld;
     private bool wasLeftGripHeld;
@@ -67,6 +80,8 @@ public class PianoCalibrator : MonoBehaviour
     private Vector3 previewWidthAxis = Vector3.right;
     private Vector3 previewDepthAxis = Vector3.forward;
     private XROrigin cachedXrOrigin;
+    private Transform leftCornerMarker;
+    private Transform rightCornerMarker;
 
     public static event System.Action OnPianoConfigured;
 
@@ -120,9 +135,12 @@ public class PianoCalibrator : MonoBehaviour
         }
 
         isLocked = true;
+        leftDragging = false;
+        rightDragging = false;
         ShowDecisionUI(false);
         ShowControllerHint(false);
         SetButtonLabelsVisible(false);
+        SetCornerMarkersVisible(false);
         UpdateButtonHighlightVisuals(false, false);
 
         Debug.Log("<color=green>[PianoCalibrator]</color> Area del piano confirmada con dos esquinas manuales.");
@@ -137,11 +155,17 @@ public class PianoCalibrator : MonoBehaviour
     private void BeginCornerCalibration()
     {
         isLocked = false;
+        leftDragging = false;
+        rightDragging = false;
+        leftPressArmed = false;
+        rightPressArmed = false;
         ShowDecisionUI(false);
         ShowControllerHint(true);
         SetButtonLabelsVisible(true);
         UpdateButtonLabelTexts("A", "B");
         InitializeCornerPreviewFromCurrentBounds();
+        EnsureCornerMarkers();
+        UpdateCornerMarkers();
         UpdateCornerCalibrationHint();
     }
 
@@ -155,26 +179,19 @@ public class PianoCalibrator : MonoBehaviour
     {
         if (isLocked) return;
 
-        bool leftCornerUpdated = leftTriggerHeld && leftControllerAnchor != null;
-        if (leftCornerUpdated)
-        {
-            leftCornerRawPosition = GetControllerCornerPoint(leftControllerAnchor);
-            leftCornerSet = true;
-        }
+        UpdateStickyCornerDrag(ref leftDragging, ref leftPressArmed, ref leftPressStartTime, leftTriggerHeld,
+            leftControllerAnchor, ref leftCornerRawPosition, ref leftCornerSet, "izquierda");
 
-        bool rightCornerUpdated = rightTriggerHeld && rightControllerAnchor != null;
-        if (rightCornerUpdated)
-        {
-            rightCornerRawPosition = GetControllerCornerPoint(rightControllerAnchor);
-            rightCornerSet = true;
-        }
+        UpdateStickyCornerDrag(ref rightDragging, ref rightPressArmed, ref rightPressStartTime, rightTriggerHeld,
+            rightControllerAnchor, ref rightCornerRawPosition, ref rightCornerSet, "derecha");
 
         if (leftCornerSet || rightCornerSet)
         {
-            SynchronizeCornerHeights(leftCornerUpdated, rightCornerUpdated);
+            SynchronizeCornerHeights(leftDragging, rightDragging);
             UpdateCalibrationPreview();
         }
 
+        UpdateCornerMarkers();
         HandleGripRotationInput();
 
         if (OVRInput.GetDown(OVRInput.Button.Two, OVRInput.Controller.RTouch))
@@ -190,6 +207,61 @@ public class PianoCalibrator : MonoBehaviour
         }
 
         UpdateCornerCalibrationHint();
+    }
+
+    /// <summary>
+    /// Esquinas "pegajosas": solo se mueven mientras arrastras a propósito.
+    /// Al soltar, quedan ancladas. Un toque breve no las teletransporta.
+    /// </summary>
+    private void UpdateStickyCornerDrag(
+        ref bool isDragging,
+        ref bool pressArmed,
+        ref float pressStartTime,
+        bool triggerHeld,
+        Transform controllerAnchor,
+        ref Vector3 cornerPosition,
+        ref bool cornerSet,
+        string cornerLabel)
+    {
+        if (controllerAnchor == null)
+        {
+            isDragging = false;
+            pressArmed = false;
+            return;
+        }
+
+        if (triggerHeld)
+        {
+            if (!pressArmed && !isDragging)
+            {
+                pressArmed = true;
+                pressStartTime = Time.unscaledTime;
+            }
+
+            if (!isDragging && pressArmed && (Time.unscaledTime - pressStartTime) >= dragArmDelay)
+            {
+                isDragging = true;
+                pressArmed = false;
+                // Arranca desde la posición actual del mando, pero la otra esquina no se toca.
+                cornerPosition = GetControllerCornerPoint(controllerAnchor);
+                cornerSet = true;
+            }
+
+            if (isDragging)
+            {
+                cornerPosition = GetControllerCornerPoint(controllerAnchor);
+                cornerSet = true;
+            }
+        }
+        else
+        {
+            // Soltar = anclar. No se resetea ni se encoje.
+            if (isDragging)
+                Debug.Log($"<color=cyan>[PianoCalibrator]</color> Esquina {cornerLabel} anclada.");
+
+            isDragging = false;
+            pressArmed = false;
+        }
     }
 
     private void UpdateCalibrationPreview()
@@ -254,18 +326,101 @@ public class PianoCalibrator : MonoBehaviour
 
     private void UpdateCornerCalibrationHint(string overrideMessage = null)
     {
-        SetControllerHint(!string.IsNullOrEmpty(overrideMessage)
-            ? overrideMessage
-            : $"Gatillos de índice: arrastra las esquinas.\nGatillos de agarre: gira el rectángulo.\n" +
-              $"Ancho: {currentPreviewWidth:F2} m  Fondo: {currentPreviewDepth:F2} m\nA = confirmar · B = reiniciar");
+        if (!string.IsNullOrEmpty(overrideMessage))
+        {
+            SetControllerHint(overrideMessage);
+            return;
+        }
+
+        string leftState = leftDragging ? "arrastrando" : (leftCornerSet ? "anclada" : "libre");
+        string rightState = rightDragging ? "arrastrando" : (rightCornerSet ? "anclada" : "libre");
+
+        SetControllerHint(
+            $"Mantén gatillo (~0.1s) para mover UNA esquina.\n" +
+            $"Al soltar, esa esquina se ancla (no se encoje).\n" +
+            $"Izq: {leftState} · Der: {rightState}\n" +
+            $"Ancho: {currentPreviewWidth:F2} m  Fondo: {currentPreviewDepth:F2} m\n" +
+            $"Agarre: girar · A confirmar · B reiniciar");
     }
 
     private void UpdateControllerState()
     {
-        leftTriggerHeld = OVRInput.Get(OVRInput.RawAxis1D.LIndexTrigger) >= triggerDragThreshold;
-        rightTriggerHeld = OVRInput.Get(OVRInput.RawAxis1D.RIndexTrigger) >= triggerDragThreshold;
+        float leftTrigger = OVRInput.Get(OVRInput.RawAxis1D.LIndexTrigger);
+        float rightTrigger = OVRInput.Get(OVRInput.RawAxis1D.RIndexTrigger);
+
+        // Histéresis: evita que un micro-suelte corte el drag y deforme el área.
+        leftTriggerHeld = leftTriggerHeld
+            ? leftTrigger >= triggerReleaseThreshold
+            : leftTrigger >= triggerPressThreshold;
+
+        rightTriggerHeld = rightTriggerHeld
+            ? rightTrigger >= triggerReleaseThreshold
+            : rightTrigger >= triggerPressThreshold;
+
         leftGripHeld = OVRInput.Get(OVRInput.RawAxis1D.LHandTrigger) >= gripRotationThreshold;
         rightGripHeld = OVRInput.Get(OVRInput.RawAxis1D.RHandTrigger) >= gripRotationThreshold;
+    }
+
+    private void EnsureCornerMarkers()
+    {
+        if (!showCornerMarkers) return;
+
+        leftCornerMarker = EnsureCornerMarker(leftCornerMarker, "LeftCornerMarker", new Color(0.2f, 0.75f, 1f, 0.9f));
+        rightCornerMarker = EnsureCornerMarker(rightCornerMarker, "RightCornerMarker", new Color(1f, 0.55f, 0.15f, 0.9f));
+    }
+
+    private Transform EnsureCornerMarker(Transform marker, string markerName, Color color)
+    {
+        if (marker != null) return marker;
+
+        GameObject sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        sphere.name = markerName;
+        sphere.transform.SetParent(transform, true);
+        sphere.transform.localScale = Vector3.one * cornerMarkerScale;
+
+        Collider markerCollider = sphere.GetComponent<Collider>();
+        if (markerCollider != null) Destroy(markerCollider);
+
+        Renderer markerRenderer = sphere.GetComponent<Renderer>();
+        if (markerRenderer != null)
+        {
+            markerRenderer.material = new Material(Shader.Find("Unlit/Color") ?? Shader.Find("Standard"))
+            {
+                color = color
+            };
+            markerRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            markerRenderer.receiveShadows = false;
+        }
+
+        return sphere.transform;
+    }
+
+    private void UpdateCornerMarkers()
+    {
+        if (!showCornerMarkers) return;
+
+        EnsureCornerMarkers();
+        UpdateCornerMarker(leftCornerMarker, leftCornerSet, leftCornerRawPosition, leftDragging);
+        UpdateCornerMarker(rightCornerMarker, rightCornerSet, rightCornerRawPosition, rightDragging);
+    }
+
+    private void UpdateCornerMarker(Transform marker, bool isSet, Vector3 worldPosition, bool isDragging)
+    {
+        if (marker == null) return;
+
+        bool visible = !isLocked && isSet;
+        if (marker.gameObject.activeSelf != visible) marker.gameObject.SetActive(visible);
+        if (!visible) return;
+
+        marker.position = worldPosition;
+        float scale = cornerMarkerScale * (isDragging ? 1.35f : 1f);
+        marker.localScale = Vector3.one * scale;
+    }
+
+    private void SetCornerMarkersVisible(bool visible)
+    {
+        if (leftCornerMarker != null) leftCornerMarker.gameObject.SetActive(visible);
+        if (rightCornerMarker != null) rightCornerMarker.gameObject.SetActive(visible);
     }
 
     private Vector3 GetControllerCornerPoint(Transform controllerAnchor) =>

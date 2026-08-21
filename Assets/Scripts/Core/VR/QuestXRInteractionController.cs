@@ -4,6 +4,7 @@ using UnityEngine.XR.Interaction.Toolkit.Inputs;
 using UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets;
 using UnityEngine.SceneManagement;
 using UnityEngine.XR;
+using Unity.VRTemplate;
 
 /// <summary>
 /// Fuerza un modo de interacción VR coherente sobre el rig del XR Interaction Toolkit:
@@ -33,11 +34,15 @@ public partial class QuestXRInteractionController : MonoBehaviour
     [SerializeField] private bool disableBuiltInUiFallback = true;
     [SerializeField] private string locomotionRootName = "Locomotion";
     [SerializeField] private bool useDirectControllerRayOriginWhenTeleportDisabled = true;
-    [SerializeField] private bool enableControllerRayDiagnostics = true;
+    [SerializeField] private bool enableControllerRayDiagnostics = false;
     [SerializeField] private int controllerRayDiagnosticIntervalFrames = 120;
     [SerializeField] private bool enableHandTrackingSupport = true;
-    [SerializeField] private bool disableHandTrackingInPianoGameScene = true;
-    [SerializeField] private bool forceControllerOnlyModeInPianoGameScene = true;
+    [SerializeField] private bool disableHandTrackingInPianoGameScene = false;
+    [SerializeField] private bool forceControllerOnlyModeInPianoGameScene = false;
+    [SerializeField] private bool enableXrHandsDebugLogs = false;
+    [Tooltip("Tras confirmar el área del piano, oculta los modelos de mando para que Meta active hand tracking.")]
+    [SerializeField] private bool hideControllersAfterPianoCalibration = true;
+    [SerializeField] private float trackedInteractionRefreshHz = 8f;
     [SerializeField] private bool showHandPointerDots = false;
     [SerializeField] private GameObject handsRigTemplate;
     [SerializeField] private GameObject handsPermissionsManagerPrefab;
@@ -61,6 +66,10 @@ public partial class QuestXRInteractionController : MonoBehaviour
     private TrackingStatus lastRightControllerStatus;
     private bool hasTrackingSnapshot;
     private int controllerRayDiagnosticFrameCounter;
+    private bool pianoGameplayHandsMode;
+    private float nextTrackedInteractionRefreshTime;
+    private float nextPianoHandsMaintainTime;
+    private OVRManager cachedOvrManager;
 
     private void Awake()
     {
@@ -71,7 +80,13 @@ public partial class QuestXRInteractionController : MonoBehaviour
     private void OnEnable()
     {
         LogHands($"OnEnable root={gameObject.name}");
+        PianoCalibrator.OnPianoConfigured += EnterPianoGameplayHandsMode;
         ApplyInteractionMode();
+    }
+
+    private void OnDisable()
+    {
+        PianoCalibrator.OnPianoConfigured -= EnterPianoGameplayHandsMode;
     }
 
     private void Start()
@@ -82,7 +97,15 @@ public partial class QuestXRInteractionController : MonoBehaviour
 
     private void Update()
     {
-        RefreshTrackedInteractionState();
+        float now = Time.unscaledTime;
+        if (ShouldPreferHandsInPianoGame() && now >= nextPianoHandsMaintainTime)
+            MaintainPianoHandTracking();
+
+        if (now >= nextTrackedInteractionRefreshTime)
+        {
+            nextTrackedInteractionRefreshTime = now + (1f / Mathf.Max(1f, trackedInteractionRefreshHz));
+            RefreshTrackedInteractionState();
+        }
 
         if (!enableControllerRayDiagnostics) return;
 
@@ -91,6 +114,37 @@ public partial class QuestXRInteractionController : MonoBehaviour
 
         controllerRayDiagnosticFrameCounter = 0;
         LogControllerRayDiagnostics("periodic", false);
+    }
+
+    /// <summary>
+    /// Tras calibrar el piano: oculta mandos visuales y fuerza hand tracking.
+    /// Meta no dibuja manos virtuales mientras prioriza Touch controllers.
+    /// </summary>
+    public void EnterPianoGameplayHandsMode()
+    {
+        if (!ShouldPreferHandsInPianoGame()) return;
+
+        pianoGameplayHandsMode = hideControllersAfterPianoCalibration;
+        TryEnableSimultaneousHandsAndControllers();
+        EnsureHandSubsystemManager()?.EnableHandTracking();
+
+        Transform cameraOffset = transform.Find(cameraOffsetName);
+        if (cameraOffset != null)
+        {
+            ForceActivatePianoHandVisuals(
+                FindChildObject(cameraOffset, leftHandName),
+                FindChildObject(cameraOffset, rightHandName),
+                FindChildObject(cameraOffset, handVisualizerName));
+        }
+
+        RefreshTrackedInteractionState(forceLog: true);
+        LogHands($"EnterPianoGameplayHandsMode hideControllers={pianoGameplayHandsMode}");
+    }
+
+    public void ExitPianoGameplayHandsMode()
+    {
+        pianoGameplayHandsMode = false;
+        RefreshTrackedInteractionState(forceLog: true);
     }
 
     private void OnApplicationFocus(bool hasFocus)
@@ -236,11 +290,31 @@ public partial class QuestXRInteractionController : MonoBehaviour
 
         if (IsControllerOnlyModeEnabledForActiveScene())
         {
-            // En el piano no se admiten manos: solo se muestra el mando si hay hardware real trackeado.
+            // Modo legacy opcional: solo mandos en piano.
             leftShouldShowHand = false;
             rightShouldShowHand = false;
             leftShouldShowController = IsExactPhysicalControllerTracked(InputDeviceCharacteristics.Left);
             rightShouldShowController = IsExactPhysicalControllerTracked(InputDeviceCharacteristics.Right);
+        }
+        else if (ShouldPreferHandsInPianoGame())
+        {
+            // Piano: raíces de mano siempre activas. Tras calibrar, oculta mandos para
+            // que Meta deje de priorizar Touch y active hand tracking de verdad.
+            leftShouldShowHand = true;
+            rightShouldShowHand = true;
+
+            if (pianoGameplayHandsMode)
+            {
+                leftShouldShowController = false;
+                rightShouldShowController = false;
+            }
+            else
+            {
+                leftShouldShowController = leftControllerStatus.isTracked
+                                           || IsExactPhysicalControllerTracked(InputDeviceCharacteristics.Left);
+                rightShouldShowController = rightControllerStatus.isTracked
+                                            || IsExactPhysicalControllerTracked(InputDeviceCharacteristics.Right);
+            }
         }
         else
         {
@@ -254,7 +328,17 @@ public partial class QuestXRInteractionController : MonoBehaviour
         SetActiveIfNeeded(inputModalityManager.rightHand, rightShouldShowHand);
         SetActiveIfNeeded(inputModalityManager.leftController, leftShouldShowController);
         SetActiveIfNeeded(inputModalityManager.rightController, rightShouldShowController);
+
+        // El visualizador de mallas debe seguir activo si hay al menos una mano visible.
+        Transform cameraOffset = transform.Find(cameraOffsetName);
+        if (cameraOffset != null)
+            SetActiveIfNeeded(FindChildObject(cameraOffset, handVisualizerName), leftShouldShowHand || rightShouldShowHand);
     }
+
+    private bool ShouldPreferHandsInPianoGame() =>
+        enableHandTrackingSupport
+        && IsActiveScene(PianoGameSceneName)
+        && !disableHandTrackingInPianoGameScene;
 
     private static bool IsHandInputMode(XRInputModalityManager.InputMode inputMode) =>
         inputMode.ToString().IndexOf("Hand", System.StringComparison.OrdinalIgnoreCase) >= 0;

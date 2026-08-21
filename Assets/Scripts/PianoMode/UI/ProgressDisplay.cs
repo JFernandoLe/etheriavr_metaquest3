@@ -27,6 +27,7 @@ public class ProgressDisplay : MonoBehaviour
 
     private readonly StringBuilder displayBuilder = new StringBuilder(256);
     private readonly List<GameNoteData> currentTrebleNotes = new List<GameNoteData>();
+    private float nextUiRefreshTime;
 
     void Start()
     {
@@ -44,8 +45,12 @@ public class ProgressDisplay : MonoBehaviour
         UpdateDisplay();
     }
 
-    // Se refresca cada frame para que el countdown de la nota actual avance.
-    void Update() => UpdateDisplay();
+    void Update()
+    {
+        if (Time.unscaledTime < nextUiRefreshTime) return;
+        nextUiRefreshTime = Time.unscaledTime + 0.1f;
+        UpdateDisplay();
+    }
 
     private void EnsureTotalsInitialized()
     {

@@ -13,26 +13,24 @@ public class SUDPReceiver : MonoBehaviour
     public int port = 12345;
 
     private string lastMessage = "";
-    private bool messageReceived = false;
+    private volatile bool messageReceived = false;
 
-    // Datos musicales actuales
     private float currentCents = 0f;
     private string currentTuningState = "DESAFINADO";
     private int currentMidi = -1;
 
-    // Suavizado
     private float smoothedCents = 0f;
     private float smoothingFactor = 0.1f;
+    private string lastCentsText;
+    private Color lastCentsColor;
 
     public TextMeshPro centsText;
 
     void Start()
     {
-        receiveThread = new Thread(new ThreadStart(ReceiveData));
+        receiveThread = new Thread(ReceiveData);
         receiveThread.IsBackground = true;
         receiveThread.Start();
-
-        Debug.Log("SUDPReceiver iniciado en puerto " + port);
     }
 
     void ReceiveData()
@@ -45,56 +43,49 @@ public class SUDPReceiver : MonoBehaviour
             {
                 IPEndPoint anyIP = new IPEndPoint(IPAddress.Any, 0);
                 byte[] data = client.Receive(ref anyIP);
-                string text = Encoding.UTF8.GetString(data);
-
-                lastMessage = text;
+                lastMessage = Encoding.UTF8.GetString(data);
                 messageReceived = true;
             }
             catch
             {
-                // ignoramos errores
+                // ignoramos errores de socket
             }
         }
     }
 
     void Update()
     {
-        if (!messageReceived)
-            return;
+        if (!messageReceived) return;
 
         messageReceived = false;
+        string message = lastMessage;
+        if (string.IsNullOrEmpty(message) || message[0] != 'v') return;
 
-        string[] parts = lastMessage.Split('|');
+        // Parseo ligero: voice|freq|midi|note|cents|amp|time
+        int p0 = message.IndexOf('|');
+        if (p0 < 0) return;
+        if (!message.StartsWith("voice", System.StringComparison.Ordinal)) return;
 
-        if (parts.Length >= 7 && parts[0] == "voice")
+        int p1 = message.IndexOf('|', p0 + 1);
+        int p2 = message.IndexOf('|', p1 + 1);
+        int p3 = message.IndexOf('|', p2 + 1);
+        int p4 = message.IndexOf('|', p3 + 1);
+        int p5 = message.IndexOf('|', p4 + 1);
+        if (p1 < 0 || p2 < 0 || p3 < 0 || p4 < 0 || p5 < 0) return;
+
+        try
         {
-            try
-            {
-                float frequency = float.Parse(parts[1], CultureInfo.InvariantCulture);
-                int midi = int.Parse(parts[2]);
-                currentMidi = midi;
-                string note = parts[3];
-                float rawCents = float.Parse(parts[4], CultureInfo.InvariantCulture);
-                float amplitude = float.Parse(parts[5], CultureInfo.InvariantCulture);
-                float time = float.Parse(parts[6], CultureInfo.InvariantCulture);
+            int midi = int.Parse(message.Substring(p1 + 1, p2 - p1 - 1), CultureInfo.InvariantCulture);
+            float rawCents = float.Parse(message.Substring(p3 + 1, p4 - p3 - 1), CultureInfo.InvariantCulture);
 
-                // Suavizado
-                smoothedCents = Mathf.Lerp(smoothedCents, rawCents, smoothingFactor);
-                float cents = smoothedCents;
-
-                string tuningState = GetTuningState(cents);
-
-                // Guardamos valores actuales para otros scripts
-                currentCents = cents;
-                currentTuningState = tuningState;
-
-                Debug.Log($"Nota: {note} | {frequency} Hz | Cents: {cents:F2} | Estado: {tuningState}");
-                
-            }
-            catch
-            {
-                Debug.LogWarning("Error parseando mensaje: " + lastMessage);
-            }
+            currentMidi = midi;
+            smoothedCents = Mathf.Lerp(smoothedCents, rawCents, smoothingFactor);
+            currentCents = smoothedCents;
+            currentTuningState = GetTuningState(smoothedCents);
+        }
+        catch
+        {
+            // mensaje malformado
         }
     }
 
@@ -104,52 +95,42 @@ public class SUDPReceiver : MonoBehaviour
 
         if (absCents <= 5f)
         {
-            ShowCents($"{cents}", Color.red);
+            ShowCents(cents, Color.red);
             return "PERFECTO";
         }
-        else if (absCents <= 15f)
+
+        if (absCents <= 15f)
         {
-            ShowCents($"{cents}", Color.yellow);
+            ShowCents(cents, Color.yellow);
             return "CASI";
         }
-        else
-        {
-            ShowCents($"{cents}", Color.red);
-            return "DESAFINADO";
-        }
-            
 
+        ShowCents(cents, Color.red);
+        return "DESAFINADO";
     }
 
-    // M�todos p�blicos para el visualizador
-    public float GetCurrentCents()
-    {
-        return currentCents;
-    }
+    public float GetCurrentCents() => currentCents;
+    public string GetCurrentTuningState() => currentTuningState;
+    public int GetCurrentMidi() => currentMidi;
 
-    public string GetCurrentTuningState()
-    {
-        return currentTuningState;
-    }
-    public int GetCurrentMidi()
-    {
-        return currentMidi;
-    }
     void OnApplicationQuit()
     {
         if (receiveThread != null && receiveThread.IsAlive)
             receiveThread.Abort();
 
-        if (client != null)
-            client.Close();
+        client?.Close();
     }
 
-    void ShowCents(string message, Color color)
+    void ShowCents(float cents, Color color)
     {
-        if (centsText == null)
-            return;
+        if (centsText == null) return;
 
-        centsText.text = message;
+        string text = cents.ToString("0.##", CultureInfo.InvariantCulture);
+        if (text == lastCentsText && color == lastCentsColor) return;
+
+        lastCentsText = text;
+        lastCentsColor = color;
+        centsText.text = text;
         centsText.color = color;
     }
 }

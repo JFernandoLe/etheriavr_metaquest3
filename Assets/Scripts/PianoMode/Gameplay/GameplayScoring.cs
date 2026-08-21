@@ -47,7 +47,8 @@ public partial class GameplayScoring : MonoBehaviour
     [SerializeField] private float onsetWeightInRhythm = 0.65f;
 
     [Header("Debug")]
-    [SerializeField] private bool enableHarmonyAnalysisDebugLogs = true;
+    [SerializeField] private bool enableHarmonyAnalysisDebugLogs = false;
+    [SerializeField] private bool enableFeedbackLatencyLogs = false;
 
     private PianoGameManager gameManager;
     private MidiAudioManager midiAudioManager;
@@ -203,6 +204,9 @@ public partial class GameplayScoring : MonoBehaviour
 
     public void ResumeScoring() => isGameActive = true;
 
+    private float nextApplauseVolumeUpdate;
+    private float lastApplauseScore = float.MinValue;
+
     void Update()
     {
         if (!isGameActive || currentSong == null) return;
@@ -211,8 +215,16 @@ public partial class GameplayScoring : MonoBehaviour
 
         AccumulateHeldDurations();
 
-        if (publicSystem != null && midiAudioManager != null)
-            midiAudioManager.SetApplauseVolume(publicSystem.GetCurrentPublicScoreForApplause());
+        if (publicSystem != null && midiAudioManager != null && Time.unscaledTime >= nextApplauseVolumeUpdate)
+        {
+            nextApplauseVolumeUpdate = Time.unscaledTime + 0.1f;
+            float score = publicSystem.GetCurrentPublicScoreForApplause();
+            if (Mathf.Abs(score - lastApplauseScore) >= 0.5f)
+            {
+                lastApplauseScore = score;
+                midiAudioManager.SetApplauseVolume(score);
+            }
+        }
 
         if (currentGameTime >= currentSong.GetGameDuration())
         {
@@ -231,8 +243,15 @@ public partial class GameplayScoring : MonoBehaviour
         return Time.time - gameStartTime;
     }
 
-    private int[] GetMidiNotes(GameNoteData note) =>
-        note.midi_notes is { Length: > 0 } ? note.midi_notes : new[] { note.GetMidiNote() };
+    private readonly int[] singleNoteBuffer = new int[1];
+
+    private int[] GetMidiNotes(GameNoteData note)
+    {
+        if (note.midi_notes is { Length: > 0 }) return note.midi_notes;
+
+        singleNoteBuffer[0] = note.GetMidiNote();
+        return singleNoteBuffer;
+    }
 
     private void FinishGame()
     {
