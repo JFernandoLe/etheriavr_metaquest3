@@ -41,6 +41,9 @@ public class ControladorAudienciaSing : MonoBehaviour
 
     void Start()
     {
+        if (FindObjectOfType<AudienceLightingSetup>() == null)
+            gameObject.AddComponent<AudienceLightingSetup>();
+
         ResolveDependencies();
         CacheAudienceAnimators();
         animationStep = 1f / Mathf.Max(1f, animationUpdateHz);

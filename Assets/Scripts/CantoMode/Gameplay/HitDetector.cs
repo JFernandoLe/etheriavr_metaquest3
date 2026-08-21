@@ -6,7 +6,7 @@ public class HitDetector : MonoBehaviour
     private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
     private static readonly int ColorId = Shader.PropertyToID("_Color");
 
-    public SUDPReceiver receiver;
+    public VocalPitchAnalyzer receiver;
     public NoteScroller scroller;
     public SongLoader songLoader;
     public TextMeshPro resultText;
@@ -19,6 +19,12 @@ public class HitDetector : MonoBehaviour
     private MaterialPropertyBlock propertyBlock;
     private string lastResultText;
     private Color lastResultColor;
+
+    void Awake()
+    {
+        if (receiver == null)
+            receiver = FindObjectOfType<VocalPitchAnalyzer>();
+    }
 
     void Update()
     {

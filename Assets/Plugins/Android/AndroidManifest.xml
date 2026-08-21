@@ -8,6 +8,7 @@
     <uses-feature android:name="android.software.midi" android:required="false" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.HAND_TRACKING" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <!-- ✅ Habilita el teclado overlay de Quest -->
     <uses-feature
@@ -30,6 +31,11 @@
             <meta-data android:name="unityplayer.UnityActivity" android:value="true" />
             <meta-data android:name="android.app.lib_name" android:value="game" />
         </activity>
+
+        <activity
+            android:name="com.etheriavr.audiopicker.AudioPickerActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
     </application>
 </manifest>

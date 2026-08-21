@@ -42,6 +42,9 @@ public class EndGameManager : MonoBehaviour
         float time = songLoader.audioSource.time;
         float duration = songLoader.audioSource.clip.length;
 
+        if (duration < 1f)
+            return;
+
         if (time >= duration - 0.1f)
         {
             ShowResultsSing();

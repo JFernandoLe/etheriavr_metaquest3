@@ -13,6 +13,7 @@ public class SongListarResponse
     public int tempo;
     public string file_path;
     public string artist_name;
+    public bool is_custom;
 }
 
 [Serializable]

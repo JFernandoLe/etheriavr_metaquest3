@@ -5,7 +5,7 @@ public class TuningVisualizer : MonoBehaviour
     private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
     private static readonly int ColorId = Shader.PropertyToID("_Color");
 
-    public SUDPReceiver receiver;
+    public VocalPitchAnalyzer receiver;
     public Transform indicator;
 
     public float maxCentsRange = 50f;
@@ -18,6 +18,8 @@ public class TuningVisualizer : MonoBehaviour
 
     void Awake()
     {
+        if (receiver == null)
+            receiver = FindObjectOfType<VocalPitchAnalyzer>();
         if (indicator != null) indicatorRenderer = indicator.GetComponent<Renderer>();
     }
 

@@ -3,18 +3,19 @@ using TMPro;
 
 public class PlayerNoteVisualizer : MonoBehaviour
 {
-    private static readonly string[] NoteNames =
-    {
-        "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
-    };
-
-    public SUDPReceiver receiver;
+    public VocalPitchAnalyzer receiver;
 
     public float midiHeightMultiplier = 0.1f;
     public float smoothingSpeed = 10f;
     public TextMeshPro playerNoteText;
     private float targetY;
     private string lastNoteName;
+
+    void Awake()
+    {
+        if (receiver == null)
+            receiver = FindObjectOfType<VocalPitchAnalyzer>();
+    }
 
     void Update()
     {
@@ -43,6 +44,6 @@ public class PlayerNoteVisualizer : MonoBehaviour
     static string MidiToNoteName(int midi)
     {
         if (midi <= 0) return "---";
-        return NoteNames[midi % 12] + ((midi / 12) - 1);
+        return MusicalNoteUtility.MidiToNoteName(midi);
     }
 }
